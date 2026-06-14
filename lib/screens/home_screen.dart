@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/screens/housing/housing_screen.dart';
+import 'package:raabta/screens/visa/visa_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,6 +94,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _onFeatureTap(BuildContext context, int index) {
+    final Widget? screen = switch (index) {
+      0 => const HousingScreen(),
+      2 => const VisaScreen(),
+      _ => null,
+    };
+    if (screen == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   Widget _buildHomeContent() {
     return SafeArea(
       child: CustomScrollView(
@@ -150,15 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 (context, index) {
                   return _FeatureCardWidget(
                     feature: _features[index],
-                    onTap: index == 0
-                        ? () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const HousingScreen(),
-                              ),
-                            );
-                          }
-                        : null,
+                    onTap: () => _onFeatureTap(context, index),
                   );
                 },
                 childCount: _features.length,
@@ -199,11 +204,11 @@ class _FeatureCard {
 class _FeatureCardWidget extends StatelessWidget {
   const _FeatureCardWidget({
     required this.feature,
-    this.onTap,
+    required this.onTap,
   });
 
   final _FeatureCard feature;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   static const Color _surfaceColor = Color(0xFF0D1520);
   static const Color _subtitleColor = Color(0xFF8A9BB0);
