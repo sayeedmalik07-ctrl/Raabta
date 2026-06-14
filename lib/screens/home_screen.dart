@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/screens/ai_chat/ai_chat_screen.dart';
 import 'package:raabta/screens/doctors/doctors_screen.dart';
 import 'package:raabta/screens/housing/housing_screen.dart';
 import 'package:raabta/screens/money/money_screen.dart';
@@ -51,11 +52,19 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
+  Widget _buildBody() {
+    return switch (_currentIndex) {
+      0 => _buildHomeContent(),
+      2 => AiChatScreen(onBack: () => setState(() => _currentIndex = 0)),
+      _ => _buildPlaceholder(),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundColor,
-      body: _currentIndex == 0 ? _buildHomeContent() : _buildPlaceholder(),
+      body: _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
