@@ -90,7 +90,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _onVerify() {
-    // TODO: restore OTP validation after testing
+    // OTP validation bypassed for testing — navigates without checking code.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,

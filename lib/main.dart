@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/screens/home_screen.dart';
 import 'package:raabta/screens/language_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,9 +40,21 @@ class _SplashScreenState extends State<SplashScreen> {
     debugPrint('Ready to navigate');
     if (!mounted) return;
 
-    // TODO: restore saved-language check after testing
+    Widget nextScreen = const LanguageScreen();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedLanguage = prefs.getString(LanguageScreen.languageKey);
+      if (savedLanguage != null) {
+        nextScreen = const HomeScreen();
+      }
+    } catch (e) {
+      debugPrint('SharedPreferences unavailable, going to LanguageScreen: $e');
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LanguageScreen()),
+      MaterialPageRoute(builder: (_) => nextScreen),
     );
   }
 

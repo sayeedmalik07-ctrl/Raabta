@@ -121,7 +121,7 @@ class _HousingScreenState extends State<HousingScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: _filters.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final isSelected = _selectedFilter == index;
                   return FilterChip(
@@ -148,7 +148,7 @@ class _HousingScreenState extends State<HousingScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 itemCount: listings.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   return _ListingCard(listing: listings[index]);
                 },

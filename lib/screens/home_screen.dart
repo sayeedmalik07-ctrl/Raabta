@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/screens/doctors/doctors_screen.dart';
 import 'package:raabta/screens/housing/housing_screen.dart';
+import 'package:raabta/screens/money/money_screen.dart';
 import 'package:raabta/screens/visa/visa_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -97,7 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onFeatureTap(BuildContext context, int index) {
     final Widget? screen = switch (index) {
       0 => const HousingScreen(),
+      1 => const MoneyScreen(),
       2 => const VisaScreen(),
+      3 => const DoctorsScreen(),
       _ => null,
     };
     if (screen == null) return;
