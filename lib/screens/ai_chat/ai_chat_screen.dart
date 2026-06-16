@@ -4,9 +4,13 @@ class AiChatScreen extends StatefulWidget {
   const AiChatScreen({
     super.key,
     this.onBack,
+    this.initialMessage,
+    this.contextSubtitle,
   });
 
   final VoidCallback? onBack;
+  final String? initialMessage;
+  final String? contextSubtitle;
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
@@ -48,6 +52,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialMessage != null &&
+        widget.initialMessage!.trim().isNotEmpty) {
+      _messageController.text = widget.initialMessage!.trim();
+    }
+  }
+
+  @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
@@ -77,11 +90,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
                     onPressed: _handleBack,
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        const Row(
                           children: [
                             Text(
                               'Raabta AI',
@@ -95,10 +108,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
                             Text('🤖', style: TextStyle(fontSize: 20)),
                           ],
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Ask anything about Qatar',
-                          style: TextStyle(
+                          widget.contextSubtitle ?? 'Ask anything about Qatar',
+                          style: const TextStyle(
                             color: _subtitleColor,
                             fontSize: 14,
                           ),

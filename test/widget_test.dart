@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:raabta/main.dart';
@@ -7,7 +8,11 @@ void main() {
   testWidgets('Raabta splash screen smoke test', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
-    await tester.pumpWidget(const RaabtaApp());
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: RaabtaApp(),
+      ),
+    );
 
     expect(find.text('Raabta'), findsOneWidget);
     expect(find.text('Your Qatar Connection'), findsOneWidget);

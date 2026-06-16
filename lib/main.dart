@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:raabta/screens/home_screen.dart';
 import 'package:raabta/screens/language_screen.dart';
+import 'package:raabta/services/deadline_notification_service.dart';
+import 'package:raabta/services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const RaabtaApp());
+  await FirebaseService.initialize();
+  await DeadlineNotificationService.instance.initialize();
+  runApp(
+    const ProviderScope(
+      child: RaabtaApp(),
+    ),
+  );
 }
 
 class RaabtaApp extends StatelessWidget {
