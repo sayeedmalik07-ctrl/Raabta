@@ -1,0 +1,7 @@
+{
+    "dart.showTodos": false,
+    "dart.analysisExcludedFolders": [
+        "build",
+        ".dart_tool"
+    ]
+}

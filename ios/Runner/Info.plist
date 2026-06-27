@@ -66,5 +66,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Raabta needs camera access to take photos for listings and document verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RAABTA needs photo access to save Health Cards.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>RAABTA saves your Health Card to your photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Raabta needs microphone access to hear your questions</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Raabta uses speech recognition to understand your voice questions</string>
 </dict>
 </plist>

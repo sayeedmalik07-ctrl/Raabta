@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:raabta/config/app_config.dart';
 import 'package:raabta/models/housing_models.dart';
 
 class ListingsApiService {
   ListingsApiService({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? 'http://localhost:3000';
+        _baseUrl = baseUrl ?? AppConfig.backendUrl;
 
   final http.Client _client;
   final String _baseUrl;
@@ -88,6 +89,52 @@ class ListingsApiService {
     );
   }
 
+  Future<ScamScanResult> scanScam({
+    String? listingId,
+    required String title,
+    required String description,
+    required int price,
+    required String area,
+    required String contactPhone,
+    List<String> photos = const [],
+    int? bedrooms,
+    String? type,
+    String? posterNationality,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/listings/scan-scam');
+    final response = await _client
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'listingId': ?listingId,
+            'title': title,
+            'description': description,
+            'price': price,
+            'area': area,
+            'contactPhone': contactPhone,
+            'photos': photos,
+            'bedrooms': ?bedrooms,
+            'type': ?type,
+            'posterNationality': ?posterNationality,
+          }),
+        )
+        .timeout(Duration(seconds: AppConfig.aiRequestTimeout));
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>?;
+      throw ListingsApiException(
+        error?['message'] as String? ??
+            error?['error'] as String? ??
+            'Scam scan failed',
+      );
+    }
+
+    return ScamScanResult.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<void> reportListing(String id, ListingReport report) async {
     final uri = Uri.parse('$_baseUrl/listings/$id/report');
     final response = await _client
@@ -101,6 +148,38 @@ class ListingsApiService {
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw ListingsApiException('Failed to submit report');
     }
+  }
+
+  Future<Map<String, dynamic>> reportScam({
+    required String listingId,
+    required String reason,
+    String details = '',
+    String reporterId = 'anonymous',
+    String reporterContact = '',
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/listings/report-scam');
+    final response = await _client
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'listingId': listingId,
+            'reason': reason,
+            'details': details,
+            'reporterId': reporterId,
+            'reporterContact': reporterContact,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final error = jsonDecode(response.body) as Map<String, dynamic>?;
+      throw ListingsApiException(
+        error?['message'] as String? ?? 'Failed to submit scam report',
+      );
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<String> uploadPhoto(File file) async {

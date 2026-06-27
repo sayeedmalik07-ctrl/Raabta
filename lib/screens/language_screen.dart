@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:raabta/screens/login_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageScreen extends StatefulWidget {
@@ -35,9 +35,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
       _languages[_selectedIndex].name,
     );
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    context.go('/login');
   }
 
   @override

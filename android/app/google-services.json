@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "320469579825",
+    "project_id": "raabta-27c6a",
+    "storage_bucket": "raabta-27c6a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320469579825:android:ccdb1aa893ff76183dbd10",
+        "android_client_info": {
+          "package_name": "com.example.raabta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZzx7B3wNDBsyBaFDRIiggYZ-6enFsYs0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/core/design/app_colors.dart';
+import 'package:raabta/core/design/app_radius.dart';
+import 'package:raabta/core/design/app_spacing.dart';
+import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:raabta/core/widgets/section_header.dart';
+import 'package:raabta/screens/monetization/business_advertise_screen.dart';
+import 'package:raabta/widgets/ai/business_recommendation_tag.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+Map<String, dynamic> businessListingToMatchData(BusinessListing business) {
+  return {
+    'id': business.id,
+    'name': business.name,
+    'category': business.category,
+    'cuisine': business.cuisine ?? business.speciality,
+    'location': business.location,
+    'area': business.location,
+    'rating': business.rating,
+    'languages': business.languages,
+    'weeklyViews': business.weeklyViews,
+    'viewCount': business.weeklyViews,
+  };
+}
 
 enum BusinessVerificationLevel { raabtaVerified, communityVerified, listed }
 
@@ -39,6 +61,10 @@ class BusinessListing {
     this.yearsActive = 1,
     this.hasReports = false,
     this.description,
+    this.photoCount = 0,
+    this.weeklyViews = 0,
+    this.latestReview,
+    this.isFeatured = false,
   });
 
   final String id;
@@ -59,12 +85,18 @@ class BusinessListing {
   final int yearsActive;
   final bool hasReports;
   final String? description;
+  final int photoCount;
+  final int weeklyViews;
+  final String? latestReview;
+  final bool isFeatured;
 
   bool get hasWhatsApp => whatsapp != null && whatsapp!.trim().isNotEmpty;
 
   String get searchableText =>
       '$name $category ${cuisine ?? ''} $location $speciality ${languages.join(' ')}'
           .toLowerCase();
+
+  bool get isInAlKhor => location.toLowerCase().contains('al khor');
 }
 
 TrustScoreBreakdown getTrustScore(BusinessListing business) {
@@ -105,14 +137,6 @@ class BusinessesScreen extends StatefulWidget {
 }
 
 class _BusinessesScreenState extends State<BusinessesScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-  static const Color _goldColor = Color(0xFFF59E0B);
-  static const Color _greenColor = Color(0xFF22C55E);
-  static const Color _blueColor = Color(0xFF3B82F6);
-
   final TextEditingController _searchController = TextEditingController();
   int _selectedCategory = 0;
 
@@ -149,6 +173,11 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       trustScore: 96,
       description:
           'Family-friendly Indian & Pakistani restaurant serving authentic biryani, karahi, and BBQ.',
+      photoCount: 3,
+      weeklyViews: 1234,
+      isFeatured: true,
+      latestReview:
+          '"Great service and very friendly staff. Highly recommended!"',
     ),
     BusinessListing(
       id: 'biz-2',
@@ -167,6 +196,9 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 4,
       speciality: 'Authentic Kerala meals & seafood',
       trustScore: 91,
+      photoCount: 5,
+      weeklyViews: 890,
+      latestReview: '"Authentic Kerala meals — tastes like home."',
     ),
     BusinessListing(
       id: 'biz-3',
@@ -184,6 +216,9 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 3,
       speciality: 'Indian & Arabic styles',
       trustScore: 88,
+      photoCount: 2,
+      weeklyViews: 456,
+      latestReview: '"Clean salon with skilled barbers."',
     ),
     BusinessListing(
       id: 'biz-4',
@@ -201,6 +236,10 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 6,
       speciality: 'Fast AC repair, 50 QR call',
       trustScore: 92,
+      photoCount: 4,
+      weeklyViews: 678,
+      isFeatured: true,
+      latestReview: '"Fixed my AC within 2 hours. Very professional."',
     ),
     BusinessListing(
       id: 'biz-5',
@@ -218,6 +257,10 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 7,
       speciality: 'Visa, QID, document assistance',
       trustScore: 97,
+      photoCount: 3,
+      weeklyViews: 2100,
+      isFeatured: true,
+      latestReview: '"Helped with my QID renewal smoothly."',
     ),
     BusinessListing(
       id: 'biz-6',
@@ -235,6 +278,9 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 2,
       speciality: 'Indian spices & vegetables',
       trustScore: 78,
+      photoCount: 2,
+      weeklyViews: 320,
+      latestReview: '"Good selection of Indian spices."',
     ),
     BusinessListing(
       id: 'biz-7',
@@ -251,6 +297,9 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 8,
       speciality: 'Doctors who speak your language',
       trustScore: 94,
+      photoCount: 6,
+      weeklyViews: 1560,
+      latestReview: '"Doctors speak Hindi — very helpful for expats."',
     ),
     BusinessListing(
       id: 'biz-8',
@@ -267,11 +316,32 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       yearsActive: 1,
       speciality: 'India & Pakistan flight bookings',
       trustScore: 62,
+      photoCount: 1,
+      weeklyViews: 145,
+      latestReview: '"Good flight deals to India."',
     ),
   ];
 
   List<BusinessListing> get _filteredBusinesses {
     var list = _allBusinesses;
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((b) => b.searchableText.contains(query)).toList();
+    }
+    final filter = _categories[_selectedCategory].filter;
+    if (filter != null) {
+      list = list.where((b) => b.category == filter).toList();
+    }
+    return list;
+  }
+
+  List<BusinessListing> get _featuredBusinesses => _allBusinesses
+      .where((b) => b.isFeatured || getTrustScore(b).total >= 90)
+      .take(3)
+      .toList();
+
+  List<BusinessListing> get _nearbyBusinesses {
+    var list = _allBusinesses.where((b) => b.isInAlKhor).toList();
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       list = list.where((b) => b.searchableText.contains(query)).toList();
@@ -292,11 +362,11 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
   Color _levelColor(BusinessVerificationLevel level) {
     switch (level) {
       case BusinessVerificationLevel.raabtaVerified:
-        return _goldColor;
+        return AppColors.gold;
       case BusinessVerificationLevel.communityVerified:
-        return _greenColor;
+        return AppColors.success;
       case BusinessVerificationLevel.listed:
-        return _blueColor;
+        return AppColors.info;
     }
   }
 
@@ -356,7 +426,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
 
   List<String> _sampleReviews(BusinessListing business) {
     return [
-      '"Great service and very friendly staff. Highly recommended!" — Community member',
+      business.latestReview ??
+          '"Great service and very friendly staff. Highly recommended!" — Community member',
       '"Been using ${business.name} for over a year. Always reliable." — Verified user',
       '"Speaks ${business.languages.isNotEmpty ? business.languages.first : 'English'} — very helpful for expats." — Raabta user',
     ];
@@ -381,6 +452,58 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     return 'Needs More Reviews';
   }
 
+  String _reviewSnippet(BusinessListing business) {
+    final review = business.latestReview ??
+        _sampleReviews(business).first.replaceAll('"', '');
+    final cleaned = review.replaceAll('"', '').trim();
+    if (cleaned.length <= 30) return '"$cleaned"';
+    return '"${cleaned.substring(0, 30)}…"';
+  }
+
+  int _weeklyViews(BusinessListing business) {
+    if (business.weeklyViews > 0) return business.weeklyViews;
+    return business.reviewCount * 5;
+  }
+
+  List<Widget> _buildBusinessListItems(List<BusinessListing> businesses) {
+    final items = <Widget>[];
+    for (var i = 0; i < businesses.length; i++) {
+      items.add(_buildBusinessCard(businesses[i]));
+      if ((i + 1) % 5 == 0) {
+        items.add(_SponsoredBusinessWrapper(
+          child: _buildBusinessCard(businesses[i], isSponsored: true),
+        ));
+      }
+    }
+    return items;
+  }
+
+  Widget _buildBusinessCard(BusinessListing business, {bool isSponsored = false}) {
+    final trust = getTrustScore(business);
+    final color = _levelColor(trust.level);
+
+    return _BusinessListingCard(
+      business: business,
+      trust: trust,
+      levelColor: color,
+      badgeLabel: _badgeLabel(trust.level),
+      levelSubtitle: _levelSubtitle(trust.level),
+      reviewSnippet: _reviewSnippet(business),
+      weeklyViews: _weeklyViews(business),
+      languageFlag: _languageFlag,
+      trustAnalysisLines: _trustAnalysisLines(business, trust),
+      showFeaturedBadge: business.isFeatured && !isSponsored,
+      onTap: () => _showBusinessDetail(business),
+      onCall: () => _openUrl('tel:${business.phone}'),
+      onWhatsApp: business.hasWhatsApp
+          ? () => _openUrl(
+                'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
+              )
+          : null,
+      onDirections: () => _openDirections(business),
+    );
+  }
+
   void _showBusinessDetail(BusinessListing business) {
     final trust = getTrustScore(business);
     final color = _levelColor(trust.level);
@@ -388,7 +511,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _surfaceColor,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -410,7 +533,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: _subtitleColor.withValues(alpha: 0.4),
+                        color: AppColors.textSecondary.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -428,78 +551,30 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              business.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              business.category,
-                              style: const TextStyle(color: _subtitleColor),
-                            ),
+                            Text(business.name, style: AppTextStyles.h2),
+                            Text(business.category, style: AppTextStyles.bodyMedium),
                           ],
                         ),
                       ),
-                      _VerificationBadge(
-                        label: _badgeLabel(trust.level),
-                        color: color,
-                      ),
+                      _VerificationBadge(label: _badgeLabel(trust.level), color: color),
                     ],
                   ),
                   const SizedBox(height: 16),
                   if (business.description != null)
                     Text(
                       business.description!,
-                      style: const TextStyle(color: _subtitleColor, height: 1.5),
+                      style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
                     ),
                   const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: _backgroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border(left: BorderSide(color: color, width: 3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '🤖 Raabta AI Trust Analysis',
-                          style: TextStyle(
-                            color: _cyanColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        ..._trustAnalysisLines(business, trust).map(
-                          (line) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(line, style: TextStyle(color: color, height: 1.4)),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _TrustScoreBar(score: trust.total, color: color),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
-                          style: const TextStyle(color: _subtitleColor, fontSize: 11),
-                        ),
-                      ],
-                    ),
+                  _AiTrustAnalysisBox(
+                    title: '🤖 Raabta AI Trust Analysis',
+                    lines: _trustAnalysisLines(business, trust),
+                    trust: trust,
+                    color: color,
+                    levelSubtitle: _levelSubtitle(trust.level),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'Community Reviews',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  Text('Community Reviews', style: AppTextStyles.h3),
                   const SizedBox(height: 10),
                   ..._sampleReviews(business).map(
                     (review) => Container(
@@ -507,13 +582,10 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _backgroundColor,
+                        color: AppColors.background,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
-                        review,
-                        style: const TextStyle(color: _subtitleColor, fontSize: 13),
-                      ),
+                      child: Text(review, style: AppTextStyles.bodyMedium),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -525,8 +597,10 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                           icon: const Icon(Icons.phone, size: 18),
                           label: const Text('Call'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _cyanColor,
-                            side: BorderSide(color: _cyanColor.withValues(alpha: 0.5)),
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
                           ),
                         ),
                       ),
@@ -541,8 +615,10 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                           icon: const Icon(Icons.chat, size: 18),
                           label: const Text('WhatsApp'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _cyanColor,
-                            side: BorderSide(color: _cyanColor.withValues(alpha: 0.5)),
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
                           ),
                         ),
                       ),
@@ -570,7 +646,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _surfaceColor,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -589,21 +665,14 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Add Business',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('Add Business', style: AppTextStyles.h1),
                     const SizedBox(height: 16),
                     _FormField(controller: nameController, hint: 'Business name'),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedCategory,
-                      dropdownColor: _backgroundColor,
-                      style: const TextStyle(color: Colors.white),
+                      dropdownColor: AppColors.background,
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: _fieldDecoration('Category'),
                       items: _categories
                           .where((c) => c.filter != null)
@@ -633,10 +702,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Languages spoken',
-                      style: TextStyle(color: _subtitleColor, fontSize: 13),
-                    ),
+                    Text('Languages spoken', style: AppTextStyles.bodyMedium),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -654,7 +720,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                               }
                             });
                           },
-                          selectedColor: _cyanColor.withValues(alpha: 0.2),
+                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
                         );
                       }).toList(),
                     ),
@@ -682,12 +748,12 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                                 'Submitted for Raabta AI Verification. '
                                 'Verification takes 2-3 business days.',
                               ),
-                              backgroundColor: _greenColor,
+                              backgroundColor: AppColors.success,
                             ),
                           );
                         },
                         style: FilledButton.styleFrom(
-                          backgroundColor: _cyanColor,
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
@@ -710,9 +776,9 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: _subtitleColor),
+      hintStyle: AppTextStyles.bodyMedium,
       filled: true,
-      fillColor: _backgroundColor,
+      fillColor: AppColors.background,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
@@ -723,400 +789,241 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
   @override
   Widget build(BuildContext context) {
     final businesses = _filteredBusinesses;
+    final featured = _featuredBusinesses;
+    final nearby = _nearbyBusinesses;
+    final listItems = _buildBusinessListItems(businesses);
 
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: AppColors.background,
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddBusinessSheet,
-        backgroundColor: _cyanColor,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.black,
         child: const Icon(Icons.add),
       ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  ),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '🏪 Qatar Businesses',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Verified expat-friendly services',
-                          style: TextStyle(color: _subtitleColor, fontSize: 14),
-                        ),
-                      ],
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _showAddBusinessSheet,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Business'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      backgroundColor: _cyanColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _showAddBusinessSheet,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Business'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search restaurants, salons, shops...',
-                  hintStyle: const TextStyle(color: _subtitleColor),
-                  prefixIcon: const Icon(Icons.search, color: _cyanColor),
-                  filled: true,
-                  fillColor: _surfaceColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 44,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _categories.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final cat = _categories[index];
-                  final selected = _selectedCategory == index;
-                  return FilterChip(
-                    label: Text('${cat.emoji} ${cat.label}'),
-                    selected: selected,
-                    onSelected: (_) => setState(() => _selectedCategory = index),
-                    backgroundColor: _surfaceColor,
-                    selectedColor: _cyanColor.withValues(alpha: 0.2),
-                    labelStyle: TextStyle(
-                      color: selected ? _cyanColor : _subtitleColor,
-                      fontSize: 12,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            SliverToBoxAdapter(child: _buildHeroSection()),
+            SliverToBoxAdapter(child: _buildSearchBar()),
+            SliverToBoxAdapter(child: _buildCategoryTabs()),
+            if (featured.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xxl,
+                    AppSpacing.xl,
+                    AppSpacing.md,
+                  ),
+                  child: SectionHeader(
+                    title: '⭐ Featured Businesses',
+                    onSeeAll: () {},
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 430,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    itemCount: featured.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final business = featured[index];
+                      final trust = getTrustScore(business);
+                      return _FeaturedBusinessCard(
+                        business: business,
+                        trust: trust,
+                        levelColor: _levelColor(trust.level),
+                        badgeLabel: _badgeLabel(trust.level),
+                        languageFlag: _languageFlag,
+                        onTap: () => _showBusinessDetail(business),
+                        onCall: () => _openUrl('tel:${business.phone}'),
+                        onWhatsApp: business.hasWhatsApp
+                            ? () => _openUrl(
+                                  'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
+                                )
+                            : null,
+                        onDirections: () => _openDirections(business),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+            SliverToBoxAdapter(child: _buildAdsBanner()),
+            if (nearby.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xxl,
+                    AppSpacing.xl,
+                    AppSpacing.md,
+                  ),
+                  child: SectionHeader(
+                    title: '📍 Near You in Al Khor',
+                    onSeeAll: () {},
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index < nearby.length - 1 ? AppSpacing.md : 0,
+                      ),
+                      child: _buildBusinessCard(nearby[index]),
                     ),
-                    showCheckmark: false,
-                    side: BorderSide(
-                      color: selected ? _cyanColor : Colors.transparent,
-                    ),
-                  );
-                },
+                    childCount: nearby.length,
+                  ),
+                ),
+              ),
+            ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.xxl,
+                  AppSpacing.xl,
+                  AppSpacing.md,
+                ),
+                child: SectionHeader(
+                  title: '🔥 Popular This Week',
+                  onSeeAll: () {},
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: businesses.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.store_outlined,
-                              color: _subtitleColor, size: 48),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'No businesses found',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                                _selectedCategory = 0;
-                              });
-                            },
-                            child: const Text(
-                              'Clear filters',
-                              style: TextStyle(color: _cyanColor),
-                            ),
-                          ),
-                        ],
+            if (businesses.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.store_outlined,
+                        color: AppColors.textSecondary,
+                        size: 48,
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 88),
-                      itemCount: businesses.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final business = businesses[index];
-                        final trust = getTrustScore(business);
-                        final color = _levelColor(trust.level);
-
-                        return GestureDetector(
-                          onTap: () => _showBusinessDetail(business),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _surfaceColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.07),
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 22,
-                                      backgroundColor: color.withValues(alpha: 0.15),
-                                      child: Text(
-                                        business.emoji,
-                                        style: const TextStyle(fontSize: 22),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            business.name,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            business.category,
-                                            style: const TextStyle(
-                                              color: _subtitleColor,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    _VerificationBadge(
-                                      label: _badgeLabel(trust.level),
-                                      color: color,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Text(
-                                      '⭐ ${business.rating.toStringAsFixed(1)}',
-                                      style: const TextStyle(
-                                        color: _goldColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '(${business.reviewCount} reviews)',
-                                      style: const TextStyle(
-                                        color: _subtitleColor,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: business.openNow
-                                            ? _greenColor.withValues(alpha: 0.15)
-                                            : _scamChipColor()
-                                                .withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        business.openNow
-                                            ? 'Open · Closes ${business.closingTime ?? 'late'}'
-                                            : 'Closed',
-                                        style: TextStyle(
-                                          color: business.openNow
-                                              ? _greenColor
-                                              : _subtitleColor,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '📍 ${business.location}',
-                                  style: const TextStyle(
-                                    color: _subtitleColor,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (business.languages.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: business.languages.map((lang) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _backgroundColor,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: const Color(0xFF1A2535),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '${_languageFlag(lang)} $lang',
-                                          style: const TextStyle(
-                                            color: _subtitleColor,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                                const SizedBox(height: 8),
-                                Text(
-                                  business.speciality,
-                                  style: const TextStyle(
-                                    color: _subtitleColor,
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: _backgroundColor,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '🤖 Trust Score: ${trust.total}/100',
-                                        style: TextStyle(
-                                          color: color,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _TrustScoreBar(score: trust.total, color: color),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _levelSubtitle(trust.level),
-                                        style: TextStyle(color: color, fontSize: 11),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
-                                        style: const TextStyle(
-                                          color: _subtitleColor,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () =>
-                                            _openUrl('tel:${business.phone}'),
-                                        icon: const Icon(Icons.phone, size: 16),
-                                        label: const Text('Call'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: _cyanColor,
-                                          side: BorderSide(
-                                            color: _cyanColor.withValues(alpha: 0.5),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: business.hasWhatsApp
-                                            ? () => _openUrl(
-                                                  'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
-                                                )
-                                            : null,
-                                        icon: const Icon(Icons.chat, size: 16),
-                                        label: const Text('WhatsApp'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: _cyanColor,
-                                          side: BorderSide(
-                                            color: _cyanColor.withValues(alpha: 0.5),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _openDirections(business),
-                                        icon: const Icon(Icons.directions, size: 16),
-                                        label: const Text('Directions'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: _cyanColor,
-                                          side: BorderSide(
-                                            color: _cyanColor.withValues(alpha: 0.5),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                      const SizedBox(height: 12),
+                      Text('No businesses found', style: AppTextStyles.bodyLarge),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _selectedCategory = 0;
+                          });
+                        },
+                        child: Text('Clear filters', style: AppTextStyles.labelLarge),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  0,
+                  AppSpacing.xl,
+                  100,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index < listItems.length - 1 ? AppSpacing.md : 0,
+                      ),
+                      child: listItems[index],
                     ),
+                    childCount: listItems.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.surfaceElevated, AppColors.surface],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          border: Border.all(color: AppColors.borderPrimary),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('🏪 Qatar Businesses', style: AppTextStyles.h1),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Verified · Trusted · Expat-Friendly',
+              style: AppTextStyles.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeroStat(
+                    value: '234 Verified',
+                    label: 'Businesses',
+                  ),
+                ),
+                Container(width: 1, height: 32, color: AppColors.border),
+                Expanded(
+                  child: _HeroStat(
+                    value: '8',
+                    label: 'Categories',
+                  ),
+                ),
+                Container(width: 1, height: 32, color: AppColors.border),
+                Expanded(
+                  child: _HeroStat(value: 'Al Khor + Doha', label: 'Coverage'),
+                ),
+              ],
             ),
           ],
         ),
@@ -1124,7 +1031,699 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     );
   }
 
-  Color _scamChipColor() => const Color(0xFFEF4444);
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (_) => setState(() {}),
+        style: AppTextStyles.bodyLarge,
+        decoration: InputDecoration(
+          hintText: 'Search restaurants, salons, shops...',
+          hintStyle: AppTextStyles.bodyMedium,
+          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTabs() {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: SizedBox(
+        height: 44,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          itemCount: _categories.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+          itemBuilder: (context, index) {
+            final cat = _categories[index];
+            final selected = _selectedCategory == index;
+            return FilterChip(
+              label: Text('${cat.emoji} ${cat.label}'),
+              selected: selected,
+              onSelected: (_) => setState(() => _selectedCategory = index),
+              backgroundColor: AppColors.surface,
+              selectedColor: AppColors.primary.withValues(alpha: 0.2),
+              labelStyle: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              showCheckmark: false,
+              side: BorderSide(
+                color: selected ? AppColors.primary : Colors.transparent,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdsBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.warning.withValues(alpha: 0.2),
+              AppColors.surfaceElevated,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('📢 Advertise Your Business', style: AppTextStyles.h3),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Reach 50,000+ Qatar expats',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.warning,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    fullscreenDialog: true,
+                    builder: (_) => const BusinessAdvertiseScreen(),
+                  ),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Get Featured →'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+        ),
+        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+      ],
+    );
+  }
+}
+
+class _FeaturedBusinessCard extends StatelessWidget {
+  const _FeaturedBusinessCard({
+    required this.business,
+    required this.trust,
+    required this.levelColor,
+    required this.badgeLabel,
+    required this.languageFlag,
+    required this.onTap,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onDirections,
+  });
+
+  final BusinessListing business;
+  final TrustScoreBreakdown trust;
+  final Color levelColor;
+  final String badgeLabel;
+  final String Function(String) languageFlag;
+  final VoidCallback onTap;
+  final VoidCallback onCall;
+  final VoidCallback? onWhatsApp;
+  final VoidCallback onDirections;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.surfaceElevated, AppColors.surface],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.5), width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.background,
+                  child: Text(business.emoji, style: const TextStyle(fontSize: 24)),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const Text(
+                    '⭐ FEATURED',
+                    style: TextStyle(
+                      color: AppColors.gold,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              business.name,
+              style: AppTextStyles.h3,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Row(
+              children: [
+                Text(business.category, style: AppTextStyles.bodySmall),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '★ ${business.rating.toStringAsFixed(1)}',
+                  style: const TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  ' (${business.reviewCount} reviews)',
+                  style: AppTextStyles.bodySmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text('📍 ${business.location}', style: AppTextStyles.bodySmall),
+            const SizedBox(height: AppSpacing.xs),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: business.openNow
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : AppColors.textMuted.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                business.openNow
+                    ? 'Open · Closes ${business.closingTime ?? 'late'}'
+                    : 'Closed',
+                style: TextStyle(
+                  color: business.openNow ? AppColors.success : AppColors.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (business.languages.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: business.languages.take(3).map((lang) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      '${languageFlag(lang)} $lang',
+                      style: AppTextStyles.bodySmall.copyWith(fontSize: 9),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '🤖 Trust Score: ${trust.total}/100',
+              style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 11),
+            ),
+            const SizedBox(height: 4),
+            _TrustScoreBar(score: trust.total, color: AppColors.gold),
+            BusinessRecommendationTag(
+              businessData: businessListingToMatchData(business),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onCall,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: const Text('📞 Call', style: TextStyle(fontSize: 11)),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onWhatsApp,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: const Text('💬 WhatsApp', style: TextStyle(fontSize: 11)),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onDirections,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    child: const Text('📍 Map', style: TextStyle(fontSize: 11)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Center(
+              child: _VerificationBadge(label: badgeLabel, color: levelColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BusinessListingCard extends StatelessWidget {
+  const _BusinessListingCard({
+    required this.business,
+    required this.trust,
+    required this.levelColor,
+    required this.badgeLabel,
+    required this.levelSubtitle,
+    required this.reviewSnippet,
+    required this.weeklyViews,
+    required this.languageFlag,
+    required this.trustAnalysisLines,
+    required this.showFeaturedBadge,
+    required this.onTap,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onDirections,
+  });
+
+  final BusinessListing business;
+  final TrustScoreBreakdown trust;
+  final Color levelColor;
+  final String badgeLabel;
+  final String levelSubtitle;
+  final String reviewSnippet;
+  final int weeklyViews;
+  final String Function(String) languageFlag;
+  final List<String> trustAnalysisLines;
+  final bool showFeaturedBadge;
+  final VoidCallback onTap;
+  final VoidCallback onCall;
+  final VoidCallback? onWhatsApp;
+  final VoidCallback onDirections;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  height: 100,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1A2535), Color(0xFF0D1520)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(business.emoji, style: const TextStyle(fontSize: 40)),
+                  ),
+                ),
+                if (showFeaturedBadge)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: const Text(
+                        '⭐ FEATURED',
+                        style: TextStyle(
+                          color: AppColors.gold,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (business.photoCount > 0)
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        '📸 ${business.photoCount} photos',
+                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _VerificationBadge(label: badgeLabel, color: levelColor),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(business.name, style: AppTextStyles.h3),
+                  Text(business.category, style: AppTextStyles.bodySmall),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Text(
+                        '★ ${business.rating.toStringAsFixed(1)}',
+                        style: const TextStyle(
+                          color: AppColors.gold,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        '${business.reviewCount} reviews',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '👁️ $weeklyViews this week',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Text('📍 ${business.location}', style: AppTextStyles.bodySmall),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: business.openNow
+                              ? AppColors.success.withValues(alpha: 0.15)
+                              : AppColors.textMuted.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: Text(
+                          business.openNow ? 'Open' : 'Closed',
+                          style: TextStyle(
+                            color: business.openNow ? AppColors.success : AppColors.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (business.languages.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: business.languages.map((lang) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            border: Border.all(color: AppColors.surfaceElevated),
+                          ),
+                          child: Text(
+                            '${languageFlag(lang)} $lang',
+                            style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    reviewSnippet,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    business.speciality,
+                    style: AppTextStyles.bodySmall.copyWith(fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _AiTrustAnalysisBox(
+                    title: '🤖 Trust Score: ${trust.total}/100',
+                    lines: trustAnalysisLines,
+                    trust: trust,
+                    color: levelColor,
+                    levelSubtitle: levelSubtitle,
+                    compact: true,
+                  ),
+                  BusinessRecommendationTag(
+                    businessData: businessListingToMatchData(business),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onCall,
+                          icon: const Icon(Icons.phone, size: 16),
+                          label: const Text('Call'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onWhatsApp,
+                          icon: const Icon(Icons.chat, size: 16),
+                          label: const Text('WhatsApp'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onDirections,
+                          icon: const Icon(Icons.directions, size: 16),
+                          label: const Text('Map'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SponsoredBusinessWrapper extends StatelessWidget {
+  const _SponsoredBusinessWrapper({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Text(
+            '📢 SPONSORED',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.warning,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        child,
+      ],
+    );
+  }
+}
+
+class _AiTrustAnalysisBox extends StatelessWidget {
+  const _AiTrustAnalysisBox({
+    required this.title,
+    required this.lines,
+    required this.trust,
+    required this.color,
+    required this.levelSubtitle,
+    this.compact = false,
+  });
+
+  final String title;
+  final List<String> lines;
+  final TrustScoreBreakdown trust;
+  final Color color;
+  final String levelSubtitle;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border(left: BorderSide(color: color, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 8),
+            ...lines.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(line, style: TextStyle(color: color, height: 1.4, fontSize: 12)),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          _TrustScoreBar(score: trust.total, color: color),
+          const SizedBox(height: 6),
+          Text(levelSubtitle, style: TextStyle(color: color, fontSize: 11)),
+          if (!compact) ...[
+            Text(
+              'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
+              style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
+            ),
+          ] else
+            Text(
+              'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
+              style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _VerificationBadge extends StatelessWidget {
@@ -1193,12 +1792,12 @@ class _FormField extends StatelessWidget {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF8A9BB0)),
+        hintStyle: AppTextStyles.bodyMedium,
         filled: true,
-        fillColor: const Color(0xFF050A0F),
+        fillColor: AppColors.background,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,

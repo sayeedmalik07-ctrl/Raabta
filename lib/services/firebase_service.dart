@@ -10,7 +10,9 @@ class FirebaseService {
     if (_initialized) return;
 
     try {
-      await Firebase.initializeApp();
+      if (Firebase.apps.isEmpty) {
+        return;
+      }
       _initialized = true;
       debugPrint('Firebase initialized successfully');
     } catch (e) {

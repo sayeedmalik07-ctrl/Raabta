@@ -158,7 +158,34 @@ class HousingRepository {
   }
 
   Future<void> reportListing(String id, ListingReport report) async {
+    final isScamReport = report.reason.toLowerCase().contains('scam');
+    if (isScamReport) {
+      await _api.reportScam(
+        listingId: id,
+        reason: report.reason,
+        details: report.details,
+        reporterContact: report.reporterContact,
+      );
+      return;
+    }
     await _api.reportListing(id, report);
+  }
+
+  Future<ScamScanResult> scanListingScam({
+    String? listingId,
+    required CreateListingRequest request,
+  }) {
+    return _api.scanScam(
+      listingId: listingId,
+      title: request.title,
+      description: request.description,
+      price: request.pricePerMonth,
+      area: request.area,
+      contactPhone: request.phone,
+      photos: request.photoUrls,
+      bedrooms: request.bedrooms,
+      type: request.type.name,
+    );
   }
 }
 

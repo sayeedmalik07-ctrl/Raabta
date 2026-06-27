@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:raabta/models/housing_models.dart';
 import 'package:raabta/providers/housing_providers.dart';
 import 'package:raabta/screens/housing/area_map_preview.dart';
+import 'package:raabta/widgets/housing/scam_safety_badge.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -213,7 +214,7 @@ class HousingDetailScreen extends ConsumerWidget {
   }
 }
 
-class _DetailBody extends StatelessWidget {
+class _DetailBody extends StatefulWidget {
   const _DetailBody({
     required this.listing,
     required this.onWhatsApp,
@@ -230,6 +231,13 @@ class _DetailBody extends StatelessWidget {
   final VoidCallback onReport;
   final WidgetRef ref;
 
+  @override
+  State<_DetailBody> createState() => _DetailBodyState();
+}
+
+class _DetailBodyState extends State<_DetailBody> {
+  bool _scamModalShown = false;
+
   static const Color _backgroundColor = Color(0xFF050A0F);
   static const Color _surfaceColor = Color(0xFF0D1520);
   static const Color _subtitleColor = Color(0xFF8A9BB0);
@@ -238,8 +246,28 @@ class _DetailBody extends StatelessWidget {
   static const Color _scamRed = Color(0xFFEF4444);
   static const Color _whatsappGreen = Color(0xFF25D366);
 
+  ScamVerdict get _effectiveVerdict {
+    if (widget.listing.scamVerdict != null) return widget.listing.scamVerdict!;
+    if (widget.listing.scamFlagged) return ScamVerdict.likelyScam;
+    return ScamVerdict.safe;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_effectiveVerdict == ScamVerdict.likelyScam) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _scamModalShown) return;
+        _scamModalShown = true;
+        ScamWarningModal.show(context, widget.listing);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final listing = widget.listing;
+    final ref = widget.ref;
     final savedIds = ref.watch(savedListingIdsProvider);
     final isSaved = savedIds.contains(listing.id);
 
@@ -263,7 +291,7 @@ class _DetailBody extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: onShare,
+              onPressed: widget.onShare,
               icon: const Icon(Icons.share, color: Colors.white),
             ),
           ],
@@ -287,7 +315,9 @@ class _DetailBody extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (listing.verified)
                     _StatusBadge(
@@ -295,22 +325,17 @@ class _DetailBody extends StatelessWidget {
                       color: _verifiedGreen,
                       icon: '✓',
                     ),
-                  if (listing.scamFlagged) ...[
-                    const SizedBox(width: 8),
-                    _StatusBadge(
-                      label: 'POSSIBLE SCAM',
-                      color: _scamRed,
-                      icon: '⚠️',
-                    ),
-                  ],
-                  if (listing.status == ListingStatus.pending) ...[
-                    const SizedBox(width: 8),
+                  ScamSafetyBadge(
+                    listing: listing,
+                    showFlags: listing.scamVerdict == ScamVerdict.suspicious ||
+                        listing.scamVerdict == ScamVerdict.likelyScam,
+                  ),
+                  if (listing.status == ListingStatus.pending)
                     _StatusBadge(
                       label: 'PENDING',
                       color: Colors.orange,
                       icon: '⏳',
                     ),
-                  ],
                 ],
               ),
               const SizedBox(height: 12),
@@ -406,7 +431,7 @@ class _DetailBody extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: onWhatsApp,
+                      onPressed: widget.onWhatsApp,
                       icon: const Icon(Icons.chat),
                       label: const Text('WhatsApp'),
                       style: ElevatedButton.styleFrom(
@@ -441,7 +466,7 @@ class _DetailBody extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: onCall,
+                  onPressed: widget.onCall,
                   icon: const Icon(Icons.phone),
                   label: const Text('Call'),
                   style: OutlinedButton.styleFrom(
@@ -453,7 +478,7 @@ class _DetailBody extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               TextButton.icon(
-                onPressed: onReport,
+                onPressed: widget.onReport,
                 icon: const Icon(Icons.flag_outlined, color: _scamRed),
                 label: const Text(
                   'Report Listing',

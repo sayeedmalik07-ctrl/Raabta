@@ -1,9 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:raabta/models/money_models.dart';
-import 'package:raabta/providers/money_providers.dart';
+import 'package:raabta/services/exchange_rate_service.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MoneyScreen extends ConsumerStatefulWidget {
@@ -13,982 +12,292 @@ class MoneyScreen extends ConsumerStatefulWidget {
   ConsumerState<MoneyScreen> createState() => _MoneyScreenState();
 }
 
-class _MoneyScreenState extends ConsumerState<MoneyScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-  static const Color _bestRateGreen = Color(0xFF22C55E);
+class _MoneyScreenState extends ConsumerState<MoneyScreen>
+    with SingleTickerProviderStateMixin {
+  static const Color _backgroundColor = Color(0xFF0F0F0F);
+  static const Color _cardColor = Color(0xFF1A1A2E);
+  static const Color _purpleColor = Color(0xFF6C3FC5);
+  static const Color _goldColor = Color(0xFFFFB627);
+  static const Color _cyanColor = Color(0xFF00D4FF);
 
+  late TabController _tabController;
   late final TextEditingController _amountController;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _amountController = TextEditingController(
-      text: ref.read(sendAmountProvider).toInt().toString(),
+      text: ref.read(converterAmountProvider).toInt().toString(),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(rateHistoryProvider('INR'));
+      ref.read(exchangeCompareProvider('INR'));
+    });
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _amountController.dispose();
     super.dispose();
   }
 
-  String _formatAmount(double value) {
-    if (value == value.roundToDouble()) {
-      return value.toInt().toString().replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]},',
-          );
-    }
-    return value.toStringAsFixed(2);
-  }
-
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _refresh() async {
+    setState(() => _isRefreshing = true);
+    ref.read(exchangeRateServiceProvider).clearCache();
+    ref.invalidate(liveExchangeRatesProvider);
+    final selected = ref.read(selectedCurrencyProvider);
+    ref.invalidate(rateHistoryProvider(selected));
+    ref.invalidate(exchangeCompareProvider(selected));
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() => _isRefreshing = false);
     }
   }
 
-  Future<void> _onGoToExchange(ExchangeHouseRate house) async {
-    final country = ref.read(selectedCountryProvider);
-    final amount = ref.read(sendAmountProvider);
+  @override
+  Widget build(BuildContext context) {
+    final ratesAsync = ref.watch(liveExchangeRatesProvider);
+    final selectedCurrency = ref.watch(selectedCurrencyProvider);
 
-    try {
-      await ref.read(exchangeApiServiceProvider).trackAffiliateClick(
-            exchangeHouseId: house.id,
-            exchangeHouseName: house.name,
-            currency: country.currency,
-            amount: amount,
-          );
-    } catch (_) {}
-
-    await _openUrl(house.mapsUrl);
-  }
-
-  Future<void> _showRateAlertDialog(
-    BuildContext context,
-    String currency,
-    double currentRate,
-  ) async {
-    final controller = TextEditingController(
-      text: currentRate.toStringAsFixed(2),
-    );
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _surfaceColor,
-        title: const Text(
-          'Set Rate Alert',
-          style: TextStyle(color: Colors.white),
+    return Scaffold(
+      backgroundColor: _backgroundColor,
+      appBar: AppBar(
+        backgroundColor: _cardColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Notify me when 1 QR reaches this $currency rate:',
-              style: const TextStyle(color: _subtitleColor, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: _backgroundColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                suffixText: currency,
-                suffixStyle: const TextStyle(color: _cyanColor),
+              'Money Services',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            Text(
+              'Exchange rates updated every 30 min',
+              style: TextStyle(color: Colors.white54, fontSize: 11),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _cyanColor),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save Alert', style: TextStyle(color: Colors.black)),
+          IconButton(
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _goldColor,
+                    ),
+                  )
+                : const Icon(Icons.refresh, color: _goldColor),
+            onPressed: _isRefreshing ? null : _refresh,
+            tooltip: 'Refresh rates',
           ),
         ],
-      ),
-    );
-
-    if (saved != true) return;
-
-    final target = double.tryParse(controller.text.trim());
-    if (target == null) return;
-
-    try {
-      await ref.read(exchangeApiServiceProvider).saveRateAlert(
-            currency: currency,
-            targetRate: target,
-          );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Alert set: we\'ll notify you when 1 QR = ${target.toStringAsFixed(2)} $currency',
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: _goldColor,
+          labelColor: _goldColor,
+          unselectedLabelColor: Colors.white38,
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
-          backgroundColor: _bestRateGreen,
-        ),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Alert saved locally. Connect to server for push notifications.'),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final country = ref.watch(selectedCountryProvider);
-    final amount = ref.watch(sendAmountProvider);
-    final liveRates = ref.watch(liveRatesProvider);
-    final branches = ref.watch(branchExchangeHousesProvider);
-    final ratesAsync = ref.watch(exchangeRatesProvider(country.currency));
-
-    final rates = ratesAsync.when(
-      data: (data) => data,
-      loading: () => fallbackExchangeRates(country.currency),
-      error: (_, _) => fallbackExchangeRates(country.currency),
-    );
-
-    final houses = rates.houses;
-    final bestRate = houses.isEmpty
-        ? 0.0
-        : houses.map((h) => h.rate).reduce((a, b) => a > b ? a : b);
-    final lowestFee = houses.isEmpty
-        ? 0
-        : houses.map((h) => h.fee).reduce((a, b) => a < b ? a : b);
-    final trendUp = rates.history.isNotEmpty &&
-        rates.history.last.rate >= rates.history.first.rate;
-
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            _buildHeader(context),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: '💱 Live Exchange Rates'),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _LiveRatesCard(liveRates: liveRates),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _AmountCalculatorCard(
-                  amountController: _amountController,
-                  selectedCountry: country,
-                  onAmountChanged: (value) {
-                    ref.read(sendAmountProvider.notifier).state = value;
-                  },
-                  onCountrySelected: (selected) {
-                    ref.read(selectedCountryProvider.notifier).state = selected;
-                  },
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: _SectionTitle(title: 'Compare Exchange Houses'),
-                    ),
-                    if (ratesAsync.isLoading)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _cyanColor,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final house = houses[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _ExchangeComparisonCard(
-                        house: house,
-                        currency: country.currency,
-                        amount: amount,
-                        isBestRate: house.rate == bestRate,
-                        isLowestFee: house.fee == lowestFee,
-                        formatAmount: _formatAmount,
-                        onGoToExchange: () => _onGoToExchange(house),
-                      ),
-                    );
-                  },
-                  childCount: houses.length,
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _RateHistoryCard(
-                  history: rates.history,
-                  currency: country.currency,
-                  trendUp: trendUp,
-                  onSetAlert: () => _showRateAlertDialog(
-                    context,
-                    country.currency,
-                    rates.indicativeRate,
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: '🏦 Exchange Houses in Qatar'),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final branch = branches[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _BranchCard(
-                        branch: branch,
-                        onDirections: () => _openUrl(branch.mapsUrl),
-                        onCall: () => _openUrl('tel:${branch.phone}'),
-                      ),
-                    );
-                  },
-                  childCount: branches.length,
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              sliver: SliverToBoxAdapter(
-                child: _OnlineTransferBanner(
-                  onEarlyAccess: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Thanks! We\'ll notify you when direct bank transfer launches.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+          tabs: const [
+            Tab(text: 'Rates & Convert'),
+            Tab(text: '7-Day Trend'),
+            Tab(text: 'Compare Houses'),
           ],
         ),
       ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildRatesTab(ratesAsync, selectedCurrency),
+          _buildTrendTab(selectedCurrency),
+          _buildCompareTab(selectedCurrency),
+        ],
+      ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
-      sliver: SliverToBoxAdapter(
-        child: Row(
+  Widget _buildRatesTab(
+    AsyncValue<ExchangeRates> ratesAsync,
+    String selectedCurrency,
+  ) {
+    return RefreshIndicator(
+      color: _goldColor,
+      backgroundColor: _cardColor,
+      onRefresh: _refresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-            ),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ratesAsync.when(
+              loading: () => _buildRatesShimmer(),
+              error: (e, _) => _buildErrorCard(),
+              data: (rates) => Column(
                 children: [
-                  Text(
-                    'Money Services',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                  _buildStatusBar(rates),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.55,
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Exchange rates updated daily',
-                    style: TextStyle(
-                      color: _subtitleColor,
-                      fontSize: 14,
-                    ),
+                    itemCount: raabtaCurrencies.length,
+                    itemBuilder: (ctx, i) {
+                      final currency = raabtaCurrencies[i];
+                      final rate = rates.rates[currency.code];
+                      final isSelected = selectedCurrency == currency.code;
+                      return GestureDetector(
+                        onTap: () {
+                          ref.read(selectedCurrencyProvider.notifier).state =
+                              currency.code;
+                        },
+                        child: _buildRateCard(
+                          currency: currency,
+                          rate: rate,
+                          isSelected: isSelected,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            _buildConverterSection(ratesAsync, selectedCurrency),
+            const SizedBox(height: 20),
+            _buildQuickSendSection(),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
+  Widget _buildStatusBar(ExchangeRates rates) {
+    final timeStr =
+        '${rates.lastUpdated.hour.toString().padLeft(2, '0')}'
+        ':${rates.lastUpdated.minute.toString().padLeft(2, '0')}';
 
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-  }
-}
-
-class _LiveRatesCard extends StatelessWidget {
-  const _LiveRatesCard({required this.liveRates});
-
-  final List<LiveRateDisplay> liveRates;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _cyanColor.withValues(alpha: 0.25)),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...liveRates.asMap().entries.map((entry) {
-            final isFirst = entry.key == 0;
-            final rate = entry.value;
-            return Padding(
-              padding: EdgeInsets.only(bottom: isFirst ? 12 : 8),
-              child: Text(
-                '${rate.flag} 1 QR = ${rate.rate.toStringAsFixed(2)} ${rate.currency}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isFirst ? 22 : 16,
-                  fontWeight: isFirst ? FontWeight.bold : FontWeight.w600,
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 8),
-          const Text(
-            'Last updated: Today 9:00 AM',
-            style: TextStyle(color: _subtitleColor, fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '⚠️ Rates are indicative. Visit exchange for final rate.',
-            style: TextStyle(
-              color: Colors.amber.shade300,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AmountCalculatorCard extends StatelessWidget {
-  const _AmountCalculatorCard({
-    required this.amountController,
-    required this.selectedCountry,
-    required this.onAmountChanged,
-    required this.onCountrySelected,
-  });
-
-  final TextEditingController amountController;
-  final MoneyCountry selectedCountry;
-  final ValueChanged<double> onAmountChanged;
-  final ValueChanged<MoneyCountry> onCountrySelected;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'I want to send',
-            style: TextStyle(color: _subtitleColor, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            onChanged: (value) {
-              onAmountChanged(double.tryParse(value.trim()) ?? 0);
-            },
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-            ),
-            decoration: const InputDecoration(
-              suffixText: 'QR',
-              suffixStyle: TextStyle(
-                color: _cyanColor,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'To',
-            style: TextStyle(color: _subtitleColor, fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: MoneyCountry.all.map((country) {
-              final isSelected = selectedCountry.currency == country.currency;
-              return GestureDetector(
-                onTap: () => onCountrySelected(country),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? _cyanColor.withValues(alpha: 0.15)
-                        : _backgroundColor,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected
-                          ? _cyanColor
-                          : const Color(0xFF1A2535),
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(country.flag, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 6),
-                      Text(
-                        country.name,
-                        style: TextStyle(
-                          color: isSelected ? _cyanColor : Colors.white,
-                          fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExchangeComparisonCard extends StatelessWidget {
-  const _ExchangeComparisonCard({
-    required this.house,
-    required this.currency,
-    required this.amount,
-    required this.isBestRate,
-    required this.isLowestFee,
-    required this.formatAmount,
-    required this.onGoToExchange,
-  });
-
-  final ExchangeHouseRate house;
-  final String currency;
-  final double amount;
-  final bool isBestRate;
-  final bool isLowestFee;
-  final String Function(double) formatAmount;
-  final VoidCallback onGoToExchange;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-  static const Color _bestRateGreen = Color(0xFF22C55E);
-  static const Color _lowestFeeBlue = Color(0xFF3B82F6);
-
-  @override
-  Widget build(BuildContext context) {
-    final recipientGets = amount * house.rate;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: isBestRate
-            ? Border.all(color: _bestRateGreen.withValues(alpha: 0.5))
-            : null,
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _cyanColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(house.logoEmoji, style: const TextStyle(fontSize: 20)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      house.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    _StarRating(rating: house.rating),
-                  ],
-                ),
-              ),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                alignment: WrapAlignment.end,
-                children: [
-                  if (isBestRate) _Badge(label: 'BEST RATE', color: _bestRateGreen),
-                  if (isLowestFee) _Badge(label: 'LOWEST FEE', color: _lowestFeeBlue),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Rate: 1 QR = ${house.rate.toStringAsFixed(2)} $currency',
-            style: const TextStyle(color: _subtitleColor, fontSize: 14),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Recipient gets: ${formatAmount(recipientGets)} $currency',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Transfer fee: ${house.fee} QR',
-            style: const TextStyle(color: _subtitleColor, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _TransferTimeChip(label: house.transferTime),
-              const Spacer(),
-              TextButton(
-                onPressed: onGoToExchange,
-                child: const Text(
-                  'Go to Exchange →',
-                  style: TextStyle(
-                    color: _cyanColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _TransferTimeChip extends StatelessWidget {
-  const _TransferTimeChip({required this.label});
-
-  final String label;
-
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: _cyanColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        'Transfer Time: $label',
-        style: const TextStyle(
-          color: _cyanColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _StarRating extends StatelessWidget {
-  const _StarRating({required this.rating});
-
-  final double rating;
-
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-
-  @override
-  Widget build(BuildContext context) {
     return Row(
       children: [
-        ...List.generate(5, (index) {
-          final starValue = index + 1;
-          IconData icon;
-          if (rating >= starValue) {
-            icon = Icons.star;
-          } else if (rating >= starValue - 0.5) {
-            icon = Icons.star_half;
-          } else {
-            icon = Icons.star_border;
-          }
-          return Icon(icon, color: Colors.amber, size: 14);
-        }),
-        const SizedBox(width: 4),
-        Text(
-          rating.toStringAsFixed(1),
-          style: const TextStyle(color: _subtitleColor, fontSize: 12),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: rates.isFallback ? Colors.orange : Colors.green,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            rates.isFallback
+                ? '⚠ Using cached rates — check connection'
+                : '✓ Live rates as of $timeStr today',
+            style: TextStyle(
+              color: rates.isFallback ? Colors.orange : Colors.white54,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () => _tabController.animateTo(1),
+          child: const Text(
+            'View 7-day trend →',
+            style: TextStyle(color: _goldColor, fontSize: 11),
+          ),
         ),
       ],
     );
   }
-}
 
-class _RateHistoryCard extends StatelessWidget {
-  const _RateHistoryCard({
-    required this.history,
-    required this.currency,
-    required this.trendUp,
-    required this.onSetAlert,
-  });
-
-  final List<RateHistoryPoint> history;
-  final String currency;
-  final bool trendUp;
-  final VoidCallback onSetAlert;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-  static const Color _bestRateGreen = Color(0xFF22C55E);
-
-  @override
-  Widget build(BuildContext context) {
-    if (history.isEmpty) return const SizedBox.shrink();
-
-    final spots = history.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.rate);
-    }).toList();
-
-    final minY = history.map((p) => p.rate).reduce((a, b) => a < b ? a : b) - 0.1;
-    final maxY = history.map((p) => p.rate).reduce((a, b) => a > b ? a : b) + 0.1;
-
-    return Container(
+  Widget _buildRateCard({
+    required CurrencyInfo currency,
+    required double? rate,
+    required bool isSelected,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSelected ? currency.chartColor : Colors.white12,
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: currency.chartColor.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            '7-Day Rate Trend',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            trendUp
-                ? '📈 Rate trending up this week'
-                : '📉 Rate trending down this week',
-            style: TextStyle(
-              color: trendUp ? _bestRateGreen : Colors.orange.shade300,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 140,
-            child: LineChart(
-              LineChartData(
-                minY: minY,
-                maxY: maxY,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    strokeWidth: 1,
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 42,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toStringAsFixed(2),
-                        style: const TextStyle(
-                          color: _subtitleColor,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= history.length) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            history[index].date.replaceAll('Day ', 'D'),
-                            style: const TextStyle(
-                              color: _subtitleColor,
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: _cyanColor,
-                    barWidth: 3,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, bar, index) {
-                        return FlDotCirclePainter(
-                          radius: 3,
-                          color: _cyanColor,
-                          strokeWidth: 1,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: _cyanColor.withValues(alpha: 0.12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onSetAlert,
-              icon: const Icon(Icons.notifications_active_outlined, size: 18),
-              label: Text('Set Rate Alert ($currency)'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _cyanColor,
-                side: BorderSide(color: _cyanColor.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BranchCard extends StatelessWidget {
-  const _BranchCard({
-    required this.branch,
-    required this.onDirections,
-    required this.onCall,
-  });
-
-  final BranchExchangeHouse branch;
-  final VoidCallback onDirections;
-  final VoidCallback onCall;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            branch.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Best rate: ${branch.bestRateLabel}',
-            style: const TextStyle(color: _cyanColor, fontSize: 14),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${branch.distanceKm.toStringAsFixed(1)} km from Al Khor',
-            style: const TextStyle(color: _subtitleColor, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            branch.hours,
-            style: const TextStyle(color: _subtitleColor, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onDirections,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _cyanColor,
-                    side: BorderSide(color: _cyanColor.withValues(alpha: 0.4)),
+              Text(currency.flag, style: const TextStyle(fontSize: 18)),
+              const Spacer(),
+              if (isSelected)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: currency.chartColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text('📍 Get Directions'),
+                  child: Text(
+                    'SELECTED',
+                    style: TextStyle(
+                      color: currency.chartColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rate != null ? '1 QR = ${rate.toStringAsFixed(2)}' : '—',
+                style: TextStyle(
+                  color: currency.chartColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onCall,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF1A2535)),
-                  ),
-                  child: const Text('📞 Call'),
-                ),
+              Text(
+                currency.code,
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ],
           ),
@@ -996,73 +305,1037 @@ class _BranchCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _OnlineTransferBanner extends StatelessWidget {
-  const _OnlineTransferBanner({required this.onEarlyAccess});
+  Widget _buildConverterSection(
+    AsyncValue<ExchangeRates> ratesAsync,
+    String selectedCurrency,
+  ) {
+    final currency = raabtaCurrencies.firstWhere(
+      (c) => c.code == selectedCurrency,
+      orElse: () => raabtaCurrencies.first,
+    );
 
-  final VoidCallback onEarlyAccess;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1A2535)),
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
       ),
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '📱 Online Transfer Options',
+            'Currency Converter',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Coming Soon',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.amber,
-                fontWeight: FontWeight.bold,
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'I want to send',
+                      style: TextStyle(color: Colors.white54, fontSize: 11),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _amountController,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                            ),
+                            onChanged: (val) {
+                              final amount = double.tryParse(val) ?? 0;
+                              ref.read(converterAmountProvider.notifier).state =
+                                  amount;
+                            },
+                          ),
+                        ),
+                        const Text(
+                          'QR',
+                          style: TextStyle(
+                            color: _goldColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Icon(Icons.swap_horiz, color: Colors.white38),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Recipient gets (${currency.code})',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ratesAsync.when(
+                      loading: () => const Text(
+                        '…',
+                        style: TextStyle(color: Colors.white54, fontSize: 28),
+                      ),
+                      error: (_, _) => const Text(
+                        '—',
+                        style: TextStyle(color: Colors.white38, fontSize: 28),
+                      ),
+                      data: (rates) {
+                        final amount = ref.watch(converterAmountProvider);
+                        final rate = rates.rates[selectedCurrency] ?? 0;
+                        final result = amount * rate;
+                        return Text(
+                          result.toStringAsFixed(0),
+                          style: TextStyle(
+                            color: currency.chartColor,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Colors.white12),
+          const SizedBox(height: 8),
+          const Text(
+            'Send to',
+            style: TextStyle(color: Colors.white54, fontSize: 11),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: raabtaCurrencies.map((curr) {
+                final isSelected = selectedCurrency == curr.code;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(selectedCurrencyProvider.notifier).state =
+                        curr.code;
+                    ref.read(rateHistoryProvider(curr.code));
+                    ref.read(exchangeCompareProvider(curr.code));
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? curr.chartColor.withValues(alpha: 0.2)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? curr.chartColor : Colors.white24,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      '${curr.flag} ${curr.country}',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white60,
+                        fontSize: 12,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Direct bank transfer coming soon',
-            style: TextStyle(color: _subtitleColor, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: onEarlyAccess,
-              style: FilledButton.styleFrom(
-                backgroundColor: _cyanColor,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            child: ElevatedButton(
+              onPressed: () => _tabController.animateTo(2),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _purpleColor,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text(
-                'Sign up for early access',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                'Compare exchange houses →',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickSendSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Send',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _quickSendCard(
+              '💳 Online Transfer',
+              'Via Al Fardan app',
+              _goldColor,
+              () async {
+                final url = Uri.parse('https://www.alfardanexchange.com.qa');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            const SizedBox(width: 10),
+            _quickSendCard(
+              '🏦 Walk In',
+              'Find nearest house',
+              _cyanColor,
+              () => _tabController.animateTo(2),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _quickSendCard(
+    String title,
+    String subtitle,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendTab(String selectedCurrency) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '7-Day Rate Trend — All Currencies',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Tap any currency to see full chart',
+            style: TextStyle(color: Colors.white38, fontSize: 11),
+          ),
+          const SizedBox(height: 16),
+          ...raabtaCurrencies.map((currency) {
+            final isSelected = selectedCurrency == currency.code;
+            return _buildTrendCard(currency, isSelected);
+          }),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendCard(CurrencyInfo currency, bool isSelected) {
+    final historyAsync = ref.watch(rateHistoryProvider(currency.code));
+
+    return GestureDetector(
+      onTap: () {
+        ref.read(selectedCurrencyProvider.notifier).state = currency.code;
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? currency.chartColor : Colors.white12,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              child: Row(
+                children: [
+                  Text(currency.flag, style: const TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${currency.country} — ${currency.code}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        currency.name,
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  ref.watch(liveExchangeRatesProvider).when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
+                        data: (rates) {
+                          final rate = rates.rates[currency.code];
+                          if (rate == null) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                rate.toStringAsFixed(2),
+                                style: TextStyle(
+                                  color: currency.chartColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Text(
+                                '1 QR',
+                                style: TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: isSelected ? 120 : 70,
+              child: historyAsync.when(
+                loading: () => Shimmer.fromColors(
+                  baseColor: const Color(0xFF2A2A3E),
+                  highlightColor: const Color(0xFF3A3A5E),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                error: (_, _) => const Center(
+                  child: Text(
+                    'Chart unavailable',
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ),
+                data: (history) {
+                  final validPoints =
+                      history.where((p) => p.rate != null).toList();
+                  if (validPoints.length < 2) {
+                    return const Center(
+                      child: Text(
+                        'Not enough data',
+                        style: TextStyle(color: Colors.white38, fontSize: 11),
+                      ),
+                    );
+                  }
+
+                  final minRate = validPoints
+                      .map((p) => p.rate!)
+                      .reduce((a, b) => a < b ? a : b);
+                  final maxRate = validPoints
+                      .map((p) => p.rate!)
+                      .reduce((a, b) => a > b ? a : b);
+                  final range = maxRate - minRate;
+                  final padding = range == 0 ? 0.5 : range * 0.1;
+
+                  final firstRate = validPoints.first.rate!;
+                  final lastRate = validPoints.last.rate!;
+                  final isUp = lastRate >= firstRate;
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 14, 8),
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: isSelected,
+                          drawVerticalLine: false,
+                          horizontalInterval: range == 0 ? 1 : range / 3,
+                          getDrawingHorizontalLine: (_) => FlLine(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            strokeWidth: 1,
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: isSelected,
+                              reservedSize: 40,
+                              getTitlesWidget: (val, _) => Text(
+                                val.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: isSelected,
+                              getTitlesWidget: (val, _) {
+                                final idx = val.toInt();
+                                if (idx < 0 || idx >= validPoints.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                final date = validPoints[idx].date;
+                                final parts = date.split('-');
+                                return Text(
+                                  '${parts[2]}/${parts[1]}',
+                                  style: const TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 8,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        minX: 0,
+                        maxX: (validPoints.length - 1).toDouble(),
+                        minY: minRate - padding,
+                        maxY: maxRate + padding,
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: validPoints
+                                .asMap()
+                                .entries
+                                .map(
+                                  (e) => FlSpot(
+                                    e.key.toDouble(),
+                                    e.value.rate!,
+                                  ),
+                                )
+                                .toList(),
+                            isCurved: true,
+                            color: isUp
+                                ? currency.chartColor
+                                : const Color(0xFFEF5350),
+                            barWidth: isSelected ? 2.5 : 1.5,
+                            isStrokeCapRound: true,
+                            dotData: FlDotData(
+                              show: isSelected,
+                              getDotPainter:
+                                  (spot, percent, bar, index) =>
+                                  FlDotCirclePainter(
+                                radius: 3,
+                                color: currency.chartColor,
+                                strokeWidth: 0,
+                              ),
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                colors: [
+                                  (isUp
+                                          ? currency.chartColor
+                                          : const Color(0xFFEF5350))
+                                      .withValues(alpha: 0.25),
+                                  Colors.transparent,
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                            ),
+                          ),
+                        ],
+                        lineTouchData: LineTouchData(
+                          enabled: isSelected,
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipItems: (spots) => spots.map((s) {
+                              final idx = s.x.toInt();
+                              final date = idx < validPoints.length
+                                  ? validPoints[idx].date
+                                  : '';
+                              return LineTooltipItem(
+                                '$date\n${s.y.toStringAsFixed(3)} ${currency.code}',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            historyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
+              data: (history) {
+                final valid =
+                    history.where((p) => p.rate != null).toList();
+                if (valid.length < 2) return const SizedBox.shrink();
+                final change = valid.last.rate! - valid.first.rate!;
+                final pct = (change / valid.first.rate!) * 100;
+                final isUp = change >= 0;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isUp ? Icons.trending_up : Icons.trending_down,
+                        color: isUp ? Colors.green : Colors.red,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${isUp ? '+' : ''}${pct.toStringAsFixed(2)}% vs 7 days ago',
+                        style: TextStyle(
+                          color: isUp ? Colors.green : Colors.red,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompareTab(String selectedCurrency) {
+    final compareAsync =
+        ref.watch(exchangeCompareProvider(selectedCurrency));
+    final currency = raabtaCurrencies.firstWhere(
+      (c) => c.code == selectedCurrency,
+      orElse: () => raabtaCurrencies.first,
+    );
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${currency.flag} Qatar Exchange Houses',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Best rate to send QR → ${currency.code} today',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: raabtaCurrencies.map((curr) {
+                final isSelected = selectedCurrency == curr.code;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(selectedCurrencyProvider.notifier).state =
+                        curr.code;
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? curr.chartColor.withValues(alpha: 0.2)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? curr.chartColor : Colors.white24,
+                      ),
+                    ),
+                    child: Text(
+                      '${curr.flag} ${curr.code}',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white54,
+                        fontSize: 11,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          compareAsync.when(
+            loading: () => _buildCompareShimmer(),
+            error: (_, _) => _buildErrorCard(),
+            data: (houses) {
+              if (houses.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'Comparison unavailable.\nCheck your connection.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
+                );
+              }
+              return Column(
+                children: houses
+                    .asMap()
+                    .entries
+                    .map(
+                      (entry) => _buildHouseCard(
+                        entry.value,
+                        isTop: entry.key == 0,
+                        currency: currency,
+                        amount: ref.watch(converterAmountProvider),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Rates shown are indicative based on mid-market with '
+                    'typical spreads. Visit exchange house for final rate. '
+                    'Rates change throughout the day.',
+                    style: TextStyle(color: Colors.orange, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHouseCard(
+    ExchangeHouseRate house, {
+    required bool isTop,
+    required CurrencyInfo currency,
+    required double amount,
+  }) {
+    final receives = amount * house.rate;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isTop ? _goldColor : Colors.white12,
+          width: isTop ? 1.5 : 1,
+        ),
+        boxShadow: isTop
+            ? [
+                BoxShadow(
+                  color: _goldColor.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isTop ? _goldColor : Colors.white12,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      isTop ? '🥇' : (house.rating > 4.3 ? '🥈' : ''),
+                      style: TextStyle(
+                        color: isTop ? Colors.black : Colors.white54,
+                        fontSize: isTop ? 14 : 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            house.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (isTop) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _goldColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'BEST RATE',
+                                style: TextStyle(
+                                  color: _goldColor,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              i < house.rating.floor()
+                                  ? Icons.star
+                                  : i < house.rating
+                                      ? Icons.star_half
+                                      : Icons.star_border,
+                              color: _goldColor,
+                              size: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            house.rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 10,
+                            ),
+                          ),
+                          if (house.hasApp) ...[
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.phone_android,
+                              color: _cyanColor,
+                              size: 11,
+                            ),
+                            const Text(
+                              ' App',
+                              style: TextStyle(
+                                color: _cyanColor,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '1 QR = ${house.rate.toStringAsFixed(3)}',
+                      style: TextStyle(
+                        color: isTop ? _goldColor : currency.chartColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      currency.code,
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (amount > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      '${amount.toStringAsFixed(0)} QR',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.arrow_forward,
+                      color: Colors.white38,
+                      size: 14,
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${receives.toStringAsFixed(0)} ${currency.code}',
+                      style: TextStyle(
+                        color: isTop ? _goldColor : Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      house.fee == 'Free' ? '✓ No fee' : '+ ${house.fee} fee',
+                      style: TextStyle(
+                        color:
+                            house.fee == 'Free' ? Colors.green : Colors.orange,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (house.website != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      final url = Uri.parse(house.website!);
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(
+                          url,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isTop ? _goldColor : Colors.white24,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Visit ${house.name.split(' ').first}',
+                      style: TextStyle(
+                        color: isTop ? _goldColor : Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatesShimmer() {
+    return Shimmer.fromColors(
+      baseColor: _cardColor,
+      highlightColor: const Color(0xFF2A2A4E),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.55,
+        ),
+        itemCount: 8,
+        itemBuilder: (_, _) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompareShimmer() {
+    return Shimmer.fromColors(
+      baseColor: _cardColor,
+      highlightColor: const Color(0xFF2A2A4E),
+      child: Column(
+        children: List.generate(
+          4,
+          (_) => Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.wifi_off, color: Colors.white38, size: 32),
+          const SizedBox(height: 8),
+          const Text(
+            'Could not load rates',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _refresh,
+            child: const Text(
+              'Tap to retry',
+              style: TextStyle(color: _goldColor),
             ),
           ),
         ],

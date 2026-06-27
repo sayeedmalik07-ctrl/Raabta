@@ -191,6 +191,26 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
       final listing =
           await ref.read(housingRepositoryProvider).createListing(request);
 
+      try {
+        final scan = await ref.read(housingRepositoryProvider).scanListingScam(
+              listingId: listing.id,
+              request: request,
+            );
+        if (scan.verdict == ScamVerdict.likelyScam && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ AI flagged possible scam (${scan.scamScore}/100). '
+                'Our team will review your listing.',
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      } catch (_) {
+        // Scan is best-effort — listing still created
+      }
+
       ref.invalidate(housingListingsProvider);
 
       if (!mounted) return;

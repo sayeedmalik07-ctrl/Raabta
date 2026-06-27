@@ -6,6 +6,67 @@ enum NationalityPreference { any, indian, pakistani, filipino, arabic }
 
 enum ListingStatus { pending, approved, rejected }
 
+enum ScamVerdict { safe, suspicious, likelyScam }
+
+ScamVerdict? parseScamVerdict(String? value) {
+  switch (value) {
+    case 'safe':
+      return ScamVerdict.safe;
+    case 'suspicious':
+      return ScamVerdict.suspicious;
+    case 'likely_scam':
+      return ScamVerdict.likelyScam;
+    default:
+      return null;
+  }
+}
+
+String scamVerdictToApi(ScamVerdict verdict) {
+  switch (verdict) {
+    case ScamVerdict.safe:
+      return 'safe';
+    case ScamVerdict.suspicious:
+      return 'suspicious';
+    case ScamVerdict.likelyScam:
+      return 'likely_scam';
+  }
+}
+
+class ScamScanResult {
+  const ScamScanResult({
+    required this.scamScore,
+    required this.verdict,
+    required this.flags,
+    required this.reason,
+    required this.recommendation,
+    this.listingId,
+    this.scannedAt,
+  });
+
+  final int scamScore;
+  final ScamVerdict verdict;
+  final List<String> flags;
+  final String reason;
+  final String recommendation;
+  final String? listingId;
+  final DateTime? scannedAt;
+
+  factory ScamScanResult.fromJson(Map<String, dynamic> json) {
+    return ScamScanResult(
+      listingId: json['listingId'] as String?,
+      scamScore: (json['scamScore'] as num?)?.toInt() ?? 0,
+      verdict: parseScamVerdict(json['verdict'] as String?) ?? ScamVerdict.safe,
+      flags: (json['flags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      reason: json['reason'] as String? ?? '',
+      recommendation: json['recommendation'] as String? ?? '',
+      scannedAt: DateTime.tryParse(json['scannedAt'] as String? ?? ''),
+    );
+  }
+}
+
 class HousingListing {
   const HousingListing({
     required this.id,
@@ -29,6 +90,12 @@ class HousingListing {
     required this.contactName,
     required this.verified,
     required this.scamFlagged,
+    this.scamScore,
+    this.scamVerdict,
+    this.scamFlags = const [],
+    this.scamReason,
+    this.scamRecommendation,
+    this.reportCount = 0,
     required this.status,
     required this.featured,
     required this.latitude,
@@ -58,6 +125,12 @@ class HousingListing {
   final String contactName;
   final bool verified;
   final bool scamFlagged;
+  final int? scamScore;
+  final ScamVerdict? scamVerdict;
+  final List<String> scamFlags;
+  final String? scamReason;
+  final String? scamRecommendation;
+  final int reportCount;
   final ListingStatus status;
   final bool featured;
   final double latitude;
@@ -123,6 +196,12 @@ class HousingListing {
         'contactName': contactName,
         'verified': verified,
         'scamFlagged': scamFlagged,
+        'scamScore': scamScore,
+        'verdict': scamVerdict != null ? scamVerdictToApi(scamVerdict!) : null,
+        'flags': scamFlags,
+        'scamReason': scamReason,
+        'scamRecommendation': scamRecommendation,
+        'report_count': reportCount,
         'status': status.name,
         'featured': featured,
         'latitude': latitude,
@@ -163,6 +242,15 @@ class HousingListing {
       contactName: json['contactName'] as String? ?? 'Owner',
       verified: json['verified'] as bool? ?? false,
       scamFlagged: json['scamFlagged'] as bool? ?? false,
+      scamScore: (json['scamScore'] as num?)?.toInt(),
+      scamVerdict: parseScamVerdict(json['verdict'] as String?),
+      scamFlags: (json['flags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      scamReason: json['scamReason'] as String?,
+      scamRecommendation: json['scamRecommendation'] as String?,
+      reportCount: (json['report_count'] as num?)?.toInt() ?? 0,
       status: _parseStatus(json['status'] as String? ?? 'approved'),
       featured: json['featured'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble() ?? 25.2854,
@@ -473,6 +561,12 @@ List<HousingListing> fallbackHousingListings() {
       contactName: 'Maria',
       verified: false,
       scamFlagged: true,
+      scamScore: 82,
+      scamVerdict: ScamVerdict.likelyScam,
+      scamFlags: const ['price_too_low', 'urgency_language', 'whatsapp_only'],
+      scamReason: 'Price is far below market rate for Lusail with urgency language.',
+      scamRecommendation:
+          'Do not pay any deposit before viewing. Verify the poster in person.',
       status: ListingStatus.approved,
       featured: false,
       latitude: 25.4244,

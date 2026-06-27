@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:raabta/screens/home_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -91,10 +91,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   void _onVerify() {
     // OTP validation bypassed for testing — navigates without checking code.
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
-    );
+    context.go('/home');
   }
 
   @override

@@ -1,4 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/core/design/app_colors.dart';
+import 'package:raabta/core/design/app_radius.dart';
+import 'package:raabta/core/design/app_spacing.dart';
+import 'package:raabta/core/design/app_text_styles.dart';
+
+enum PostType { text, poll, announcement }
+
+class PollOption {
+  const PollOption({required this.label, required this.votes});
+
+  final String label;
+  final int votes;
+}
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({
@@ -21,22 +34,52 @@ class GroupScreen extends StatefulWidget {
 }
 
 class _GroupScreenState extends State<GroupScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
   final TextEditingController _postController = TextEditingController();
   final Set<int> _expandedComments = {};
+  final Set<int> _expandedPosts = {};
+  final Set<int> _likedPosts = {};
+  final Set<int> _savedPosts = {};
+  final Map<int, int?> _pollVotes = {};
 
-  static const List<_GroupPost> _posts = [
-    _GroupPost(
+  late List<_GroupPost> _posts;
+
+  @override
+  void initState() {
+    super.initState();
+    _posts = _initialPosts;
+    _posts.sort((a, b) {
+      if (a.type == PostType.announcement && b.type != PostType.announcement) {
+        return -1;
+      }
+      if (b.type == PostType.announcement && a.type != PostType.announcement) {
+        return 1;
+      }
+      return 0;
+    });
+  }
+
+  static final List<_GroupPost> _initialPosts = [
+    const _GroupPost(
+      id: 100,
+      type: PostType.announcement,
+      author: 'Group Admin',
+      initials: 'GA',
+      flag: '📢',
+      text:
+          'Welcome! Please read community guidelines before posting. Be respectful and helpful to fellow expats.',
+      time: 'Pinned',
+      likes: 120,
+      comments: 4,
+      replies: ['Thanks admin!', 'Very helpful guidelines.'],
+      isPinned: true,
+    ),
+    const _GroupPost(
       id: 0,
       author: 'Rahul M.',
       initials: 'RM',
       flag: '🇮🇳',
       text:
-          'Anyone know a good Indian restaurant in Al Khor that delivers? 🍛',
+          'Anyone know a good Indian restaurant in Al Khor that delivers? 🍛 We just moved here and looking for recommendations from the community.',
       time: '2 hours ago',
       likes: 12,
       comments: 8,
@@ -47,26 +90,31 @@ class _GroupScreenState extends State<GroupScreen> {
     ),
     _GroupPost(
       id: 1,
+      type: PostType.poll,
       author: 'Ahmed K.',
       initials: 'AK',
       flag: '🇵🇰',
-      text: 'Iqama renewal fee increased to 200 QR from this month 📋',
+      text: 'Which area has the best expat community facilities?',
       time: '5 hours ago',
       likes: 45,
       comments: 23,
       replies: [
         'Confirmed on Metrash2 yesterday.',
         'My company said they will cover it.',
-        'Is this for all professions?',
+      ],
+      pollOptions: const [
+        PollOption(label: 'Al Khor', votes: 89),
+        PollOption(label: 'Doha', votes: 156),
+        PollOption(label: 'Lusail', votes: 67),
       ],
     ),
-    _GroupPost(
+    const _GroupPost(
       id: 2,
       author: 'Sara P.',
       initials: 'SP',
       flag: '🇵🇭',
       text:
-          'Looking for 1BHK flat near Industrial Area, budget 2000 QR',
+          'Looking for 1BHK flat near Industrial Area, budget 2000 QR. Any leads appreciated!',
       time: '1 day ago',
       likes: 5,
       comments: 12,
@@ -74,6 +122,7 @@ class _GroupScreenState extends State<GroupScreen> {
         'Check Raabta Housing section!',
         'I saw one in Al Wakrah for 1800 QR.',
       ],
+      hasPhoto: true,
     ),
   ];
 
@@ -100,15 +149,54 @@ class _GroupScreenState extends State<GroupScreen> {
     });
   }
 
+  void _toggleExpandPost(int postId) {
+    setState(() {
+      if (_expandedPosts.contains(postId)) {
+        _expandedPosts.remove(postId);
+      } else {
+        _expandedPosts.add(postId);
+      }
+    });
+  }
+
+  void _toggleLike(int postId) {
+    setState(() {
+      if (_likedPosts.contains(postId)) {
+        _likedPosts.remove(postId);
+      } else {
+        _likedPosts.add(postId);
+      }
+    });
+  }
+
+  void _toggleSave(int postId) {
+    setState(() {
+      if (_savedPosts.contains(postId)) {
+        _savedPosts.remove(postId);
+      } else {
+        _savedPosts.add(postId);
+      }
+    });
+  }
+
+  void _votePoll(int postId, int optionIndex) {
+    setState(() => _pollVotes[postId] = optionIndex);
+  }
+
+  int _pollTotalVotes(_GroupPost post) {
+    if (post.pollOptions == null || post.pollOptions!.isEmpty) return 1;
+    return post.pollOptions!.fold(0, (sum, o) => sum + o.votes).clamp(1, 999999);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: _backgroundColor,
+        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -116,31 +204,29 @@ class _GroupScreenState extends State<GroupScreen> {
         children: [
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
               children: [
                 Row(
                   children: [
-                    Text(widget.emoji, style: const TextStyle(fontSize: 40)),
-                    const SizedBox(width: 14),
+                    Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppColors.primaryGradient,
+                      ),
+                      child: Text(widget.emoji, style: const TextStyle(fontSize: 28)),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
+                          Text(widget.name, style: AppTextStyles.h2),
                           Text(
                             '${_formatMembers(widget.memberCount)} members',
-                            style: const TextStyle(
-                              color: _subtitleColor,
-                              fontSize: 14,
-                            ),
+                            style: AppTextStyles.bodyMedium,
                           ),
                         ],
                       ),
@@ -151,41 +237,50 @@ class _GroupScreenState extends State<GroupScreen> {
                         onPressed: widget.onJoinToggle,
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              widget.isJoined ? _surfaceColor : _cyanColor,
+                              widget.isJoined ? AppColors.surface : AppColors.primary,
                           foregroundColor:
-                              widget.isJoined ? _subtitleColor : _backgroundColor,
+                              widget.isJoined ? AppColors.textMuted : AppColors.background,
                           elevation: 0,
                           side: widget.isJoined
-                              ? const BorderSide(color: _subtitleColor)
+                              ? BorderSide(color: AppColors.textMuted)
                               : null,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                         ),
                         child: Text(
-                          widget.isJoined ? 'Joined' : 'Join',
+                          widget.isJoined ? '✓ Joined' : 'Join',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
                 ..._posts.map(
                   (post) => _PostCard(
                     post: post,
+                    isLiked: _likedPosts.contains(post.id),
+                    isSaved: _savedPosts.contains(post.id),
+                    isExpanded: _expandedPosts.contains(post.id),
                     commentsExpanded: _expandedComments.contains(post.id),
+                    votedOption: _pollVotes[post.id],
+                    pollTotalVotes: _pollTotalVotes(post),
+                    onLike: () => _toggleLike(post.id),
+                    onSave: () => _toggleSave(post.id),
+                    onExpand: () => _toggleExpandPost(post.id),
                     onCommentTap: () => _toggleComments(post.id),
+                    onVote: (index) => _votePoll(post.id, index),
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            decoration: const BoxDecoration(
-              color: _surfaceColor,
-              border: Border(top: BorderSide(color: Color(0xFF1A2535))),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.surfaceElevated)),
             ),
             child: SafeArea(
               top: false,
@@ -194,14 +289,14 @@ class _GroupScreenState extends State<GroupScreen> {
                   Expanded(
                     child: TextField(
                       controller: _postController,
-                      style: const TextStyle(color: Colors.white),
+                      style: AppTextStyles.bodyLarge,
                       decoration: InputDecoration(
                         hintText: 'Write a post...',
-                        hintStyle: const TextStyle(color: _subtitleColor),
+                        hintStyle: AppTextStyles.bodyMedium,
                         filled: true,
-                        fillColor: _backgroundColor,
+                        fillColor: AppColors.background,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(AppRadius.xxl),
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.symmetric(
@@ -211,19 +306,15 @@ class _GroupScreenState extends State<GroupScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Container(
-                    decoration: const BoxDecoration(
-                      color: _cyanColor,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
                       onPressed: () {},
-                      icon: const Icon(
-                        Icons.send,
-                        color: _backgroundColor,
-                        size: 20,
-                      ),
+                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
@@ -247,6 +338,10 @@ class _GroupPost {
     required this.likes,
     required this.comments,
     required this.replies,
+    this.type = PostType.text,
+    this.isPinned = false,
+    this.hasPhoto = false,
+    this.pollOptions,
   });
 
   final int id;
@@ -258,50 +353,102 @@ class _GroupPost {
   final int likes;
   final int comments;
   final List<String> replies;
+  final PostType type;
+  final bool isPinned;
+  final bool hasPhoto;
+  final List<PollOption>? pollOptions;
 }
 
 class _PostCard extends StatelessWidget {
   const _PostCard({
     required this.post,
+    required this.isLiked,
+    required this.isSaved,
+    required this.isExpanded,
     required this.commentsExpanded,
+    required this.votedOption,
+    required this.pollTotalVotes,
+    required this.onLike,
+    required this.onSave,
+    required this.onExpand,
     required this.onCommentTap,
+    required this.onVote,
   });
 
   final _GroupPost post;
+  final bool isLiked;
+  final bool isSaved;
+  final bool isExpanded;
   final bool commentsExpanded;
+  final int? votedOption;
+  final int pollTotalVotes;
+  final VoidCallback onLike;
+  final VoidCallback onSave;
+  final VoidCallback onExpand;
   final VoidCallback onCommentTap;
+  final ValueChanged<int> onVote;
 
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
+  static const int _truncateLength = 120;
 
   @override
   Widget build(BuildContext context) {
+    final needsTruncate = post.text.length > _truncateLength;
+    final displayText = isExpanded || !needsTruncate
+        ? post.text
+        : '${post.text.substring(0, _truncateLength)}…';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: post.type == PostType.announcement
+              ? AppColors.warning.withValues(alpha: 0.4)
+              : AppColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (post.type == PostType.announcement)
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                '📢 ANNOUNCEMENT',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
+                ),
+              ),
+            ),
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _cyanColor.withValues(alpha: 0.2),
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                ),
                 child: Text(
                   post.initials,
                   style: const TextStyle(
-                    color: _cyanColor,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,8 +457,7 @@ class _PostCard extends StatelessWidget {
                       children: [
                         Text(
                           post.author,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: AppTextStyles.bodyLarge.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -320,65 +466,145 @@ class _PostCard extends StatelessWidget {
                         Text(post.flag, style: const TextStyle(fontSize: 14)),
                       ],
                     ),
-                    Text(
-                      post.time,
-                      style: const TextStyle(
-                        color: _subtitleColor,
-                        fontSize: 12,
-                      ),
-                    ),
+                    Text(post.time, style: AppTextStyles.bodySmall),
                   ],
                 ),
               ),
+              if (post.isPinned)
+                const Icon(Icons.push_pin, size: 16, color: AppColors.warning),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(
-            post.text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              height: 1.4,
-            ),
+            displayText,
+            style: AppTextStyles.bodyLarge.copyWith(height: 1.4),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _ActionChip(icon: Icons.favorite_border, label: '${post.likes}'),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: onCommentTap,
-                child: _ActionChip(
-                  icon: Icons.chat_bubble_outline,
-                  label: '${post.comments}',
-                  highlighted: commentsExpanded,
+          if (needsTruncate)
+            GestureDetector(
+              onTap: onExpand,
+              child: Text(
+                isExpanded ? 'Show less' : 'Read more',
+                style: AppTextStyles.labelLarge.copyWith(fontSize: 12),
+              ),
+            ),
+          if (post.hasPhoto) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1A2535), Color(0xFF0D1520)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-              const SizedBox(width: 16),
-              _ActionChip(icon: Icons.share_outlined, label: 'Share'),
+              child: Center(
+                child: Icon(Icons.image_outlined, color: AppColors.textMuted, size: 48),
+              ),
+            ),
+          ],
+          if (post.type == PostType.poll && post.pollOptions != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ...post.pollOptions!.asMap().entries.map((entry) {
+              final index = entry.key;
+              final option = entry.value;
+              final fraction = option.votes / pollTotalVotes;
+              final isVoted = votedOption == index;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: LinearProgressIndicator(
+                        value: fraction,
+                        minHeight: 32,
+                        backgroundColor: AppColors.background,
+                        color: isVoted
+                            ? AppColors.primary
+                            : AppColors.primary.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${option.label} · ${option.votes} votes',
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: votedOption == null ? () => onVote(index) : null,
+                          child: Text(
+                            isVoted ? 'Voted ✓' : 'Vote',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: votedOption == null
+                                  ? AppColors.primary
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              _ReactionButton(
+                icon: isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                label: '${post.likes + (isLiked ? 1 : 0)}',
+                active: isLiked,
+                onTap: onLike,
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              _ReactionButton(
+                icon: Icons.chat_bubble_outline,
+                label: '${post.comments}',
+                active: commentsExpanded,
+                onTap: onCommentTap,
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              _ReactionButton(
+                icon: Icons.share_outlined,
+                label: 'Share',
+                onTap: () {},
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              _ReactionButton(
+                icon: isSaved ? Icons.bookmark : Icons.bookmark_border,
+                label: 'Save',
+                active: isSaved,
+                onTap: onSave,
+              ),
             ],
           ),
           if (commentsExpanded) ...[
-            const SizedBox(height: 12),
-            const Divider(color: Color(0xFF1A2535), height: 1),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
+            Divider(color: AppColors.surfaceElevated, height: 1),
+            const SizedBox(height: AppSpacing.sm),
             ...post.replies.map(
               (reply) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.subdirectory_arrow_right,
-                        color: _subtitleColor, size: 16),
+                    Icon(
+                      Icons.subdirectory_arrow_right,
+                      color: AppColors.textSecondary,
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        reply,
-                        style: const TextStyle(
-                          color: _subtitleColor,
-                          fontSize: 13,
-                        ),
-                      ),
+                      child: Text(reply, style: AppTextStyles.bodyMedium),
                     ),
                   ],
                 ),
@@ -391,33 +617,32 @@ class _PostCard extends StatelessWidget {
   }
 }
 
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({
+class _ReactionButton extends StatelessWidget {
+  const _ReactionButton({
     required this.icon,
     required this.label,
-    this.highlighted = false,
+    this.active = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final bool highlighted;
-
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
+  final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = highlighted ? _cyanColor : _subtitleColor;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(color: color, fontSize: 13),
-        ),
-      ],
+    final color = active ? AppColors.primary : AppColors.textSecondary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
+        ],
+      ),
     );
   }
 }
