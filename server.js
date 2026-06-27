@@ -3,6 +3,20 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
+const { scanListing, normalizePhone } = require('./services/scamDetection');
+const firestoreService = require('./services/firestoreService');
+const {
+  sendPushNotification,
+  registerFcmToken,
+  runDailyNotificationJobs,
+  runWeeklyDigest,
+  sendCommunityReplyNotification,
+  sendJobMatchNotification,
+  sendAdminAnnouncement,
+  NOTIFICATION_TYPES,
+} = require('./services/notifications');
+const { startNotificationScheduler } = require('./services/notificationScheduler');
+const exchangeRatesRouter = require('./routes/exchangeRates');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -93,11 +107,62 @@ function normalizeHistory(conversationHistory) {
     }));
 }
 
+function countInMemoryListingsByPhone(phone, excludeId = null) {
+  const normalized = normalizePhone(phone).replace(/^\+?974/, '');
+  if (!normalized) return 0;
+  return listingsStore.filter((l) => {
+    if (excludeId && l.id === excludeId) return false;
+    const listingPhone = normalizePhone(l.phone || l.whatsapp).replace(/^\+?974/, '');
+    return listingPhone && listingPhone.endsWith(normalized.slice(-8));
+  }).length;
+}
+
+function applyScamResultToListing(listing, scanResult) {
+  listing.scamScore = scanResult.scamScore;
+  listing.verdict = scanResult.verdict;
+  listing.flags = scanResult.flags;
+  listing.scamReason = scanResult.reason;
+  listing.scamRecommendation = scanResult.recommendation;
+  listing.scamFlagged = scanResult.verdict === 'likely_scam';
+  listing.scamScannedAt = scanResult.scannedAt;
+  return listing;
+}
+
+async function runScamScanForListing(listing, inputOverrides = {}) {
+  const phone = inputOverrides.contactPhone || listing.phone || listing.whatsapp;
+  const memoryCount = countInMemoryListingsByPhone(phone, listing.id);
+  const firestoreCount = await firestoreService.countListingsByPhone(phone, listing.id);
+  const duplicatePhoneCount = Math.max(memoryCount, firestoreCount);
+
+  const scanInput = {
+    title: inputOverrides.title ?? listing.title,
+    description: inputOverrides.description ?? listing.description,
+    price: inputOverrides.price ?? listing.pricePerMonth,
+    area: inputOverrides.area ?? listing.area,
+    contactPhone: phone,
+    photos: inputOverrides.photos ?? listing.photoUrls ?? [],
+    bedrooms: inputOverrides.bedrooms ?? listing.bedrooms,
+    type: inputOverrides.type ?? listing.type,
+    posterNationality: inputOverrides.posterNationality ?? listing.posterNationality,
+  };
+
+  const scanResult = await scanListing(scanInput, { duplicatePhoneCount });
+  applyScamResultToListing(listing, scanResult);
+
+  if (listing.id) {
+    await firestoreService.saveScamScan(listing.id, scanResult);
+  }
+
+  return scanResult;
+}
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'Raabta AI Chat API' });
 });
 
-// --- Exchange Rates ---
+app.use('/api/exchange', exchangeRatesRouter);
+
+// --- Exchange Rates (legacy) ---
 
 const EXCHANGE_RATE_DATA = {
   INR: {
@@ -292,6 +357,12 @@ const listingsStore = [
     contactName: 'Rahul',
     verified: true,
     scamFlagged: false,
+    scamScore: 18,
+    verdict: 'safe',
+    flags: [],
+    scamReason: 'No significant red flags detected.',
+    scamRecommendation: 'Standard precautions apply — view before paying.',
+    report_count: 0,
     status: 'approved',
     featured: true,
     latitude: 25.6804,
@@ -350,6 +421,12 @@ const listingsStore = [
     contactName: 'Maria',
     verified: false,
     scamFlagged: true,
+    scamScore: 82,
+    verdict: 'likely_scam',
+    flags: ['price_too_low', 'urgency_language', 'whatsapp_only'],
+    scamReason: 'Price is far below market rate for Lusail with urgency language.',
+    scamRecommendation: 'Do not pay any deposit before viewing. Verify the poster in person.',
+    report_count: 0,
     status: 'approved',
     featured: false,
     latitude: 25.4244,
@@ -536,6 +613,14 @@ app.post('/listings', (req, res) => {
   });
 
   console.log('--- New Listing (Pending) ---', listing.id, listing.title);
+
+  // Async scam scan — does not block response
+  runScamScanForListing(listing, req.body)
+    .then((result) => {
+      console.log('--- Scam Scan ---', listing.id, result.verdict, result.scamScore);
+    })
+    .catch((err) => console.error('Scam scan failed:', listing.id, err.message));
+
   return res.status(201).json(listing);
 });
 
@@ -588,6 +673,175 @@ app.patch('/listings/:id/verify', (req, res) => {
 
   console.log('--- Listing Verified ---', listing.id, listing.status);
   return res.json(listing);
+});
+
+// --- AI Scam Detection ---
+
+app.post('/api/listings/scan-scam', async (req, res) => {
+  try {
+    const {
+      listingId,
+      title,
+      description,
+      price,
+      area,
+      contactPhone,
+      photos = [],
+      bedrooms,
+      type,
+      posterNationality,
+    } = req.body;
+
+    if (!title && !description && !price) {
+      return res.status(400).json({
+        error: 'At least title, description, or price is required',
+      });
+    }
+
+    const rateLimit = checkRateLimit(getClientIp(req));
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: `Try again in ${rateLimit.retryAfterMinutes} minutes.`,
+      });
+    }
+
+    let listing = null;
+    if (listingId) {
+      listing = listingsStore.find((l) => l.id === listingId);
+    }
+
+    const phone = contactPhone || listing?.phone || listing?.whatsapp || '';
+    const memoryCount = countInMemoryListingsByPhone(phone, listingId);
+    const firestoreCount = await firestoreService.countListingsByPhone(phone, listingId);
+    const duplicatePhoneCount = Math.max(memoryCount, firestoreCount);
+
+    const scanInput = {
+      title: title || listing?.title || '',
+      description: description || listing?.description || '',
+      price: price ?? listing?.pricePerMonth,
+      area: area || listing?.area || '',
+      contactPhone: phone,
+      photos: photos.length ? photos : listing?.photoUrls || [],
+      bedrooms: bedrooms ?? listing?.bedrooms,
+      type: type || listing?.type,
+      posterNationality: posterNationality || listing?.posterNationality,
+    };
+
+    const scanResult = await scanListing(scanInput, { duplicatePhoneCount });
+
+    if (listing) {
+      applyScamResultToListing(listing, scanResult);
+    }
+
+    if (listingId) {
+      await firestoreService.saveScamScan(listingId, scanResult);
+    }
+
+    console.log('--- Scam Scan API ---', listingId || 'new', scanResult.verdict, scanResult.scamScore);
+
+    return res.json({
+      listingId: listingId || null,
+      scamScore: scanResult.scamScore,
+      verdict: scanResult.verdict,
+      flags: scanResult.flags,
+      reason: scanResult.reason,
+      recommendation: scanResult.recommendation,
+      scannedAt: scanResult.scannedAt,
+      source: scanResult.source,
+    });
+  } catch (error) {
+    console.error('scan-scam error:', error);
+    return res.status(500).json({
+      error: 'Scam scan failed',
+      message: error.message,
+    });
+  }
+});
+
+app.post('/api/listings/report-scam', async (req, res) => {
+  try {
+    const {
+      listingId,
+      reason = 'Scam report',
+      details = '',
+      reporterId = 'anonymous',
+      reporterContact = '',
+    } = req.body;
+
+    if (!listingId) {
+      return res.status(400).json({ error: 'listingId is required' });
+    }
+
+    const listing = listingsStore.find((l) => l.id === listingId);
+    const report = {
+      id: `scam-report-${Date.now()}`,
+      listingId,
+      reason,
+      details,
+      reporterId,
+      reporterContact,
+      submittedAt: new Date().toISOString(),
+    };
+
+    listingReports.push(report);
+
+    let reportCount = (listing?.report_count || 0) + 1;
+    let autoHidden = false;
+
+    if (listing) {
+      listing.report_count = reportCount;
+      listing.lastReportAt = report.submittedAt;
+      if (reportCount > 3) {
+        listing.status = 'hidden_pending_review';
+        listing.scamFlagged = true;
+        listing.hiddenReason = 'auto_hidden_reports';
+        autoHidden = true;
+      }
+    }
+
+    const firestoreResult = await firestoreService.incrementReportCount(listingId, {
+      reason,
+      details,
+      reporterId,
+      reporterContact,
+    });
+
+    if (firestoreResult.saved) {
+      reportCount = firestoreResult.reportCount;
+      autoHidden = firestoreResult.autoHidden;
+    }
+
+    if (autoHidden) {
+      await firestoreService.notifyAdmin(
+        '🚨 Listing auto-hidden',
+        `"${listing?.title || listingId}" received ${reportCount} scam reports`,
+        { listingId, reportCount, action: 'review_required' },
+      );
+    } else {
+      await firestoreService.notifyAdmin(
+        '⚠️ New scam report',
+        `Listing ${listingId} reported: ${reason}`,
+        { listingId, reportCount },
+      );
+    }
+
+    console.log('--- Scam Report ---', listingId, 'count:', reportCount, 'hidden:', autoHidden);
+
+    return res.status(201).json({
+      success: true,
+      report,
+      report_count: reportCount,
+      auto_hidden: autoHidden,
+      status: autoHidden ? 'hidden_pending_review' : listing?.status || 'unknown',
+    });
+  } catch (error) {
+    console.error('report-scam error:', error);
+    return res.status(500).json({
+      error: 'Failed to submit scam report',
+      message: error.message,
+    });
+  }
 });
 
 // --- Visa Guides ---
@@ -900,6 +1154,120 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// --- Push Notifications ---
+
+app.post('/api/notifications/register-token', async (req, res) => {
+  try {
+    const { userId, fcmToken, platform } = req.body;
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ error: 'userId and fcmToken are required' });
+    }
+    const result = await registerFcmToken(userId, fcmToken, platform);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('register-token error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/send', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { userId, title, body, data, language, type } = req.body;
+    if (!userId || !title || !body) {
+      return res.status(400).json({ error: 'userId, title, and body are required' });
+    }
+
+    const result = await sendPushNotification({
+      userId,
+      title,
+      body,
+      data: data || {},
+      language,
+      type: type || NOTIFICATION_TYPES.ADMIN_ANNOUNCEMENT,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error('send notification error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/community-reply', async (req, res) => {
+  try {
+    const { userId, questionTitle, replyPreview } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    const result = await sendCommunityReplyNotification(userId, {
+      questionTitle: questionTitle || 'your question',
+      replyPreview: replyPreview || 'New reply',
+    });
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/job-match', async (req, res) => {
+  try {
+    const { userId, jobTitle, company, matchScore } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    const result = await sendJobMatchNotification(userId, {
+      jobTitle: jobTitle || 'New job',
+      company: company || 'Employer',
+      matchScore: matchScore || 80,
+    });
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/admin-announcement', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const { userIds, title, body, route } = req.body;
+    const results = await sendAdminAnnouncement(userIds, { title, body, route });
+    return res.json({ success: true, count: results.length, results });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/trigger-daily', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const result = await runDailyNotificationJobs();
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/notifications/trigger-weekly', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const result = await runWeeklyDigest();
+    return res.json({ success: true, sent: result.sent });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Raabta AI server running on http://localhost:${PORT}`);
+  startNotificationScheduler();
 });
