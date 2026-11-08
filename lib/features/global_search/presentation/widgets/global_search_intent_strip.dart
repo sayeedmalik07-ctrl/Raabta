@@ -6,6 +6,9 @@ import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/domain/search_intent_interpretation.dart';
 import 'package:raabta/features/global_search/presentation/search_intent_interpretation_l10n.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_category_icon_chip.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
+import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 
 /// Compact interpretation of what RAABTA understood from the current query.
 class GlobalSearchIntentStrip extends StatelessWidget {
@@ -33,18 +36,18 @@ class GlobalSearchIntentStrip extends StatelessWidget {
     return Semantics(
       label: '$header. $segments',
       child: GlassCard(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
+        padding: GlobalSearchPresentationTokens.cardPadding,
         margin: EdgeInsets.zero,
+        borderRadius: GlobalSearchPresentationTokens.cardRadius,
+        glowColor: AppColors.brandFamilyMain,
+        glowIntensity: HomeCardTier.homeCardGlowIntensity,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.auto_awesome_outlined,
-              size: 18,
-              color: AppColors.cyanGlow.withValues(alpha: 0.9),
+            GlobalSearchCategoryIconChip(
+              icon: Icons.auto_awesome_outlined,
+              accent: AppColors.brandFamilyMain,
+              size: 36,
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -53,12 +56,9 @@ class GlobalSearchIntentStrip extends StatelessWidget {
                 children: [
                   Text(
                     header,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: GlobalSearchPresentationTokens.overlineStyle,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     segments,
                     style: AppTypography.body.copyWith(

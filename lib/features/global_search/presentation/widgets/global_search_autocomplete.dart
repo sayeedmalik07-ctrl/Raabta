@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/l10n/app_shell_strings.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
-import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/domain/search_autocomplete_result.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_section_header.dart';
 import 'package:raabta/features/global_search/presentation/widgets/global_search_suggestion_tile.dart';
 
 /// Compact autocomplete panel below the Global Search field (S8).
@@ -32,29 +32,16 @@ class GlobalSearchAutocompleteView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Semantics(
-          header: true,
-          child: Row(
-            children: [
-              Text(
-                AppShellStrings.t('global_search_suggestions', locale),
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (showClearRecent)
-                TextButton(
-                  onPressed: onClearRecent,
-                  child: Text(
-                    AppShellStrings.t('global_search_clear_recent', locale),
-                  ),
-                ),
-            ],
-          ),
+        GlobalSearchSectionHeader(
+          title: AppShellStrings.t('global_search_suggestions', locale),
+          icon: Icons.tips_and_updates_outlined,
+          accent: AppColors.brandFamilyMain,
+          seeAllLabel: showClearRecent
+              ? AppShellStrings.t('global_search_clear_recent', locale)
+              : null,
+          onSeeAll: showClearRecent ? onClearRecent : null,
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.sm),
         for (final item in suggestions)
           item.isRecent
               ? GlobalSearchSuggestionTile.recent(

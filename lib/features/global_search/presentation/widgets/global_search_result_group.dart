@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:raabta/core/colors/app_colors.dart';
-import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
-import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/domain/global_search_models.dart';
 import 'package:raabta/features/global_search/domain/search_distance_formatter.dart';
 import 'package:raabta/features/global_search/presentation/global_search_category_l10n.dart';
-import 'package:raabta/features/global_search/presentation/global_search_directional_icons.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_result_row.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_section_header.dart';
 
 /// Grouped search hits for one category (top N + see-all affordance).
 class GlobalSearchResultGroupView extends StatelessWidget {
@@ -25,87 +24,37 @@ class GlobalSearchResultGroupView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = GlobalSearchPresentationTokens.categoryAccent(group.category);
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(
+        bottom: GlobalSearchPresentationTokens.sectionBottomGap,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            header: true,
-            child: Row(
-              children: [
-                Icon(group.category.icon, size: 20, color: AppColors.cyanGlow),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  GlobalSearchCategoryL10n.label(group.category, locale),
-                  style: AppTypography.title,
-                ),
-                const Spacer(),
-                if (group.hasMoreThanShown)
-                  TextButton(
-                    onPressed: onSeeAll,
-                    child: Text(
-                      GlobalSearchCategoryL10n.seeAllLabel(group.category, locale),
-                    ),
-                  ),
-              ],
-            ),
+          GlobalSearchSectionHeader(
+            title: GlobalSearchCategoryL10n.label(group.category, locale),
+            icon: group.category.icon,
+            accent: accent,
+            seeAllLabel: group.hasMoreThanShown
+                ? GlobalSearchCategoryL10n.seeAllLabel(group.category, locale)
+                : null,
+            onSeeAll: group.hasMoreThanShown ? onSeeAll : null,
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           for (final item in group.items)
-            GlassCard(
+            GlobalSearchResultRow(
+              icon: group.category.icon,
+              accent: accent,
+              title: item.title,
+              subtitle: item.subtitle.isNotEmpty ? item.subtitle : null,
+              tertiary: SearchDistanceFormatter.labelForMeters(
+                item.distanceMeters,
+                locale,
+              ),
+              semanticLabel: _semanticLabel(item),
               onTap: () => onTapItem(item),
-              margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      label: _semanticLabel(item),
-                      button: true,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: AppTypography.body.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (item.subtitle.isNotEmpty)
-                            Text(
-                              item.subtitle,
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          if (item.distanceMeters != null)
-                            Text(
-                              SearchDistanceFormatter.labelForMeters(
-                                    item.distanceMeters,
-                                    locale,
-                                  ) ??
-                                  '',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Icon(GlobalSearchDirectionalIcons.chevronForward(context)),
-                ],
-              ),
             ),
         ],
       ),

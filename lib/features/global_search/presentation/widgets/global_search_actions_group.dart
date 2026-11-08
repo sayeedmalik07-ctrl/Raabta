@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
-import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/l10n/app_shell_strings.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
-import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/domain/global_search_models.dart';
 import 'package:raabta/features/global_search/domain/search_action_id.dart';
 import 'package:raabta/features/global_search/presentation/global_search_directional_icons.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_result_row.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_section_header.dart';
 
 /// Dedicated ACTIONS group for high-intent search commands (S2).
 class GlobalSearchActionsGroupView extends StatelessWidget {
@@ -26,75 +27,27 @@ class GlobalSearchActionsGroupView extends StatelessWidget {
     if (actions.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(
+        bottom: GlobalSearchPresentationTokens.sectionBottomGap,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            header: true,
-            child: Row(
-              children: [
-                Icon(
-                  GlobalSearchCategory.actions.icon,
-                  size: 20,
-                  color: AppColors.amberGlow,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  AppShellStrings.t('global_search_actions_group', locale),
-                  style: AppTypography.title,
-                ),
-              ],
-            ),
+          GlobalSearchSectionHeader(
+            title: AppShellStrings.t('global_search_actions_group', locale),
+            icon: GlobalSearchCategory.actions.icon,
+            accent: AppColors.brandFamilyMain,
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           for (final item in actions)
-            Semantics(
-              button: true,
-              label: '${item.title}. ${item.subtitle}',
-              child: GlassCard(
-                onTap: () => onTapItem(item),
-                margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _iconForAction(item.actionId, item.resultKind),
-                      size: 22,
-                      color: AppColors.cyanGlow,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: AppTypography.body.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (item.subtitle.isNotEmpty)
-                            Text(
-                              item.subtitle,
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                    GlobalSearchDirectionalIcons.playContinue(context),
-                  ],
-                ),
-              ),
+            GlobalSearchResultRow(
+              icon: _iconForAction(item.actionId, item.resultKind),
+              accent: AppColors.brandFamilyMain,
+              title: item.title,
+              subtitle: item.subtitle.isNotEmpty ? item.subtitle : null,
+              semanticLabel: '${item.title}. ${item.subtitle}',
+              onTap: () => onTapItem(item),
+              trailing: GlobalSearchDirectionalIcons.playContinue(context),
             ),
         ],
       ),

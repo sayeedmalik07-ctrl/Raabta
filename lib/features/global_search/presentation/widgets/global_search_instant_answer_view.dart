@@ -8,6 +8,9 @@ import 'package:raabta/features/global_search/domain/global_search_models.dart';
 import 'package:raabta/features/global_search/domain/instant_answer.dart';
 import 'package:raabta/features/global_search/presentation/global_search_directional_icons.dart';
 import 'package:raabta/features/global_search/presentation/instant_answer_l10n.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_section_header.dart';
+import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 
 /// Deterministic instant answer card — presentation only (Batch 3).
 class GlobalSearchInstantAnswerView extends StatelessWidget {
@@ -36,32 +39,32 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
       locale,
       fromCache: fromCache,
     );
+    final accent = actionItem != null
+        ? GlobalSearchPresentationTokens.categoryAccent(actionItem.category)
+        : AppColors.brandFamilyMain;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(
+        bottom: GlobalSearchPresentationTokens.sectionBottomGap,
+      ),
       child: Semantics(
         container: true,
         label: semanticLabel,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Semantics(
-              header: true,
-              child: Text(
-                heading,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.6,
-                ),
-              ),
+            GlobalSearchSectionHeader(
+              title: heading,
+              icon: Icons.lightbulb_outline_rounded,
+              accent: AppColors.brandFamilyMain,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             GlassCard(
               onTap: actionItem != null ? () => onTapItem(actionItem) : null,
               padding: const EdgeInsets.all(AppSpacing.md),
-              glowColor: AppColors.cyanGlow,
-              glowIntensity: 0.1,
+              borderRadius: GlobalSearchPresentationTokens.cardRadius,
+              glowColor: AppColors.brandFamilyMain,
+              glowIntensity: HomeCardTier.homeCardGlowIntensity,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -69,6 +72,7 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
                     child: Text(
                       primary,
                       style: AppTypography.title.copyWith(
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
                       maxLines: 2,
@@ -76,12 +80,12 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
                     ),
                   ),
                   if (supporting != null && supporting.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     ExcludeSemantics(
                       child: Text(
                         supporting,
                         style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
+                          color: AppColors.textOnGlassMuted,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -89,16 +93,14 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
                     ),
                   ],
                   if (fromCache) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     ExcludeSemantics(
                       child: Text(
                         AppShellStrings.t(
                           'global_search_instant_answer_cached',
                           locale,
                         ),
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                        style: GlobalSearchPresentationTokens.overlineStyle,
                       ),
                     ),
                   ],
@@ -111,7 +113,7 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
                           Text(
                             actionLabel,
                             style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.cyanGlow,
+                              color: accent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -119,7 +121,7 @@ class GlobalSearchInstantAnswerView extends StatelessWidget {
                           Icon(
                             GlobalSearchDirectionalIcons.chevronForward(context),
                             size: 16,
-                            color: AppColors.cyanGlow,
+                            color: accent,
                           ),
                         ],
                       ),

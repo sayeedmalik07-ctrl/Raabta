@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
-import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/l10n/app_shell_strings.dart';
-import 'package:raabta/core/spacing/app_spacing.dart';
-import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/presentation/global_search_directional_icons.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_result_row.dart';
 
 /// Shared glass row for autocomplete suggestions and recent searches.
 class GlobalSearchSuggestionTile extends StatelessWidget {
@@ -17,6 +15,7 @@ class GlobalSearchSuggestionTile extends StatelessWidget {
     required this.onTap,
     this.trailing,
     this.semanticLabel,
+    this.accent,
   });
 
   final String title;
@@ -26,6 +25,7 @@ class GlobalSearchSuggestionTile extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? trailing;
   final String? semanticLabel;
+  final Color? accent;
 
   factory GlobalSearchSuggestionTile.recent({
     required String query,
@@ -38,6 +38,7 @@ class GlobalSearchSuggestionTile extends StatelessWidget {
       subtitle: AppShellStrings.t('global_search_recent', locale),
       leadingIcon: Icons.history_rounded,
       locale: locale,
+      accent: AppColors.brandFamilyMain,
       onTap: onTap,
       semanticLabel: query,
       trailing: IconButton(
@@ -61,59 +62,33 @@ class GlobalSearchSuggestionTile extends StatelessWidget {
       subtitle: subtitle,
       leadingIcon: icon,
       locale: locale,
+      accent: AppColors.brandFamilyMain,
       onTap: onTap,
       semanticLabel: '$title. $subtitle',
       trailing: Icon(
         GlobalSearchDirectionalIcons.queryEnter(context),
         size: 16,
-        color: AppColors.textSecondary,
+        color: AppColors.brandFamilyText,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final tone = accent ?? AppColors.brandFamilyMain;
+
     return Semantics(
       button: true,
       label: semanticLabel ?? '$title. $subtitle',
-      child: GlassCard(
+      child: GlobalSearchResultRow(
+        icon: leadingIcon,
+        accent: tone,
+        title: title,
+        subtitle: subtitle.isNotEmpty ? subtitle : null,
+        semanticLabel: semanticLabel,
         onTap: onTap,
-        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            Icon(leadingIcon, size: 20, color: AppColors.cyanGlow),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(
-                      subtitle,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            ?trailing,
-          ],
-        ),
+        trailing: trailing,
+        glowIntensity: 0.04,
       ),
     );
   }
