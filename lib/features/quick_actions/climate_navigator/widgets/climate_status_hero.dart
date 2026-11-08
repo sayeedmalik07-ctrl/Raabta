@@ -6,8 +6,11 @@ import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/l10n/climate_strings.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/models/qatar_weather.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/presentation/climate_wbgt_status_presentation.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/climate_primitives.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/widgets/climate_status_media_actions.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/hydration_reminder_toggle.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/widgets/climate_wbgt_uncertainty_block.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/outdoor_work_compliance_panel.dart';
 
 /// Single above-the-fold climate/heat status surface for Climate Navigator.
@@ -26,19 +29,29 @@ class ClimateStatusHero extends StatelessWidget {
   @visibleForTesting
   static String semanticsSummary(QatarWeather weather, String locale) {
     final wbgt = weather.wbgtEstimateC;
-    final wbgtLabel = ClimateStrings.wbgtRiskLabel(weather.wbgtRiskLevelKey, locale);
+    final levelKey = weather.wbgtRiskLevelKey;
+    final bandShort = ClimateStrings.t(
+      ClimateWbgtStatusPresentation.shortLabelKeyForLevel(levelKey),
+      locale,
+    );
+    final wbgtGuidance = ClimateStrings.t(
+      ClimateWbgtStatusPresentation.guidanceKeyForLevel(levelKey),
+      locale,
+    );
+    final outdoorAdvice =
+        ClimateStrings.outdoorAdviceFor(weather.heatIndexC, locale);
     final heatLabel = ClimateStrings.heatIndexRiskLabel(weather.heatIndexC, locale);
-    final advice = ClimateStrings.outdoorAdviceFor(weather.heatIndexC, locale);
     return ClimateStrings.format(
       'status_hero_semantics',
       locale,
       params: {
         'temp': weather.tempC.toStringAsFixed(0),
         'wbgt': wbgt.toStringAsFixed(1),
-        'wbgtLabel': wbgtLabel,
+        'wbgtLabel': bandShort,
         'heatIndex': weather.heatIndexC.toStringAsFixed(0),
         'heatLabel': heatLabel,
-        'advice': advice,
+        'wbgtAdvice': wbgtGuidance,
+        'outdoorAdvice': outdoorAdvice,
       },
     );
   }
@@ -47,13 +60,23 @@ class ClimateStatusHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final wbgt = weather.wbgtEstimateC;
     final levelKey = weather.wbgtRiskLevelKey;
-    final accent = _accentForLevel(levelKey);
-    final wbgtLabel = ClimateStrings.wbgtRiskLabel(levelKey, locale);
+    final accent = ClimateWbgtStatusPresentation.accentForLevel(levelKey);
+    final metricColor =
+        ClimateWbgtStatusPresentation.metricColorForLevel(levelKey);
+    final bandIcon = ClimateWbgtStatusPresentation.iconForLevel(levelKey);
+    final bandShort = ClimateStrings.t(
+      ClimateWbgtStatusPresentation.shortLabelKeyForLevel(levelKey),
+      locale,
+    );
+    final bandGuidance = ClimateStrings.t(
+      ClimateWbgtStatusPresentation.guidanceKeyForLevel(levelKey),
+      locale,
+    );
+    final outdoorAdvice =
+        ClimateStrings.outdoorAdviceFor(weather.heatIndexC, locale);
     final heatRiskLabel =
         ClimateStrings.heatIndexRiskLabel(weather.heatIndexC, locale);
     final uvLabel = ClimateStrings.uvLabelFor(weather.uvIndex, locale);
-    final outdoorAdvice =
-        ClimateStrings.outdoorAdviceFor(weather.heatIndexC, locale);
     final description =
         ClimateStrings.localizedDescription(weather.description, locale);
     final showWorkStop = weather.requiresWorkStop;
@@ -74,12 +97,18 @@ class ClimateStatusHero extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  weather.isPeakHeat
-                      ? Icons.thermostat_rounded
-                      : Icons.wb_sunny_outlined,
-                  color: accent,
-                  size: 28,
+                Semantics(
+                  label: bandShort,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: accent.withValues(alpha: 0.35)),
+                    ),
+                    child: Icon(bandIcon, color: accent, size: 26),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -101,7 +130,7 @@ class ClimateStatusHero extends StatelessWidget {
                           Text(
                             '${wbgt.toStringAsFixed(1)}°C',
                             style: AppTypography.title.copyWith(
-                              color: accent,
+                              color: metricColor,
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
                               height: 1,
@@ -110,9 +139,9 @@ class ClimateStatusHero extends StatelessWidget {
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text(
-                              wbgtLabel,
+                              bandShort,
                               style: AppTypography.caption.copyWith(
-                                color: accent,
+                                color: metricColor,
                                 fontWeight: FontWeight.w800,
                               ),
                               maxLines: 2,
@@ -185,24 +214,25 @@ class ClimateStatusHero extends StatelessWidget {
                 ],
               ),
             ],
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: accent.withValues(alpha: 0.2)),
-              ),
-              child: Text(
-                outdoorAdvice,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textPrimary,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+            const SizedBox(height: 10),
+            ClimateWbgtUncertaintyBlock(
+              estimateC: wbgt,
+              locale: locale,
             ),
+            const SizedBox(height: 12),
+            _LabeledGuidanceBlock(
+              label: ClimateStrings.t('status_wbgt_guidance_label', locale),
+              body: bandGuidance,
+              accent: accent,
+            ),
+            const SizedBox(height: 10),
+            _LabeledGuidanceBlock(
+              label: ClimateStrings.t('status_heat_index_outdoor_label', locale),
+              body: outdoorAdvice,
+              accent: AppColors.heatOrange,
+            ),
+            const SizedBox(height: 10),
+            ClimateStatusMediaActions(weather: weather, locale: locale),
             if (showWorkStop) ...[
               const SizedBox(height: 12),
               ClimateHapticOnReveal(
@@ -231,7 +261,7 @@ class ClimateStatusHero extends StatelessWidget {
               locale: locale,
             ),
             const SizedBox(height: 4),
-            HydrationReminderToggle(locale: locale),
+            HydrationReminderToggle(locale: locale, weather: weather),
             if (onOpenGuide != null) ...[
               const SizedBox(height: 4),
               TextButton.icon(
@@ -316,20 +346,52 @@ class ClimateStatusHero extends StatelessWidget {
       params: {'time': time},
     );
   }
+}
 
-  Color _accentForLevel(String levelKey) {
-    switch (levelKey) {
-      case 'work_stop':
-        return AppColors.errorBright;
-      case 'extreme':
-        return AppColors.error;
-      case 'high':
-        return AppColors.heatOrange;
-      case 'moderate':
-        return AppColors.accentGold;
-      default:
-        return AppColors.successBright;
-    }
+class _LabeledGuidanceBlock extends StatelessWidget {
+  const _LabeledGuidanceBlock({
+    required this.label,
+    required this.body,
+    required this.accent,
+  });
+
+  final String label;
+  final String body;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textPrimary,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

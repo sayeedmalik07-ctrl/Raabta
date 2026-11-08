@@ -15,20 +15,27 @@ import 'package:raabta/features/home/widgets/glass_loading_card.dart';
 import 'package:raabta/features/home/widgets/home_section_header.dart';
 import 'package:raabta/providers/visa_providers.dart';
 import 'package:raabta/services/ai/claude_ai_service.dart';
-import 'package:raabta/services/notifications/notification_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'climate_navigator/l10n/climate_strings.dart';
 import 'climate_navigator/models/qatar_weather.dart';
+import 'climate_navigator/services/climate_heat_reminder_scheduler.dart';
+import 'climate_navigator/services/climate_status_listen_session.dart';
 import 'climate_navigator/services/climate_route_history_repository.dart';
 import 'climate_navigator/widgets/climate_feature_empty_state.dart';
 import 'climate_navigator/widgets/climate_primitives.dart';
 import 'climate_navigator/widgets/cooling_resources_panel.dart';
 import 'climate_navigator/widgets/climate_status_hero.dart';
+import 'climate_navigator/widgets/climate_wbgt_meter_panel.dart';
 import 'climate_navigator/widgets/heat_illness_guide_panel.dart';
+import 'climate_navigator/widgets/acclimatization_section.dart';
 import 'climate_navigator/widgets/heat_symptom_checker.dart';
+import 'climate_navigator/widgets/heat_violation_rights_section.dart';
+import 'climate_navigator/widgets/workload_guidance_section.dart';
 import 'climate_navigator/widgets/location_search_field.dart';
 import 'climate_navigator/widgets/route_map_preview.dart';
+import 'package:raabta/features/concierge_90_day/presentation/providers/concierge_providers.dart';
+import 'package:raabta/providers/auth_providers.dart';
 
 // ─── Route option model ───────────────────────────────────
 
@@ -98,6 +105,7 @@ class _ClimateNavigatorScreenState
 
   @override
   void dispose() {
+    ClimateStatusListenSession.stopActiveForDispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -107,12 +115,11 @@ class _ClimateNavigatorScreenState
     super.initState();
     _loadRouteHistory();
     ref.listenManual(qatarWeatherProvider, (_, next) {
-      next.whenData((weather) {
+      next.whenData((weather) async {
         final locale = ref.read(userLanguageProvider);
-        NotificationService.scheduleHeatSafetyAlert(
-          heatIndexC: weather.heatIndexC,
-          heatRiskLabel:
-              ClimateStrings.heatIndexRiskLabel(weather.heatIndexC, locale),
+        await ClimateHeatReminderScheduler.syncFromWeather(
+          weather: weather,
+          locale: locale,
         );
       });
     });
@@ -375,6 +382,13 @@ Qatar-specific knowledge to apply:
     HeatIllnessGuidePanel.showSheet(context, locale);
   }
 
+  Future<DateTime?> _fetchConciergeArrivalForPrefill() async {
+    final uid = ref.read(currentUserProvider)?.uid;
+    if (uid == null) return null;
+    final repo = await ref.read(conciergeRepositoryProvider.future);
+    return (await repo.loadProgress(uid)).arrivalDate;
+  }
+
   Widget _buildStatusHero(String locale, AsyncValue<QatarWeather> weatherAsync) {
     return weatherAsync.when(
       loading: () => _buildWeatherSkeleton(locale),
@@ -387,6 +401,20 @@ Qatar-specific knowledge to apply:
         weather: weather,
         locale: locale,
         onOpenGuide: () => _openHeatIllnessGuide(locale),
+      ),
+    );
+  }
+
+  Widget _buildMeterPanel(String locale, AsyncValue<QatarWeather> weatherAsync) {
+    return weatherAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => ClimateWbgtMeterPanel(
+        weather: QatarWeather.fallback(),
+        locale: locale,
+      ),
+      data: (weather) => ClimateWbgtMeterPanel(
+        weather: weather,
+        locale: locale,
       ),
     );
   }
@@ -704,13 +732,31 @@ Qatar-specific knowledge to apply:
             ),
             const SizedBox(height: AppSpacing.md),
             _buildStatusHero(locale, weatherAsync),
+            const SizedBox(height: AppSpacing.md),
+            _buildMeterPanel(locale, weatherAsync),
             const SizedBox(height: AppSpacing.xl),
             _buildRoutePlannerSection(locale, weatherAsync),
+            const SizedBox(height: AppSpacing.xl),
+            WorkloadGuidanceSection(
+              locale: locale,
+              onOpenHeatGuide: () => _openHeatIllnessGuide(locale),
+            ),
             const SizedBox(height: AppSpacing.xl),
             CoolingResourcesPanel(
               locale: locale,
               onSetDestination: _setDestinationFromCooling,
             ),
+            const SizedBox(height: AppSpacing.xl),
+            AcclimatizationSection(
+              locale: locale,
+              fetchConciergeArrivalDate:
+                  ref.watch(currentUserProvider)?.uid != null
+                      ? _fetchConciergeArrivalForPrefill
+                      : null,
+              onOpenHeatGuide: () => _openHeatIllnessGuide(locale),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            HeatViolationRightsSection(locale: locale),
             const SizedBox(height: AppSpacing.xl),
             HomeSectionHeader(
               overline:

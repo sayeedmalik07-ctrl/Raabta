@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:raabta/config/app_config.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/data/qatar_outdoor_work_rules.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/presentation/climate_wbgt_status_presentation.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/services/heat_risk_calculator.dart';
 import 'dart:convert';
 
@@ -22,6 +23,10 @@ class QatarWeather {
   final bool cached;
   final int cloudCover;
   final DateTime fetchedAt;
+
+  /// Same rule as Home climate chip validity
+  /// (`lib/features/home/providers/home_chip_status_providers.dart`).
+  bool get canScheduleHeatReminders => dataAvailable && !isFallback;
 
   const QatarWeather({
     required this.tempC,
@@ -89,20 +94,8 @@ class QatarWeather {
   String get wbgtRiskLevelKey =>
       HeatRiskCalculator.riskLevelLabel(wbgtEstimateC);
 
-  Color get wbgtAccentColor {
-    switch (wbgtRiskLevelKey) {
-      case 'work_stop':
-        return const Color(0xFFFF4757);
-      case 'extreme':
-        return const Color(0xFFE63946);
-      case 'high':
-        return const Color(0xFFFF6B35);
-      case 'moderate':
-        return const Color(0xFFFFB627);
-      default:
-        return const Color(0xFF2DC653);
-    }
-  }
+  Color get wbgtAccentColor =>
+      ClimateWbgtStatusPresentation.accentForLevel(wbgtRiskLevelKey);
 
   // Safe offline fallback — screen never crashes
   factory QatarWeather.fallback() => QatarWeather(

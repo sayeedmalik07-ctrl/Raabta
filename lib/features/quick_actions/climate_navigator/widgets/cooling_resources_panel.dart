@@ -35,6 +35,15 @@ class CoolingResourcesPanel extends ConsumerStatefulWidget {
   @override
   ConsumerState<CoolingResourcesPanel> createState() =>
       _CoolingResourcesPanelState();
+
+  @visibleForTesting
+  static bool shouldOfferNearestPublicStop({
+    required bool usingDeviceLocation,
+    required CoolingResource? stop,
+  }) {
+    if (!usingDeviceLocation) return false;
+    return stop != null;
+  }
 }
 
 class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
@@ -50,6 +59,7 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
   bool _permissionDenied = false;
 
   String? _typeFilter;
+  String? _capabilityFilter;
   List<CoolingResource> _verified = const [];
   List<CoolingResource> _liveResults = const [];
   Set<Marker> _markers = {};
@@ -118,6 +128,7 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
       latitude: lat,
       longitude: lng,
       typeFilter: _typeFilter,
+      capabilityFilter: _capabilityFilter,
     );
     setState(() {
       _verified = verified;
@@ -133,10 +144,18 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
         (a, b) =>
             (a.distanceMeters ?? 0).compareTo(b.distanceMeters ?? 0),
       );
+      var filtered = merged;
       if (_typeFilter != null) {
-        return merged.where((r) => r.type == _typeFilter).toList();
+        filtered = filtered.where((r) => r.type == _typeFilter).toList();
       }
-      return merged;
+      if (_capabilityFilter != null) {
+        filtered = filtered
+            .where(
+              (r) => _capabilityFilter == 'ac_rest' ? r.acRest : r.respite,
+            )
+            .toList();
+      }
+      return filtered;
     }
     return _verified;
   }
@@ -247,9 +266,56 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 
+  String _walkTimeLabel(CoolingResource resource) {
+    final meters = resource.distanceMeters;
+    if (meters == null) return '';
+    final km = meters / 1000;
+    final minutes = PrayerLocationService.estimateWalkMinutes(km);
+    return ClimateStrings.format(
+      'cooling_nearest_walk_approx',
+      widget.locale,
+      params: {'minutes': '$minutes'},
+    );
+  }
+
+  bool get _usingDeviceLocation => !_permissionDenied && !_locationLoading;
+
+  CoolingResource? _nearestPublicStop() {
+    if (!_usingDeviceLocation) return null;
+    final lat = _latitude;
+    final lng = _longitude;
+    if (lat == null || lng == null) return null;
+    return ref.read(coolingResourcesServiceProvider).nearestPublicAccessStop(
+          latitude: lat,
+          longitude: lng,
+          typeFilter: _typeFilter,
+        );
+  }
+
+  String? _provenanceLabel(CoolingResource resource) {
+    final key = resource.classificationProvenanceKey;
+    if (key == null || key.isEmpty) return null;
+    return ClimateStrings.t(key, widget.locale);
+  }
+
   @override
   Widget build(BuildContext context) {
     final nearest = _displayResources.take(5).toList();
+    final nearestPublicCandidate = _nearestPublicStop();
+    final showNearestPublic = CoolingResourcesPanel.shouldOfferNearestPublicStop(
+      usingDeviceLocation: _usingDeviceLocation,
+      stop: nearestPublicCandidate,
+    );
+    final nearestPublic = showNearestPublic ? nearestPublicCandidate : null;
+    CoolingResource? selectedResource;
+    if (_selectedId != null) {
+      for (final r in _displayResources) {
+        if (r.id == _selectedId) {
+          selectedResource = r;
+          break;
+        }
+      }
+    }
 
     return GlassContainer(
       padding: const EdgeInsets.all(16),
@@ -356,6 +422,59 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _TypeChip(
+                  label: ClimateStrings.t(
+                    'cooling_cap_filter_all',
+                    widget.locale,
+                  ),
+                  selected: _capabilityFilter == null,
+                  onTap: () {
+                    setState(() => _capabilityFilter = null);
+                    _loadResources();
+                  },
+                ),
+                _TypeChip(
+                  label: ClimateStrings.t('cooling_tag_ac_rest', widget.locale),
+                  selected: _capabilityFilter == 'ac_rest',
+                  onTap: () {
+                    setState(
+                      () => _capabilityFilter =
+                          _capabilityFilter == 'ac_rest' ? null : 'ac_rest',
+                    );
+                    _loadResources();
+                  },
+                ),
+                _TypeChip(
+                  label: ClimateStrings.t('cooling_tag_respite', widget.locale),
+                  selected: _capabilityFilter == 'respite',
+                  onTap: () {
+                    setState(
+                      () => _capabilityFilter =
+                          _capabilityFilter == 'respite' ? null : 'respite',
+                    );
+                    _loadResources();
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (nearestPublic != null) ...[
+            const SizedBox(height: 12),
+            _NearestPublicStopCard(
+              resource: nearestPublic,
+              locale: widget.locale,
+              walkLabel: _walkTimeLabel(nearestPublic),
+              distanceLabel: _formatDistance(nearestPublic.distanceMeters),
+              onTap: () => _onResourceTap(nearestPublic),
+              onDirections: () => _openDirections(nearestPublic),
+            ),
+          ],
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -400,7 +519,9 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
               compact: true,
               icon: Icons.ac_unit_rounded,
               title: ClimateStrings.t('empty_cooling_title', widget.locale),
-              description: ClimateStrings.t('empty_cooling_body', widget.locale),
+              description: _capabilityFilter != null
+                  ? ClimateStrings.t('cooling_empty', widget.locale)
+                  : ClimateStrings.t('empty_cooling_body', widget.locale),
             )
           else
             SizedBox(
@@ -417,6 +538,11 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
                     selected: selected,
                     typeLabel: _typeLabel(resource.type),
                     distanceLabel: _formatDistance(resource.distanceMeters),
+                    acRestLabel:
+                        ClimateStrings.t('cooling_tag_ac_rest', widget.locale),
+                    respiteLabel:
+                        ClimateStrings.t('cooling_tag_respite', widget.locale),
+                    provenanceLabel: _provenanceLabel(resource),
                     verifiedLabel: resource.isVerified
                         ? ClimateStrings.t('cooling_verified', widget.locale)
                         : ClimateStrings.t('cooling_unverified', widget.locale),
@@ -434,6 +560,24 @@ class _CoolingResourcesPanelState extends ConsumerState<CoolingResourcesPanel> {
                 },
               ),
             ),
+          if (selectedResource != null &&
+              (selectedResource.acRest ||
+                  selectedResource.respite ||
+                  _provenanceLabel(selectedResource) != null)) ...[
+            const SizedBox(height: 10),
+            _ClassificationDetailCard(
+              resource: selectedResource,
+              locale: widget.locale,
+              typeLabel: _typeLabel(selectedResource.type),
+              provenanceLabel: _provenanceLabel(selectedResource),
+              acRestLabel:
+                  ClimateStrings.t('cooling_tag_ac_rest', widget.locale),
+              respiteLabel:
+                  ClimateStrings.t('cooling_tag_respite', widget.locale),
+              detailLabel:
+                  ClimateStrings.t('cooling_detail_heading', widget.locale),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -489,6 +633,9 @@ class _ResourceCarouselCard extends StatelessWidget {
     required this.selected,
     required this.typeLabel,
     required this.distanceLabel,
+    required this.acRestLabel,
+    required this.respiteLabel,
+    required this.provenanceLabel,
     required this.verifiedLabel,
     required this.directionsLabel,
     required this.setDestinationLabel,
@@ -502,6 +649,9 @@ class _ResourceCarouselCard extends StatelessWidget {
   final bool selected;
   final String typeLabel;
   final String distanceLabel;
+  final String acRestLabel;
+  final String respiteLabel;
+  final String? provenanceLabel;
   final String verifiedLabel;
   final String directionsLabel;
   final String setDestinationLabel;
@@ -532,6 +682,22 @@ class _ResourceCarouselCard extends StatelessWidget {
                   fontSize: 13,
                 ),
               ),
+              if (resource.acRest || resource.respite) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (resource.acRest)
+                      _CapabilityTag(label: acRestLabel, icon: Icons.ac_unit),
+                    if (resource.respite)
+                      _CapabilityTag(
+                        label: respiteLabel,
+                        icon: Icons.park_outlined,
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -553,6 +719,19 @@ class _ResourceCarouselCard extends StatelessWidget {
                   ],
                 ],
               ),
+              if (provenanceLabel != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  provenanceLabel!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    fontSize: 10,
+                    color: AppColors.textOnGlassMuted,
+                    height: 1.25,
+                  ),
+                ),
+              ],
               const Spacer(),
               if (showSetDestination) ...[
                 SizedBox(
@@ -618,6 +797,188 @@ class _ResourceCarouselCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CapabilityTag extends StatelessWidget {
+  const _CapabilityTag({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.cyanGlow.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppColors.cyanGlow.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: AppColors.cyanGlow),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.cyanGlow,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearestPublicStopCard extends StatelessWidget {
+  const _NearestPublicStopCard({
+    required this.resource,
+    required this.locale,
+    required this.walkLabel,
+    required this.distanceLabel,
+    required this.onTap,
+    required this.onDirections,
+  });
+
+  final CoolingResource resource;
+  final String locale;
+  final String walkLabel;
+  final String distanceLabel;
+  final VoidCallback onTap;
+  final VoidCallback onDirections;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ClimateStrings.t('cooling_nearest_stop_title', locale),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.cyanGlow,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              resource.name,
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (distanceLabel.isNotEmpty || walkLabel.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                [distanceLabel, walkLabel].where((s) => s.isNotEmpty).join(' · '),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            if (resource.publicAccessEvidence != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                ClimateStrings.t('cooling_public_access_note', locale),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: AppColors.textOnGlassMuted,
+                  height: 1.3,
+                ),
+              ),
+            ],
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.directions_rounded, size: 20),
+                color: AppColors.cyanGlow,
+                onPressed: onDirections,
+                tooltip: ClimateStrings.t('cooling_directions', locale),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassificationDetailCard extends StatelessWidget {
+  const _ClassificationDetailCard({
+    required this.resource,
+    required this.locale,
+    required this.typeLabel,
+    required this.provenanceLabel,
+    required this.acRestLabel,
+    required this.respiteLabel,
+    required this.detailLabel,
+  });
+
+  final CoolingResource resource;
+  final String locale;
+  final String typeLabel;
+  final String? provenanceLabel;
+  final String acRestLabel;
+  final String respiteLabel;
+  final String detailLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            detailLabel,
+            style: AppTypography.bodySmall.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.cyanGlow,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${resource.name} · $typeLabel',
+            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (resource.acRest || resource.respite) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (resource.acRest)
+                  _CapabilityTag(label: acRestLabel, icon: Icons.ac_unit),
+                if (resource.respite)
+                  _CapabilityTag(
+                    label: respiteLabel,
+                    icon: Icons.park_outlined,
+                  ),
+              ],
+            ),
+          ],
+          if (provenanceLabel != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              provenanceLabel!,
+              style: AppTypography.caption.copyWith(
+                fontSize: 11,
+                color: AppColors.textOnGlassMuted,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

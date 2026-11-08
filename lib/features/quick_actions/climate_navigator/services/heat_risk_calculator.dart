@@ -1,6 +1,29 @@
 import 'dart:math' as math;
 
+import 'package:raabta/features/quick_actions/climate_navigator/data/climate_heat_reminder_constants.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/data/qatar_outdoor_work_rules.dart';
+
+/// Local heat-reminder kinds (Climate Navigator, opt-in).
+enum ClimateHeatReminderKind {
+  duringActiveWindow,
+  beforeShiftEvening,
+  beforeShiftLead,
+}
+
+/// Result of [HeatRiskCalculator.evaluateHeatReminderDue].
+class ClimateHeatReminderDecision {
+  const ClimateHeatReminderDecision({
+    required this.isDue,
+    this.titleKey,
+    this.bodyKey,
+  });
+
+  final bool isDue;
+  final String? titleKey;
+  final String? bodyKey;
+
+  static const none = ClimateHeatReminderDecision(isDue: false);
+}
 
 /// Inputs for on-device WBGT approximation — no network, no AI.
 class HeatRiskInputs {
@@ -124,6 +147,121 @@ abstract final class HeatRiskCalculator {
     if (wbgtC >= 28) return 'high';
     if (wbgtC >= 26) return 'moderate';
     return 'lower';
+  }
+
+  /// Minutes from midnight on a Qatar-local wall clock.
+  static int minuteOfQatarDay(DateTime qatarLocal) =>
+      qatarLocal.hour * 60 + qatarLocal.minute;
+
+  /// Inclusive range; supports overnight windows when [startMinute] > [endMinute].
+  static bool isMinuteInDayRange(
+    int minute,
+    int startMinute,
+    int endMinute,
+  ) {
+    if (startMinute <= endMinute) {
+      return minute >= startMinute && minute <= endMinute;
+    }
+    return minute >= startMinute || minute <= endMinute;
+  }
+
+  /// Converts Qatar wall time to a UTC [DateTime] for labour-rule helpers.
+  static DateTime qatarWallToUtcInstant(DateTime qatarWall) {
+    return DateTime.utc(
+      qatarWall.year,
+      qatarWall.month,
+      qatarWall.day,
+      qatarWall.hour - qatarUtcOffset.inHours,
+      qatarWall.minute,
+      qatarWall.second,
+    );
+  }
+
+  /// Whether a local notification should fire at [qatarLocal] for [kind].
+  ///
+  /// [reminderIntervalMinutes] comes from [ClimateHeatReminderConstants] for the
+  /// current heat band. During-window ticks align to interval edges from active
+  /// window start.
+  static ClimateHeatReminderDecision evaluateHeatReminderDue({
+    required String wbgtRiskLevelKey,
+    required DateTime qatarLocal,
+    required int activeStartMinute,
+    required int activeEndMinute,
+    required int quietStartMinute,
+    required int quietEndMinute,
+    required ClimateHeatReminderKind kind,
+    required int reminderIntervalMinutes,
+  }) {
+    final minute = minuteOfQatarDay(qatarLocal);
+    if (isMinuteInDayRange(minute, quietStartMinute, quietEndMinute)) {
+      return ClimateHeatReminderDecision.none;
+    }
+
+    const titleKey = 'heat_reminder_title';
+
+    switch (kind) {
+      case ClimateHeatReminderKind.duringActiveWindow:
+        if (!ClimateHeatReminderConstants.bandEligibleForReminders(
+          wbgtRiskLevelKey,
+        )) {
+          return ClimateHeatReminderDecision.none;
+        }
+        if (activeEndMinute <= activeStartMinute) {
+          return ClimateHeatReminderDecision.none;
+        }
+        if (!isMinuteInDayRange(minute, activeStartMinute, activeEndMinute)) {
+          return ClimateHeatReminderDecision.none;
+        }
+        if (reminderIntervalMinutes <= 0) {
+          return ClimateHeatReminderDecision.none;
+        }
+        final fromStart = minute - activeStartMinute;
+        if (fromStart < 0 || fromStart % reminderIntervalMinutes != 0) {
+          return ClimateHeatReminderDecision.none;
+        }
+        final restricted = isSummerRestrictedWorkHours(
+          qatarWallToUtcInstant(qatarLocal),
+        );
+        return ClimateHeatReminderDecision(
+          isDue: true,
+          titleKey: titleKey,
+          bodyKey: restricted
+              ? 'heat_reminder_body_restricted'
+              : 'heat_reminder_body',
+        );
+      case ClimateHeatReminderKind.beforeShiftEvening:
+        if (activeEndMinute <= activeStartMinute) {
+          return ClimateHeatReminderDecision.none;
+        }
+        final eveningMinute =
+            ClimateHeatReminderConstants.beforeShiftEveningHour * 60 +
+                ClimateHeatReminderConstants.beforeShiftEveningMinute;
+        if (minute != eveningMinute) {
+          return ClimateHeatReminderDecision.none;
+        }
+        return const ClimateHeatReminderDecision(
+          isDue: true,
+          titleKey: 'heat_reminder_before_shift_title',
+          bodyKey: 'heat_reminder_before_shift_body',
+        );
+      case ClimateHeatReminderKind.beforeShiftLead:
+        if (activeEndMinute <= activeStartMinute) {
+          return ClimateHeatReminderDecision.none;
+        }
+        final leadMinute = activeStartMinute -
+            ClimateHeatReminderConstants.beforeShiftLeadMinutes;
+        if (leadMinute < 0) {
+          return ClimateHeatReminderDecision.none;
+        }
+        if (minute != leadMinute) {
+          return ClimateHeatReminderDecision.none;
+        }
+        return const ClimateHeatReminderDecision(
+          isDue: true,
+          titleKey: 'heat_reminder_before_shift_title',
+          bodyKey: 'heat_reminder_before_shift_body',
+        );
+    }
   }
 
   /// Stull (2011) wet-bulb estimate from dry-bulb °C and RH %.

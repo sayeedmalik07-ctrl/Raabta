@@ -10,6 +10,10 @@ class CoolingResource {
     this.is24Hour = false,
     this.isVerified = true,
     this.distanceMeters,
+    this.acRest = false,
+    this.respite = false,
+    this.classificationProvenanceKey,
+    this.publicAccessEvidence,
   });
 
   final String id;
@@ -24,9 +28,25 @@ class CoolingResource {
   final bool isVerified;
   final double? distanceMeters;
 
+  /// Repository-backed air-conditioned rest (not inferred from venue name).
+  final bool acRest;
+
+  /// Repository-backed shade / waiting-area respite.
+  final bool respite;
+
+  /// L10n key for source-level provenance text (`cooling_prov_*`).
+  final String? classificationProvenanceKey;
+
+  /// Verbatim repo quote when public access is documented (nearest-stop only).
+  final String? publicAccessEvidence;
+
   CoolingResource copyWith({
     double? distanceMeters,
     bool? isVerified,
+    bool? acRest,
+    bool? respite,
+    String? classificationProvenanceKey,
+    String? publicAccessEvidence,
   }) {
     return CoolingResource(
       id: id,
@@ -38,6 +58,11 @@ class CoolingResource {
       is24Hour: is24Hour,
       isVerified: isVerified ?? this.isVerified,
       distanceMeters: distanceMeters ?? this.distanceMeters,
+      acRest: acRest ?? this.acRest,
+      respite: respite ?? this.respite,
+      classificationProvenanceKey:
+          classificationProvenanceKey ?? this.classificationProvenanceKey,
+      publicAccessEvidence: publicAccessEvidence ?? this.publicAccessEvidence,
     );
   }
 }

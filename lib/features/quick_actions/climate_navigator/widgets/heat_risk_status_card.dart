@@ -5,6 +5,7 @@ import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/l10n/climate_strings.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/models/qatar_weather.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/presentation/climate_wbgt_status_presentation.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/climate_primitives.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/hydration_reminder_toggle.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/widgets/outdoor_work_compliance_panel.dart';
@@ -116,7 +117,7 @@ class HeatRiskStatusCard extends StatelessWidget {
             locale: locale,
           ),
           const SizedBox(height: 4),
-          HydrationReminderToggle(locale: locale),
+          HydrationReminderToggle(locale: locale, weather: weather),
           if (onOpenGuide != null) ...[
             const SizedBox(height: 4),
             TextButton.icon(
@@ -140,20 +141,8 @@ class HeatRiskStatusCard extends StatelessWidget {
     );
   }
 
-  Color _accentForLevel(String levelKey) {
-    switch (levelKey) {
-      case 'work_stop':
-        return AppColors.errorBright;
-      case 'extreme':
-        return AppColors.error;
-      case 'high':
-        return AppColors.heatOrange;
-      case 'moderate':
-        return AppColors.accentGold;
-      default:
-        return AppColors.successBright;
-    }
-  }
+  Color _accentForLevel(String levelKey) =>
+      ClimateWbgtStatusPresentation.accentForLevel(levelKey);
 }
 
 class _AlertBox extends StatelessWidget {

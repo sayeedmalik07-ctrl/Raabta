@@ -14,7 +14,7 @@ abstract final class QatarOutdoorWorkRules {
   static const restrictedEndHour = 15;
   static const restrictedEndMinute = 30;
 
-  /// Art. 4(8) — outdoor work must stop when WBGT is strictly above this (°C).
+  /// Art. 4(9) — work must stop when workplace WBGT rises beyond this (°C).
   static const wbgtWorkStopThresholdC = 32.1;
 
   static const regulationCitation = 'Ministerial Decision No. 17 of 2021';

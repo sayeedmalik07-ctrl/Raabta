@@ -73,6 +73,13 @@ class EvidenceListenController {
     onStateChanged?.call();
   }
 
+  /// Best-effort stop during widget/screen dispose (does not await platform TTS).
+  void stopForDispose() {
+    state = EvidenceListenPlaybackState.idle;
+    onStateChanged?.call();
+    _tts.stop().catchError((_) {});
+  }
+
   Future<void> repeat() async {
     if (_lastScript == null) return;
     await speak(_lastScript!, locale: '');

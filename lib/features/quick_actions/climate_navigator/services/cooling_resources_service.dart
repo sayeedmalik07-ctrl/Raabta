@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:raabta/features/prayer_mosque/data/mosque_data_source.dart';
 import 'package:raabta/features/prayer_mosque/domain/models/mosque.dart';
 import 'package:raabta/features/prayer_mosque/services/prayer_location_service.dart';
+import 'package:raabta/features/quick_actions/climate_navigator/data/cooling_resource_classification.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/data/cooling_resources_catalog.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/models/cooling_resource.dart';
 
@@ -32,29 +33,55 @@ class CoolingResourcesService {
     required double longitude,
     double radiusKm = 60,
     String? typeFilter,
+    String? capabilityFilter,
   }) {
     final catalog = _withDistance(
       CoolingResourcesCatalog.verified,
       latitude,
       longitude,
       radiusKm,
-    );
+    ).map(CoolingResourceClassification.enrichCatalogEntry).toList();
 
-    final mosques = _mosqueDataSource
-        .nearby(
-          latitude: latitude,
-          longitude: longitude,
-          radiusKm: radiusKm,
-        )
-        .map(_mosqueToCoolingResource)
+    final mosquePlaces = _mosqueDataSource.nearby(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+    );
+    final mosques = mosquePlaces
+        .map((m) => CoolingResourceClassification.enrichFromMosque(
+              _mosqueToCoolingResource(m),
+              m,
+            ))
         .toList();
 
-    final merged = _mergeByProximity([...catalog, ...mosques]);
+    var merged = _mergeByProximity([...catalog, ...mosques]);
 
     if (typeFilter != null && typeFilter.isNotEmpty) {
-      return merged.where((r) => r.type == typeFilter).toList();
+      merged = merged.where((r) => r.type == typeFilter).toList();
     }
+    merged = CoolingResourceClassification.applyCapabilityFilter(
+      merged,
+      capabilityFilter: capabilityFilter,
+    );
     return merged;
+  }
+
+  /// Closest repo-documented public-access stop with AC/shade classification.
+  CoolingResource? nearestPublicAccessStop({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 60,
+    String? typeFilter,
+    String? capabilityFilter,
+  }) {
+    final nearby = verifiedNearby(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      typeFilter: typeFilter,
+      capabilityFilter: capabilityFilter,
+    );
+    return CoolingResourceClassification.nearestPublicAccessStop(nearby);
   }
 
   /// Optional live search — unverified Google Places results only.

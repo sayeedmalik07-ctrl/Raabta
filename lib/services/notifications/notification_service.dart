@@ -45,9 +45,19 @@ class NotificationIds {
 
   static int heatSafetyId() => 3001;
 
-  /// 3002–3009: hydration break reminders (Climate Navigator opt-in).
-  static int hydrationReminderId(int slot) => 3002 + slot;
+  /// 3002–3049: Climate Navigator during-window heat reminders.
+  static int climateHeatDuringSlotId(int slot) => 3002 + slot;
 
+  /// 3050–3051: optional before-shift prompts.
+  static int climateHeatBeforeShiftEveningId() => 3050;
+  static int climateHeatBeforeShiftLeadId() => 3051;
+
+  static const climateHeatDuringSlotCount = 48;
+
+  @Deprecated('Use climateHeatDuringSlotId')
+  static int hydrationReminderId(int slot) => climateHeatDuringSlotId(slot);
+
+  @Deprecated('Use climateHeatDuringSlotCount')
   static const hydrationReminderSlotCount = 8;
 
   static int generalId(int n) => 4000 + n;
@@ -330,30 +340,26 @@ class NotificationService {
     await _plugin.cancel(NotificationIds.heatSafetyId());
   }
 
-  // ── HYDRATION / REST BREAK REMINDERS (opt-in) ──────────
-  static Future<void> setHydrationRemindersEnabled({
-    required bool enabled,
-    required String title,
-    required String body,
+  // ── CLIMATE NAVIGATOR HEAT REMINDERS (opt-in) ──────────
+  static Future<void> scheduleClimateHeatReminders({
+    required List<({int id, DateTime whenUtc, String title, String body})> slots,
   }) async {
-    await _cancelHydrationReminders();
-    if (!enabled || !_initialized) return;
+    await cancelClimateHeatReminders();
+    if (!_initialized || slots.isEmpty) return;
 
-    final now = DateTime.now();
-    for (var slot = 0;
-        slot < NotificationIds.hydrationReminderSlotCount;
-        slot++) {
-      final when = now.add(Duration(minutes: 30 * (slot + 1)));
-      final tzDate = tz.TZDateTime.from(when, tz.local);
+    for (final slot in slots) {
+      final tzDate = tz.TZDateTime.from(slot.whenUtc, tz.local);
       await _plugin.zonedSchedule(
-        NotificationIds.hydrationReminderId(slot),
-        title,
-        body,
+        slot.id,
+        slot.title,
+        slot.body,
         tzDate,
         NotificationDetails(
           android: AndroidNotificationDetails(
             NotificationChannels.heatSafety,
             'Heat Safety',
+            channelDescription:
+                'Optional heat and hydration break reminders',
             importance: Importance.defaultImportance,
           ),
           iOS: const DarwinNotificationDetails(
@@ -361,20 +367,32 @@ class NotificationService {
             presentSound: true,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
 
-  static Future<void> _cancelHydrationReminders() async {
+  static Future<void> cancelClimateHeatReminders() async {
     if (!_initialized) return;
     for (var slot = 0;
-        slot < NotificationIds.hydrationReminderSlotCount;
+        slot < NotificationIds.climateHeatDuringSlotCount;
         slot++) {
-      await _plugin.cancel(NotificationIds.hydrationReminderId(slot));
+      await _plugin.cancel(NotificationIds.climateHeatDuringSlotId(slot));
     }
+    await _plugin.cancel(NotificationIds.climateHeatBeforeShiftEveningId());
+    await _plugin.cancel(NotificationIds.climateHeatBeforeShiftLeadId());
+  }
+
+  @Deprecated('Use ClimateHeatReminderScheduler.reschedule')
+  static Future<void> setHydrationRemindersEnabled({
+    required bool enabled,
+    required String title,
+    required String body,
+  }) async {
+    await cancelClimateHeatReminders();
+    if (!enabled) return;
   }
 
   // ── Cancel all RAABTA notifications ──────────────────
