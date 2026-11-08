@@ -1,101 +1,185 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:raabta/config/app_config.dart';
+import 'package:raabta/config/monetization_state.dart';
+import 'package:raabta/core/l10n/app_locale.dart';
+import 'package:raabta/core/l10n/app_shell_strings.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/screens/profile/l10n/profile_strings.dart';
+import 'package:raabta/core/utils/profile_display_helper.dart';
+import 'package:raabta/config/referral_config.dart';
+import 'package:raabta/features/referral/presentation/providers/referral_providers.dart';
+import 'package:raabta/services/referral/referral_deep_links.dart';
+import 'package:raabta/services/referral/referral_service.dart';
+import 'package:raabta/core/background/animated_aurora_background.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/theme/theme_notifier.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_list_section.dart';
+import 'package:raabta/core/widgets/glass_settings_tile.dart';
+import 'package:raabta/core/widgets/raabta_platform_notices_panel.dart';
 import 'package:raabta/core/widgets/section_header.dart';
-import 'package:raabta/screens/expat_score/expat_score_screen.dart';
-import 'package:raabta/screens/monetization/premium_subscription_screen.dart';
+import 'package:raabta/features/admin/admin_access.dart';
+import 'package:raabta/features/home/widgets/status_badge.dart';
+import 'package:raabta/features/home/widgets/profile_avatar.dart';
+import 'package:raabta/features/home/widgets/home_card_tiers.dart';
+import 'package:raabta/features/home/utils/home_time_greeting.dart';
+import 'package:raabta/features/home/utils/expat_score_profile_helper.dart';
+import 'package:raabta/services/ai/expat_life_score_service.dart';
+import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/features/profile/advanced/widgets/advanced_profile_card.dart';
 import 'package:raabta/screens/reviews/workplace_reviews_screen.dart';
 import 'package:raabta/screens/reviews/write_review_screen.dart';
+import 'package:raabta/screens/profile/app_review_service.dart';
+import 'package:raabta/services/auth/auth_session_service.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:raabta/providers/app_update_provider.dart';
+import 'package:raabta/providers/auth_providers.dart';
+import 'package:raabta/providers/my_activity_providers.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/features/saved_search/l10n/saved_search_strings.dart';
+import 'package:raabta/screens/profile/l10n/my_activity_strings.dart';
+import 'package:raabta/features/post_engine/presentation/providers/post_draft_count_provider.dart';
+import 'package:raabta/screens/profile/widgets/my_activity_pending_badge.dart';
+import 'package:raabta/services/app_update_service.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with SingleTickerProviderStateMixin {
-  static const String _referralCode = 'SAYEED2025';
   static const int _points = 250;
   static const int _nextLevelPoints = 500;
-  static const int _referralsJoined = 3;
-  static const int _referralGoal = 5;
 
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  bool _expatScoreBootstrapStarted = false;
 
   static const Color _whatsappGreen = Color(0xFF25D366);
 
   static const List<_Achievement> _achievements = [
-    _Achievement(emoji: '🌟', title: 'Early Adopter', earned: true),
-    _Achievement(emoji: '💼', title: 'Job Seeker', earned: true),
-    _Achievement(emoji: '🏠', title: 'Home Hunter', earned: false),
-    _Achievement(emoji: '🤝', title: 'Connector', earned: false),
-    _Achievement(emoji: '⭐', title: 'Ambassador', earned: false),
-    _Achievement(emoji: '🌍', title: 'Qatar Pro', earned: false),
-  ];
-
-  static const List<_LeaderboardEntry> _leaderboard = [
-    _LeaderboardEntry(rank: 1, name: 'Ahmed K.', refs: 12),
-    _LeaderboardEntry(rank: 2, name: 'Priya S.', refs: 9),
-    _LeaderboardEntry(rank: 3, name: 'James M.', refs: 7),
+    _Achievement(emoji: '🌟', catalogKey: 'achievement_early_adopter', earned: true),
+    _Achievement(emoji: '💼', catalogKey: 'achievement_job_seeker', earned: true),
+    _Achievement(emoji: '🏠', catalogKey: 'achievement_home_hunter', earned: false),
+    _Achievement(emoji: '🤝', catalogKey: 'achievement_connector', earned: false),
+    _Achievement(emoji: '⭐', catalogKey: 'achievement_ambassador', earned: false),
+    _Achievement(emoji: '🌍', catalogKey: 'achievement_qatar_pro', earned: false),
   ];
 
   static const List<_SettingsSection> _settingsSections = [
     _SettingsSection(
-      title: 'Account',
+      sectionKey: 'section_account',
       items: [
-        _SettingsItem(icon: Icons.person_outline, label: 'Edit Profile'),
-        _SettingsItem(icon: Icons.language, label: 'Change Language'),
-        _SettingsItem(icon: Icons.notifications_outlined, label: 'Notifications'),
+        _SettingsItem(
+          icon: Icons.pending_actions_outlined,
+          settingsKey: 'settings_my_activity',
+        ),
+        _SettingsItem(
+          icon: Icons.saved_search_outlined,
+          settingsKey: 'settings_saved_searches',
+        ),
+        _SettingsItem(icon: Icons.person_outline, settingsKey: 'settings_edit_profile'),
+        _SettingsItem(
+          icon: Icons.workspace_premium_outlined,
+          settingsKey: 'settings_my_subscription',
+        ),
+        _SettingsItem(icon: Icons.bookmark_outline, settingsKey: 'settings_saved_items'),
       ],
     ),
     _SettingsSection(
-      title: 'Activity',
+      sectionKey: 'section_quick_settings',
       items: [
-        _SettingsItem(icon: Icons.list_alt_outlined, label: 'My Listings'),
-        _SettingsItem(icon: Icons.bookmark_outline, label: 'Saved Items'),
         _SettingsItem(
-          icon: Icons.rate_review_outlined,
-          label: 'My Reviews',
-          route: _SettingsRoute.reviews,
+          icon: Icons.notifications_outlined,
+          settingsKey: 'settings_notifications',
+        ),
+        _SettingsItem(icon: Icons.language, settingsKey: 'settings_language'),
+        _SettingsItem(icon: Icons.palette_outlined, settingsKey: 'settings_appearance'),
+        _SettingsItem(icon: Icons.shield_outlined, settingsKey: 'settings_privacy'),
+        _SettingsItem(
+          icon: Icons.security_outlined,
+          settingsKey: 'settings_scam_shield_status',
         ),
       ],
     ),
     _SettingsSection(
-      title: 'Support',
+      sectionKey: 'section_raabta_tools',
       items: [
-        _SettingsItem(icon: Icons.help_outline, label: 'Help Center'),
-        _SettingsItem(icon: Icons.flag_outlined, label: 'Report Issue'),
-        _SettingsItem(icon: Icons.star_outline, label: 'Rate Raabta'),
+        _SettingsItem(icon: Icons.folder_outlined, settingsKey: 'settings_document_vault'),
+        _SettingsItem(
+          icon: Icons.restaurant_outlined,
+          settingsKey: 'settings_dietary_profile',
+        ),
+        _SettingsItem(icon: Icons.auto_awesome_outlined, settingsKey: 'settings_ai_assistant'),
+        _SettingsItem(icon: Icons.list_alt_outlined, settingsKey: 'settings_my_listings'),
       ],
     ),
     _SettingsSection(
-      title: 'Legal',
+      sectionKey: 'section_support',
       items: [
-        _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Privacy'),
-        _SettingsItem(icon: Icons.description_outlined, label: 'Terms'),
+        _SettingsItem(icon: Icons.help_outline, settingsKey: 'settings_help_center'),
+        _SettingsItem(icon: Icons.flag_outlined, settingsKey: 'settings_report_issue'),
+        _SettingsItem(icon: Icons.star_outline, settingsKey: 'settings_rate_raabta'),
       ],
     ),
     _SettingsSection(
-      title: 'Danger',
+      sectionKey: 'section_about',
       items: [
         _SettingsItem(
-          icon: Icons.logout,
-          label: 'Sign Out',
-          isDestructive: true,
+          icon: Icons.privacy_tip_outlined,
+          settingsKey: 'settings_privacy_policy',
         ),
+        _SettingsItem(icon: Icons.description_outlined, settingsKey: 'settings_terms'),
       ],
     ),
   ];
+
+  List<_SettingsSection> get _visibleSettingsSections {
+    Iterable<_SettingsSection> sections = _settingsSections;
+    if (!AppConfig.showRateApp) {
+      sections = [
+        for (final section in _settingsSections)
+          if (section.sectionKey == 'section_support')
+            _SettingsSection(
+              sectionKey: section.sectionKey,
+              items: [
+                for (final item in section.items)
+                  if (item.settingsKey != 'settings_rate_raabta') item,
+              ],
+            )
+          else
+            section,
+      ];
+    }
+    if (!MonetizationState.showPremiumTierUi) {
+      sections = [
+        for (final section in sections)
+          _SettingsSection(
+            sectionKey: section.sectionKey,
+            items: [
+              for (final item in section.items)
+                if (item.settingsKey != 'settings_my_subscription') item,
+            ],
+          ),
+      ].where((section) => section.items.isNotEmpty);
+    }
+    return sections.toList();
+  }
 
   @override
   void initState() {
@@ -109,6 +193,29 @@ class _ProfileScreenState extends State<ProfileScreen>
       curve: Curves.easeOutCubic,
     );
     _progressController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_bootstrapExpatScore());
+    });
+  }
+
+  Future<void> _bootstrapExpatScore() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || _expatScoreBootstrapStarted) return;
+
+    _expatScoreBootstrapStarted = true;
+    try {
+      final aiNotifier = ref.read(userAIProfileProvider.notifier);
+      final existingProfile = ref.read(userAIProfileProvider);
+      if (UserProfileOwnership.needsInit(existingProfile, user.uid)) {
+        await aiNotifier.initProfile(user.uid);
+      }
+      final profile = ref.read(userAIProfileProvider);
+      if (profile != null) {
+        await ref.read(expatLifeScoreProvider.notifier).refreshIfEmpty(profile);
+      }
+    } catch (_) {
+      _expatScoreBootstrapStarted = false;
+    }
   }
 
   @override
@@ -117,21 +224,26 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  void _showComingSoon(String label) {
+  void _showComingSoon(String settingsKey) {
+    final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+    final label = ProfileStrings.t(settingsKey, locale);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label — coming soon'),
+        content: Text(
+          ProfileStrings.format('snack_coming_soon', locale, params: {'label': label}),
+        ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.surfaceElevated,
       ),
     );
   }
 
-  void _copyReferralCode() {
-    Clipboard.setData(const ClipboardData(text: _referralCode));
+  void _copyReferralCode(String code) {
+    final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+    Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Referral code copied!'),
+        content: Text(ProfileStrings.t('snack_referral_copied', locale)),
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 2),
         backgroundColor: AppColors.surfaceElevated,
@@ -139,32 +251,58 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _shareOnWhatsApp() {
+  Future<void> _shareOnWhatsApp(String code) async {
+    final uid = ref.read(currentUserProvider)?.uid;
+    String shareCode = code;
+    if (shareCode.isEmpty && uid != null) {
+      shareCode = await ReferralService.instance.ensureReferralCode(uid) ?? '';
+      ref.invalidate(referralProfileProvider);
+    }
+    if (shareCode.isEmpty) return;
+
     Share.share(
-      'Join me on Raabta — Qatar\'s largest expat community! '
-      'Use my code $_referralCode to get started. '
-      'https://raabta.app/invite/$_referralCode',
+      'Join me on Raabta — check your Qatar EOSB entitlement. '
+      '${ReferralDeepLinks.invite(shareCode)}',
     );
   }
 
   void _openExpatScore() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ExpatScoreScreen()),
-    );
+    context.push('/expat-score');
   }
 
   void _openPremiumUpgrade() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => const PremiumSubscriptionScreen(),
+    if (!MonetizationState.showPremiumTierUi) return;
+    context.push('/premium');
+  }
+
+  Future<void> _signOut() async {
+    final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ProfileStrings.t('dialog_sign_out_title', locale)),
+        content: Text(ProfileStrings.t('dialog_sign_out_body', locale)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(CommonActionStrings.t('action_cancel', locale)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ProfileStrings.t('action_sign_out', locale)),
+          ),
+        ],
       ),
     );
+    if (confirmed != true || !mounted) return;
+    await AuthSessionService.instance.signOutExplicit();
+    if (!mounted) return;
+    context.go('/login');
   }
 
   void _handleSettingsTap(_SettingsItem item) {
     if (item.isDestructive) {
-      _showComingSoon('Sign Out');
+      _signOut();
       return;
     }
 
@@ -174,29 +312,91 @@ class _ProfileScreenState extends State<ProfileScreen>
           MaterialPageRoute(builder: (_) => const WorkplaceReviewsScreen()),
         );
       case _SettingsRoute.none:
-        if (item.label == 'Change Language') {
-          context.push('/language');
-        } else if (item.label == 'Notifications') {
-          context.push('/notification-settings');
-        } else if (item.label == 'My Listings') {
-          context.push('/housing');
-        } else if (item.label == 'Saved Items') {
-          context.push('/marketplace');
-        } else {
-          _showComingSoon(item.label);
+        switch (item.settingsKey) {
+          case 'settings_my_activity':
+            context.push('/profile/my-activity');
+          case 'settings_saved_searches':
+            context.push('/profile/saved-searches');
+          case 'settings_edit_profile':
+            context.push('/profile/personal-info');
+          case 'settings_my_subscription':
+            _openPremiumUpgrade();
+          case 'settings_saved_items':
+            context.push('/marketplace');
+          case 'settings_notifications':
+            context.push('/profile/notifications');
+          case 'settings_language':
+            context.push('/profile/language');
+          case 'settings_appearance':
+            context.push('/profile/appearance');
+          case 'settings_privacy':
+            context.push('/profile/privacy');
+          case 'settings_scam_shield_status':
+            context.push('/scam-shield/shield');
+          case 'settings_document_vault':
+            context.push('/document-vault');
+          case 'settings_dietary_profile':
+            context.push('/dietary-profile');
+          case 'settings_ai_assistant':
+            context.push(
+              '/ai-chat',
+              extra: const {'autoSendInitialMessage': false},
+            );
+          case 'settings_my_listings':
+            context.push('/my-posts');
+          case 'settings_help_center':
+            context.push('/profile/help');
+          case 'settings_report_issue':
+            context.push('/profile/report-issue');
+          case 'settings_rate_raabta':
+            if (AppConfig.showRateApp) _rateRaabta();
+          case 'settings_privacy_policy':
+            context.push('/profile/privacy-policy');
+          case 'settings_terms':
+            context.push('/profile/terms');
+          default:
+            _showComingSoon(item.settingsKey);
         }
+    }
+  }
+
+  Future<void> _rateRaabta() async {
+    final outcome = await requestAppStoreReview();
+    if (!mounted) return;
+    final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+    final message = switch (outcome) {
+      AppReviewOutcome.success => null,
+      AppReviewOutcome.notPublishedYet =>
+        ProfileStrings.t('snack_rate_not_published', locale),
+      AppReviewOutcome.unavailable =>
+        ProfileStrings.t('snack_rate_unavailable', locale),
+    };
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surfaceElevated,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+
+    return AnimatedAuroraBackground(
+      ignoreSafeArea: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _buildHeroProfileCard(context)),
+          SliverToBoxAdapter(
+            child: ProfileHeroCard(onOpenExpatScore: _openExpatScore),
+          ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               AppSpacing.xl,
               AppSpacing.xl,
               AppSpacing.xl,
@@ -204,253 +404,76 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _buildRewardsDashboard(),
+                _buildRewardsDashboard(locale),
                 const SizedBox(height: AppSpacing.xxl),
-                _buildAchievementsSection(),
+                _buildAchievementsSection(locale),
                 const SizedBox(height: AppSpacing.xxl),
-                _buildReferralSection(),
+                _buildReferralSection(locale),
                 const SizedBox(height: AppSpacing.xxl),
-                _buildActivityStatsSection(),
+                _buildReviewCard(context, locale),
                 const SizedBox(height: AppSpacing.xxl),
-                _buildReviewCard(context),
+                const AdvancedProfileCard(),
                 const SizedBox(height: AppSpacing.xxl),
-                const SectionHeader(title: '⚙️ Quick Settings'),
-                const SizedBox(height: AppSpacing.md),
-                ..._settingsSections.expand(
+                ..._visibleSettingsSections.expand(
                   (section) => [
-                    _buildSettingsGroup(section),
-                    const SizedBox(height: AppSpacing.lg),
+                    _buildSettingsGroup(section, locale),
+                    const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.xl),
+                RaabtaPlatformNoticesPanel(locale: locale, dense: true),
+                const SizedBox(height: AppSpacing.lg),
+                _AppVersionFooter(locale: locale),
               ]),
             ),
           ),
         ],
       ),
+      ),
     );
   }
 
-  Widget _buildHeroProfileCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.surfaceElevated,
-            AppColors.surface,
-            AppColors.background,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Stack(
+
+  Widget _buildRewardsDashboard(String locale) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      borderRadius: AppSpacing.radiusMd,
+      glowColor: AppColors.amberGlow,
+      glowIntensity: 0.12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _DotPatternPainter(
-                color: AppColors.primary.withValues(alpha: 0.06),
+          Text(ProfileStrings.t('rewards_title', locale), style: AppTypography.headline2),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$_points',
+                style: AppTypography.display.copyWith(
+                  color: AppColors.amberGlow,
+                  fontSize: 48,
+                ),
               ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl,
-                AppSpacing.lg,
-                AppSpacing.xl,
-                AppSpacing.xxl,
-              ),
-              child: Stack(
-                children: [
-                  Column(
-                    children: [
-                      const SizedBox(height: AppSpacing.sm),
-                      _buildGradientAvatar(),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        'Mohammad Sayeed',
-                        style: AppTextStyles.h1.copyWith(fontSize: 20),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        '🇮🇳 Indian · Al Khor, Qatar',
-                        style: AppTextStyles.bodyMedium.copyWith(fontSize: 14),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Member since June 2025',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      GestureDetector(
-                        onTap: _openExpatScore,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.glass,
-                            borderRadius: BorderRadius.circular(AppRadius.xl),
-                            border: Border.all(color: AppColors.glassBorder),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '⭐ 72 · Growing Strong',
-                                style: AppTextStyles.bodyLarge.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Icon(
-                                Icons.chevron_right,
-                                size: 18,
-                                color: AppColors.textSecondary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: OutlinedButton(
-                      onPressed: () => _showComingSoon('Edit Profile'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: AppSpacing.sm,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                      ),
-                      child: const Text(
-                        'Edit Profile',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGradientAvatar() {
-    return Container(
-      width: 88,
-      height: 88,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: AppColors.primaryGradient,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.surface,
-        ),
-        alignment: Alignment.center,
-        child: const Text(
-          'MS',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRewardsDashboard() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        gradient: AppColors.goldGradient,
-      ),
-      padding: const EdgeInsets.all(1.5),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg - 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('⭐ Raabta Rewards', style: AppTextStyles.h2),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '$_points',
-                  style: AppTextStyles.scoreNumber.copyWith(
-                    color: AppColors.gold,
-                    fontSize: 48,
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.sm,
+                  bottom: AppSpacing.sm,
+                ),
+                child: Text(
+                  ProfileStrings.t('rewards_points', locale),
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.sm,
-                    bottom: AppSpacing.sm,
-                  ),
-                  child: Text(
-                    'points',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: AppColors.warning.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: const Text(
-                    'Explorer 🗺️',
-                    style: TextStyle(
-                      color: AppColors.warning,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const Spacer(),
+              StatusBadge(
+                label: ProfileStrings.t('rewards_explorer_badge', locale),
+                color: AppColors.warning,
+              ),
+            ],
+          ),
             const SizedBox(height: AppSpacing.lg),
             AnimatedBuilder(
               animation: _progressAnimation,
@@ -459,7 +482,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                       child: SizedBox(
                         height: 10,
                         child: Stack(
@@ -470,7 +493,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   _progressAnimation.value,
                               child: Container(
                                 decoration: const BoxDecoration(
-                                  gradient: AppColors.goldGradient,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.amberGlow,
+                                      Color(0xFFFF6B00),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
                                 ),
                               ),
                             ),
@@ -480,8 +510,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      '$_points / $_nextLevelPoints to reach Connector',
-                      style: AppTextStyles.bodySmall.copyWith(
+                      ProfileStrings.format(
+                        'rewards_progress',
+                        locale,
+                        params: {
+                          'current': '$_points',
+                          'target': '$_nextLevelPoints',
+                          'nextLevel': ProfileStrings.t(
+                            'achievement_connector',
+                            locale,
+                          ),
+                        },
+                      ),
+                      style: AppTypography.bodySmall.copyWith(
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -492,71 +533,109 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                Expanded(child: _buildRewardStatChip('🏆', 'Level 2')),
+                Expanded(
+                  child: _buildRewardStatChip(
+                    '🏆',
+                    ProfileStrings.format(
+                      'reward_stat_level',
+                      locale,
+                      params: {'level': '2'},
+                    ),
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _buildRewardStatChip('🎯', '250 pts')),
+                Expanded(
+                  child: _buildRewardStatChip(
+                    '🎯',
+                    ProfileStrings.format(
+                      'reward_stat_pts',
+                      locale,
+                      params: {'pts': '250'},
+                    ),
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _buildRewardStatChip('👥', '3 Refs')),
+                Expanded(
+                  child: _buildRewardStatChip(
+                    '👥',
+                    ProfileStrings.format(
+                      'reward_stat_refs',
+                      locale,
+                      params: {'count': '3'},
+                    ),
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _buildRewardStatChip('📝', '7 Posts')),
+                Expanded(
+                  child: _buildRewardStatChip(
+                    '📝',
+                    ProfileStrings.format(
+                      'reward_stat_posts',
+                      locale,
+                      params: {'count': '7'},
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _openPremiumUpgrade,
-                icon: const Text('💎', style: TextStyle(fontSize: 16)),
-                label: const Text(
-                  'Upgrade to Premium',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.gold,
-                  side: const BorderSide(color: AppColors.gold),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+            if (MonetizationState.showPremiumTierUi) ...[
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openPremiumUpgrade,
+                  icon: const Text('💎', style: TextStyle(fontSize: 16)),
+                  label: Text(
+                    ProfileStrings.t('action_upgrade_premium', locale),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.amberGlow,
+                    side: const BorderSide(color: AppColors.amberGlow),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
+            ],
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _showComingSoon('Redeem Points'),
+                    onPressed: () => _showComingSoon('action_redeem_points'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
+                      backgroundColor: AppColors.amberGlow,
                       foregroundColor: AppColors.background,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                       ),
                     ),
-                    child: const Text(
-                      'Redeem Points',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Text(
+                      ProfileStrings.t('action_redeem_points', locale),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => _showComingSoon('Earn More'),
+                    onPressed: () => _showComingSoon('action_earn_more'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
+                      foregroundColor: AppColors.cyanGlow,
+                      side: const BorderSide(color: AppColors.cyanGlow),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                       ),
                     ),
-                    child: const Text(
-                      'Earn More',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    child: Text(
+                      ProfileStrings.t('action_earn_more', locale),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -564,21 +643,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ],
         ),
-      ),
     );
   }
 
   Widget _buildRewardStatChip(String emoji, String label) {
-    return Container(
+    return GlassContainer(
       padding: const EdgeInsets.symmetric(
         vertical: AppSpacing.sm,
         horizontal: AppSpacing.xs,
       ),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.border),
-      ),
+      borderRadius: AppSpacing.radiusXs,
       child: Column(
         children: [
           Text(emoji, style: const TextStyle(fontSize: 16)),
@@ -586,7 +660,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           Text(
             label,
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondary,
               fontSize: 9,
               fontWeight: FontWeight.w600,
@@ -597,11 +671,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildAchievementsSection() {
+  Widget _buildAchievementsSection(String locale) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: '🏆 Achievements'),
+        SectionHeader(title: ProfileStrings.t('section_achievements', locale)),
         const SizedBox(height: AppSpacing.md),
         SizedBox(
           height: 120,
@@ -610,7 +684,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             itemCount: _achievements.length,
             separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.lg),
             itemBuilder: (context, index) {
-              return _AchievementBadge(achievement: _achievements[index]);
+              return _AchievementBadge(
+                achievement: _achievements[index],
+                locale: locale,
+              );
             },
           ),
         ),
@@ -618,181 +695,170 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildReferralSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: 0.25),
-            AppColors.accent.withValues(alpha: 0.2),
-            AppColors.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderPrimary),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('👥 Invite & Earn', style: AppTextStyles.h2),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Earn 50 points for each friend who joins',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          GestureDetector(
-            onTap: _copyReferralCode,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.lg,
+  Widget _buildReferralSection(String locale) {
+    final referralAsync = ref.watch(referralProfileProvider);
+    final uid = ref.watch(currentUserProvider)?.uid;
+
+    return referralAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (profile) {
+        final code = profile.referralCode ?? '';
+        final successful = profile.successfulReferralsCount;
+        final rewardLabel = MonetizationState.referralPremiumRewardsEnabled
+            ? ReferralConfig.rewardDescription()
+            : ProfileStrings.format(
+                'referral_reward_ai_boost',
+                locale,
+                params: {
+                  'extra': '${ReferralConfig.rewardAiBoostExtraQuestions}',
+                  'days': '${ReferralConfig.rewardPremiumDays}',
+                },
+              );
+
+        return GlassContainer(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          borderRadius: AppSpacing.radiusMd,
+          glowColor: AppColors.cyanGlow,
+          glowIntensity: 0.1,
+          backgroundColor: AppColors.cyanGlow.withValues(alpha: 0.06),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(ProfileStrings.t('referral_title', locale), style: AppTypography.headline2),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                ProfileStrings.format(
+                  'referral_body',
+                  locale,
+                  params: {'reward': rewardLabel},
+                ),
+                style: AppTypography.body,
               ),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.borderHighlight),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _referralCode,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 3,
-                        fontFamily: 'monospace',
+              if (MonetizationState.showPremiumTierUi &&
+                  profile.hasActiveReferralPremium) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  ProfileStrings.format(
+                    'referral_premium_until',
+                    locale,
+                    params: {
+                      'date':
+                          '${profile.referralPremiumUntil!.day}/'
+                          '${profile.referralPremiumUntil!.month}/'
+                          '${profile.referralPremiumUntil!.year}',
+                    },
+                  ),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.cyanGlow,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else if (profile.hasActiveReferralAiBoost) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  ProfileStrings.format(
+                    'referral_boost_until',
+                    locale,
+                    params: {
+                      'date':
+                          '${profile.referralAiBoostExpiresAt!.day}/'
+                          '${profile.referralAiBoostExpiresAt!.month}/'
+                          '${profile.referralAiBoostExpiresAt!.year}',
+                      'extra': '${profile.referralAiBoostExtraQuestions}',
+                    },
+                  ),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.cyanGlow,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              if (code.isNotEmpty)
+                GlassCard(
+                  onTap: () => _copyReferralCode(code),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.lg,
+                  ),
+                  borderRadius: AppSpacing.radiusSm,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          code,
+                          style: const TextStyle(
+                            color: AppColors.cyanGlow,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 3,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                       ),
+                      Icon(
+                        Icons.copy_rounded,
+                        color: AppColors.cyanGlow.withValues(alpha: 0.8),
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                )
+              else if (uid != null)
+                Text(
+                  ProfileStrings.t('referral_generate_hint', locale),
+                  style: AppTypography.bodySmall,
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                ProfileStrings.format(
+                  'referral_success_count',
+                  locale,
+                  params: {
+                    'count': '$successful',
+                    'plural': successful == 1 ? '' : 's',
+                  },
+                ),
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: code.isEmpty && uid != null
+                      ? () => _shareOnWhatsApp('')
+                      : code.isNotEmpty
+                          ? () => _shareOnWhatsApp(code)
+                          : null,
+                  icon: const Icon(Icons.share, size: 20),
+                  label: Text(
+                    ProfileStrings.t('action_share_invite', locale),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _whatsappGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                     ),
                   ),
-                  Icon(
-                    Icons.copy_rounded,
-                    color: AppColors.primary.withValues(alpha: 0.8),
-                    size: 22,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Text(
-                '$_referralsJoined / $_referralGoal friends invited',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: LinearProgressIndicator(
-              value: _referralsJoined / _referralGoal,
-              minHeight: 6,
-              backgroundColor: AppColors.background,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Refer ${_referralGoal - _referralsJoined} more to unlock Premium for free!',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _shareOnWhatsApp,
-              icon: const Icon(Icons.share, size: 20),
-              label: const Text(
-                '📤 Share on WhatsApp',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _whatsappGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            '🏆 Top Referrers This Month',
-            style: AppTextStyles.h3.copyWith(fontSize: 14),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ..._leaderboard.map(_buildLeaderboardRow),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildLeaderboardRow(_LeaderboardEntry entry) {
-    final rankColors = [
-      AppColors.gold,
-      AppColors.textSecondary,
-      const Color(0xFFCD7F32),
-    ];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: rankColors[entry.rank - 1].withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${entry.rank}',
-              style: TextStyle(
-                color: rankColors[entry.rank - 1],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              entry.name,
-              style: AppTextStyles.bodyLarge.copyWith(fontSize: 14),
-            ),
-          ),
-          Text(
-            '${entry.refs} refs',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityStatsSection() {
+  Widget _buildActivityStatsSection(String locale) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: '📊 Your Activity'),
+        SectionHeader(title: ProfileStrings.t('section_achievements', locale)),
         const SizedBox(height: AppSpacing.md),
         GridView.count(
           crossAxisCount: 2,
@@ -800,37 +866,48 @@ class _ProfileScreenState extends State<ProfileScreen>
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: AppSpacing.md,
           crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.6,
-          children: const [
-            _ActivityStatCard(emoji: '📝', value: '7', label: 'Posts'),
-            _ActivityStatCard(emoji: '🏠', value: '3', label: 'Listings'),
-            _ActivityStatCard(emoji: '❓', value: '12', label: 'Q&As answered'),
-            _ActivityStatCard(emoji: '👍', value: '45', label: 'Helpful votes'),
+          childAspectRatio: 1.5,
+          children: [
+            _ActivityStatCard(
+              emoji: '📝',
+              value: '7',
+              label: ProfileStrings.t('activity_posts', locale),
+            ),
+            _ActivityStatCard(
+              emoji: '🏠',
+              value: '3',
+              label: ProfileStrings.t('activity_listings', locale),
+            ),
+            _ActivityStatCard(
+              emoji: '❓',
+              value: '12',
+              label: ProfileStrings.t('activity_qas', locale),
+            ),
+            _ActivityStatCard(
+              emoji: '👍',
+              value: '45',
+              label: ProfileStrings.t('activity_helpful_votes', locale),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildReviewCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
+  Widget _buildReviewCard(BuildContext context, String locale) {
+    return GlassContainer(
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: const Border(
-          left: BorderSide(color: AppColors.primary, width: 3),
-        ),
-      ),
+      borderRadius: AppSpacing.radiusMd,
+      glowColor: AppColors.cyanGlow,
+      glowIntensity: 0.08,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('📝 Review an Employer', style: AppTextStyles.h2),
+          Text(ProfileStrings.t('review_employer_title', locale), style: AppTypography.headline2),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Share your experience anonymously',
-            style: AppTextStyles.bodyMedium,
+            ProfileStrings.t('review_employer_subtitle', locale),
+            style: AppTypography.body,
           ),
           const SizedBox(height: AppSpacing.md),
           TextButton(
@@ -841,11 +918,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               );
             },
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            child: const Text(
-              'Browse all reviews →',
-              style: TextStyle(
-                color: AppColors.primary,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              padding: EdgeInsets.zero,
+            ),
+            child: Text(
+              ProfileStrings.t('review_browse_all', locale),
+              style: const TextStyle(
+                color: AppColors.cyanGlow,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -854,7 +934,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(height: AppSpacing.sm),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 48,
             child: OutlinedButton(
               onPressed: () {
                 Navigator.of(context).push(
@@ -864,15 +944,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                 );
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
+                foregroundColor: AppColors.cyanGlow,
+                side: const BorderSide(color: AppColors.cyanGlow),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
               ),
-              child: const Text(
-                'Write a Review',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                ProfileStrings.t('review_write', locale),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -881,56 +961,402 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildSettingsGroup(_SettingsSection section) {
+  Widget _buildSettingsGroup(_SettingsSection section, String locale) {
+    final pendingCount = ref.watch(myActivityPendingCountProvider);
+    final draftCount = ref.watch(postEngineDraftCountProvider).valueOrNull;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.xs,
-            bottom: AppSpacing.sm,
-          ),
-          child: Text(
-            section.title.toUpperCase(),
-            style: AppTextStyles.labelSmall.copyWith(
-              color: section.title == 'Danger'
-                  ? AppColors.error.withValues(alpha: 0.7)
-                  : AppColors.textMuted,
-            ),
-          ),
+        SectionHeader(
+          title: ProfileStrings.t(section.sectionKey, locale),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border),
-          ),
+        const SizedBox(height: AppSpacing.md),
+        GlassListSection(
+          borderRadius: HomeCardTier.homeCardRadius,
+          children: [
+            for (var i = 0; i < section.items.length; i++) ...[
+              _SettingsTile(
+                item: section.items[i],
+                label: switch (section.items[i].settingsKey) {
+                  'settings_my_activity' =>
+                    MyActivityStrings.t('settings_my_activity', locale),
+                  'settings_saved_searches' =>
+                    SavedSearchStrings.t('settings_saved_searches', locale),
+                  _ => ProfileStrings.t(section.items[i].settingsKey, locale),
+                },
+                trailing: section.items[i].settingsKey == 'settings_my_activity'
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MyActivityPendingBadge(count: draftCount),
+                          if (draftCount != null &&
+                              draftCount > 0 &&
+                              pendingCount != null &&
+                              pendingCount > 0)
+                            const SizedBox(width: AppSpacing.xs),
+                          MyActivityPendingBadge(count: pendingCount),
+                          const SizedBox(width: AppSpacing.sm),
+                          Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                        ],
+                      )
+                    : null,
+                onTap: () => _handleSettingsTap(section.items[i]),
+              ),
+              if (section.sectionKey == 'section_account' &&
+                  section.items[i].settingsKey == 'settings_edit_profile') ...[
+                _profileSettingsDivider(),
+                ProfileAppUpdateSettingsRow(onOpenUpdate: _openAppUpdate),
+              ],
+              if (i < section.items.length - 1) _profileSettingsDivider(),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openAppUpdate() async {
+    final outcome = await AppUpdateService.openStoreListing();
+    if (!mounted) return;
+    if (outcome == AppUpdateOutcome.unavailable) {
+      final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ProfileStrings.t('snack_store_unavailable', locale)),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.surfaceElevated,
+        ),
+      );
+    }
+  }
+
+  Widget _profileSettingsDivider() {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+        start: ProfileSettingsListMetrics.dividerStartInset,
+      ),
+      child: Divider(
+        height: 1,
+        color: AppColors.glassBorder.withValues(alpha: 0.5),
+      ),
+    );
+  }
+
+  Widget _buildAppearanceTile() {
+    return _AppearanceSettingsTile(onTap: () {
+      HapticFeedback.selectionClick();
+      context.push('/profile/appearance');
+    });
+  }
+}
+
+
+/// Home-aligned profile identity hero (glass card).
+class ProfileHeroCard extends ConsumerWidget {
+  const ProfileHeroCard({
+    super.key,
+    required this.onOpenExpatScore,
+    @visibleForTesting this.expatChipLabelForTest,
+  });
+
+  static const double avatarSize = 60;
+
+  final VoidCallback onOpenExpatScore;
+
+  /// Avoids Firebase-backed expat providers in isolated widget tests.
+  @visibleForTesting
+  final String? expatChipLabelForTest;
+
+  static String _memberSinceLabel(User? user, String locale) {
+    final created = user?.metadata.creationTime;
+    if (created == null) return '';
+    return ProfileStrings.format(
+      'member_since',
+      locale,
+      params: {'date': DateFormat('MMMM yyyy').format(created)},
+    );
+  }
+
+  static String _expatChipLabel(WidgetRef ref) {
+    final locale = ref.watch(userLanguageProvider);
+    final score = ref.watch(expatLifeScoreProvider).score;
+    return ExpatScoreProfileHelper.scoreChipLabel(
+      score: score?.total.round(),
+      level: score?.level,
+      locale: locale,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+    final user = ref.watch(currentUserProvider);
+    final profile = ref.watch(userAIProfileProvider);
+    final timeGreeting = homeTimeGreetingForLocale(locale);
+    final heroName =
+        user != null ? ProfileDisplayHelper.profileHeroName(user) : null;
+    final isSignedOut = user == null;
+    final needsName = user != null && heroName == null;
+    final showEditAffordance = !isSignedOut && !needsName;
+
+    final subtitle = isSignedOut
+        ? ProfileStrings.t('error_sign_in_required', locale)
+        : needsName
+            ? ProfileStrings.t('profile_hero_complete_name_prompt', locale)
+            : profile != null
+                ? ProfileDisplayHelper.profileSubtitle(profile)
+                : AppShellStrings.t('default_location', locale);
+    final memberSince = isSignedOut ? '' : _memberSinceLabel(user, locale);
+
+    final brandOutline = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.brandFamilyMain,
+      side: BorderSide(
+        color: AppColors.brandFamilyMain.withValues(alpha: 0.55),
+      ),
+      minimumSize: const Size(48, 48),
+    );
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.md,
+      ),
+      child: GlassContainer(
+        borderRadius: AppSpacing.radiusLg,
+        glowColor: AppColors.brandFamilyMain,
+        glowIntensity: HomeCardTier.homeCardGlowIntensity,
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        child: SafeArea(
+          bottom: false,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var i = 0; i < section.items.length; i++) ...[
-                _SettingsTile(
-                  item: section.items[i],
-                  onTap: () => _handleSettingsTap(section.items[i]),
-                ),
-                if (i < section.items.length - 1)
-                  Divider(
-                    height: 1,
-                    indent: 52,
-                    color: AppColors.border.withValues(alpha: 0.5),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ProfileAvatar(
+                    initials: ProfileDisplayHelper.initials(user),
+                    photoUrl: user?.photoURL,
+                    size: avatarSize,
+                    fontSize: 22,
+                    ringStyle: ProfileAvatarRingStyle.brandKit,
                   ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          timeGreeting,
+                          key: const Key('profile_hero_greeting'),
+                          style: AppTypography.greeting.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (heroName != null) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            heroName,
+                            key: const Key('profile_hero_name'),
+                            style: AppTypography.title.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          subtitle,
+                          key: const Key('profile_hero_subtitle'),
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (memberSince.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            memberSince,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (showEditAffordance)
+                    IconButton(
+                      key: const Key('profile_hero_edit_button'),
+                      onPressed: () => context.push('/profile/personal-info'),
+                      tooltip: ProfileStrings.t('settings_edit_profile', locale),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                        color: AppColors.brandFamilyMain,
+                      ),
+                    ),
+                ],
+              ),
+              if (isSignedOut) ...[
+                const SizedBox(height: AppSpacing.md),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton(
+                    key: const Key('profile_hero_sign_in'),
+                    onPressed: () => context.go('/login'),
+                    style: brandOutline,
+                    child: Text(
+                      ProfileStrings.t('action_go_to_sign_in', locale),
+                    ),
+                  ),
+                ),
+              ] else if (needsName) ...[
+                const SizedBox(height: AppSpacing.md),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton(
+                    key: const Key('profile_hero_complete_profile'),
+                    onPressed: () => context.push('/profile/personal-info'),
+                    style: brandOutline,
+                    child: Text(
+                      ProfileStrings.t('action_complete_profile', locale),
+                    ),
+                  ),
+                ),
+              ],
+              if (!isSignedOut) ...[
+                const SizedBox(height: AppSpacing.md),
+                GlassCard(
+                  key: const Key('profile_hero_expat_chip'),
+                  onTap: onOpenExpatScore,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  borderRadius: AppSpacing.radiusSm,
+                  glowColor: AppColors.brandFamilyMain,
+                  glowIntensity: HomeCardTier.expatScoreGlowIntensity,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          expatChipLabelForTest ?? _expatChipLabel(ref),
+                          style: AppTypography.subtitle.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _AppearanceSettingsTile extends ConsumerWidget {
+  const _AppearanceSettingsTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+    final themeMode = ref.watch(themeProvider);
+    final subtitle = switch (themeMode) {
+      ThemeMode.system => ProfileStrings.t('appearance_system_default', locale),
+      ThemeMode.dark => ProfileStrings.t('appearance_dark_on', locale),
+      ThemeMode.light => ProfileStrings.t('appearance_light_on', locale),
+    };
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.purpleGlow.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.palette_outlined,
+                  size: 18,
+                  color: AppColors.purpleGlow,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ProfileStrings.t('settings_appearance', locale),
+                    style: AppTypography.subtitle.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTypography.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.textTertiary,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _AchievementBadge extends StatelessWidget {
-  const _AchievementBadge({required this.achievement});
+  const _AchievementBadge({required this.achievement, required this.locale});
 
   final _Achievement achievement;
+  final String locale;
 
   @override
   Widget build(BuildContext context) {
@@ -948,12 +1374,16 @@ class _AchievementBadge extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: achievement.earned
-                      ? AppColors.goldGradient
+                      ? const LinearGradient(
+                          colors: [AppColors.amberGlow, Color(0xFFFF6B00)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
                       : null,
                   color: achievement.earned ? null : AppColors.surfaceElevated,
                   border: achievement.earned
                       ? null
-                      : Border.all(color: AppColors.border),
+                      : Border.all(color: AppColors.glassBorder),
                 ),
                 child: Container(
                   decoration: BoxDecoration(
@@ -972,7 +1402,7 @@ class _AchievementBadge extends StatelessWidget {
                             achievement.emoji,
                             style: TextStyle(
                               fontSize: 32,
-                              color: AppColors.textMuted.withValues(alpha: 0.5),
+                              color: AppColors.textTertiary.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -993,14 +1423,14 @@ class _AchievementBadge extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            achievement.title,
+            ProfileStrings.t(achievement.catalogKey, locale),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTypography.bodySmall.copyWith(
               color: achievement.earned
                   ? AppColors.textPrimary
-                  : AppColors.textMuted,
+                  : AppColors.textTertiary,
               fontWeight:
                   achievement.earned ? FontWeight.w600 : FontWeight.w400,
               fontSize: 10,
@@ -1025,31 +1455,36 @@ class _ActivityStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
+      borderRadius: AppSpacing.radiusMd,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(emoji, style: const TextStyle(fontSize: 22)),
-          const Spacer(),
-          Text(
-            value,
-            style: AppTextStyles.h1.copyWith(
-              color: AppColors.primary,
-              fontSize: 26,
-            ),
-          ),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: AppTypography.headline1.copyWith(
+                  color: AppColors.cyanGlow,
+                  fontSize: 26,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                label,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ],
       ),
@@ -1058,64 +1493,137 @@ class _ActivityStatCard extends StatelessWidget {
 }
 
 class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({required this.item, required this.onTap});
+  const _SettingsTile({
+    required this.item,
+    required this.label,
+    required this.onTap,
+    this.trailing,
+  });
 
   final _SettingsItem item;
+  final String label;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final color = item.isDestructive ? AppColors.error : AppColors.textPrimary;
-    return ListTile(
+    final iconColor =
+        item.isDestructive ? AppColors.error : AppColors.brandFamilyMain;
+    return GlassSettingsTile(
+      title: label,
+      titleColor: color,
       onTap: onTap,
-      leading: Icon(
-        item.icon,
-        color: item.isDestructive ? AppColors.error : AppColors.primary,
-        size: 22,
+      leading: ProfileSettingsIconChip(
+        icon: item.icon,
+        iconColor: iconColor,
       ),
-      title: Text(
-        item.label,
-        style: TextStyle(
-          color: color,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: item.isDestructive ? AppColors.error : AppColors.textSecondary,
-        size: 20,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: 2,
-      ),
+      trailing: trailing ??
+          Icon(
+            Icons.chevron_right,
+            color: item.isDestructive ? AppColors.error : AppColors.textSecondary,
+            size: 20,
+          ),
     );
   }
 }
 
-class _DotPatternPainter extends CustomPainter {
-  _DotPatternPainter({required this.color});
+/// Layout metrics for profile settings list rows (RTL-safe divider inset).
+@visibleForTesting
+abstract final class ProfileSettingsListMetrics {
+  static const double dividerStartInset =
+      AppSpacing.lg + ProfileSettingsIconChip.size + AppSpacing.md;
+}
 
-  final Color color;
+/// Compact brand-family icon chip for profile settings rows.
+@visibleForTesting
+class ProfileSettingsIconChip extends StatelessWidget {
+  const ProfileSettingsIconChip({
+    super.key,
+    required this.icon,
+    this.iconColor,
+  });
+
+  static const double size = 40;
+  static const double radius = 14;
+
+  final IconData icon;
+  final Color? iconColor;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    const spacing = 24.0;
-    const radius = 1.5;
-    for (var x = spacing / 2; x < size.width; x += spacing) {
-      for (var y = spacing / 2; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), radius, paint);
-      }
-    }
+  Widget build(BuildContext context) {
+    final color = iconColor ?? AppColors.brandFamilyMain;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        color: color.withValues(alpha: 0.2),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Icon(icon, size: 20, color: color),
+    );
   }
+}
+
+/// App update row injected into Account settings when an update is available.
+@visibleForTesting
+class ProfileAppUpdateSettingsRow extends ConsumerWidget {
+  const ProfileAppUpdateSettingsRow({
+    super.key,
+    required this.onOpenUpdate,
+  });
+
+  final VoidCallback onOpenUpdate;
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+    final update = ref.watch(appUpdateInfoProvider);
+    if (update == null) return const SizedBox.shrink();
+
+    final subtitle = update.isRequired
+        ? ProfileStrings.format(
+            'app_update_required',
+            locale,
+            params: {'version': update.latestVersion},
+          )
+        : ProfileStrings.format(
+            'app_update_ready',
+            locale,
+            params: {'version': update.latestVersion},
+          );
+    final badgeColor =
+        update.isRequired ? AppColors.warning : AppColors.brandFamilyMain;
+
+    return Column(
+      children: [
+        GlassSettingsTile(
+          key: const Key('profile_app_update_tile'),
+          title: ProfileStrings.t('app_update_title', locale),
+          subtitle: subtitle,
+          onTap: onOpenUpdate,
+          leading: const ProfileSettingsIconChip(
+            icon: Icons.system_update_alt,
+          ),
+          trailing: StatusBadge(
+            label: ProfileStrings.t('app_update_badge', locale),
+            color: badgeColor,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(
+            start: ProfileSettingsListMetrics.dividerStartInset,
+          ),
+          child: Divider(
+            height: 1,
+            color: AppColors.glassBorder.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 enum _SettingsRoute { none, reviews }
@@ -1123,44 +1631,119 @@ enum _SettingsRoute { none, reviews }
 class _SettingsItem {
   const _SettingsItem({
     required this.icon,
-    required this.label,
+    required this.settingsKey,
     this.isDestructive = false,
     this.route = _SettingsRoute.none,
   });
 
   final IconData icon;
-  final String label;
+  final String settingsKey;
   final bool isDestructive;
   final _SettingsRoute route;
 }
 
 class _SettingsSection {
-  const _SettingsSection({required this.title, required this.items});
+  const _SettingsSection({required this.sectionKey, required this.items});
 
-  final String title;
+  final String sectionKey;
   final List<_SettingsItem> items;
 }
 
 class _Achievement {
   const _Achievement({
     required this.emoji,
-    required this.title,
+    required this.catalogKey,
     required this.earned,
   });
 
   final String emoji;
-  final String title;
+  final String catalogKey;
   final bool earned;
 }
 
-class _LeaderboardEntry {
-  const _LeaderboardEntry({
-    required this.rank,
-    required this.name,
-    required this.refs,
-  });
+class _AppVersionFooter extends StatefulWidget {
+  const _AppVersionFooter({required this.locale});
 
-  final int rank;
-  final String name;
-  final int refs;
+  final String locale;
+
+  @override
+  State<_AppVersionFooter> createState() => _AppVersionFooterState();
+}
+
+class _AppVersionFooterState extends State<_AppVersionFooter> {
+  Timer? _holdTimer;
+  PackageInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _info = info);
+    });
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onHoldComplete() {
+    if (!mounted) return;
+    if (AdminAccess.isCurrentUserAdmin()) {
+      context.push('/admin');
+      return;
+    }
+
+    final uid = AuthSessionService.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    Clipboard.setData(ClipboardData(text: uid));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ProfileStrings.format(
+            'snack_account_id_copied',
+            widget.locale,
+            params: {'uid': uid},
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.surfaceElevated,
+      ),
+    );
+  }
+
+  void _startHold() {
+    _holdTimer?.cancel();
+    _holdTimer = Timer(const Duration(seconds: 2), _onHoldComplete);
+  }
+
+  void _cancelHold() {
+    _holdTimer?.cancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final version = _info?.version ?? '…';
+    final build = _info?.buildNumber ?? '…';
+
+    return GestureDetector(
+      onTapDown: (_) => _startHold(),
+      onTapUp: (_) => _cancelHold(),
+      onTapCancel: _cancelHold,
+      child: Center(
+        child: Text(
+          ProfileStrings.format(
+            'app_version',
+            widget.locale,
+            params: {'version': version, 'build': build},
+          ),
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -1,11 +1,36 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/l10n/app_locale.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_primary_button.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/features/home/widgets/glass_loading_card.dart';
+import 'package:raabta/features/home/widgets/home_section_header.dart';
+import 'package:raabta/providers/visa_providers.dart';
 import 'package:raabta/services/ai/claude_ai_service.dart';
+import 'package:raabta/services/notifications/notification_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// ─── MODELS ─────────────────────────────────────────────
+import 'climate_navigator/l10n/climate_strings.dart';
+import 'climate_navigator/models/qatar_weather.dart';
+import 'climate_navigator/services/climate_route_history_repository.dart';
+import 'climate_navigator/widgets/climate_feature_empty_state.dart';
+import 'climate_navigator/widgets/climate_primitives.dart';
+import 'climate_navigator/widgets/cooling_resources_panel.dart';
+import 'climate_navigator/widgets/climate_status_hero.dart';
+import 'climate_navigator/widgets/heat_illness_guide_panel.dart';
+import 'climate_navigator/widgets/heat_symptom_checker.dart';
+import 'climate_navigator/widgets/location_search_field.dart';
+import 'climate_navigator/widgets/route_map_preview.dart';
+
+// ─── Route option model ───────────────────────────────────
 
 class RouteOption {
   final String title;
@@ -34,20 +59,18 @@ class RouteOption {
 class ClimateAdvice {
   final String summary;
   final String heatAlert;
-  final bool isPeakSummer;
   final List<RouteOption> options;
   final List<String> generalTips;
 
   const ClimateAdvice({
     required this.summary,
     required this.heatAlert,
-    required this.isPeakSummer,
     required this.options,
     required this.generalTips,
   });
 }
 
-// ─── SCREEN ─────────────────────────────────────────────
+// ─── SCREEN ──────────────────────────────────────────────
 
 class ClimateNavigatorScreen extends ConsumerStatefulWidget {
   const ClimateNavigatorScreen({super.key});
@@ -57,68 +80,66 @@ class ClimateNavigatorScreen extends ConsumerStatefulWidget {
       _ClimateNavigatorScreenState();
 }
 
-class _ClimateNavigatorScreenState extends ConsumerState<ClimateNavigatorScreen> {
-  final _fromController = TextEditingController();
-  final _toController = TextEditingController();
+class _ClimateNavigatorScreenState
+    extends ConsumerState<ClimateNavigatorScreen> {
+  String _fromLocation = '';
+  String _toLocation = '';
+  int _fieldVersion = 0;
+
   bool _isLoading = false;
   ClimateAdvice? _advice;
   String? _error;
+  List<ClimateRouteHistoryEntry> _recentRoutes = const [];
 
-  bool get _isPeakSummer {
-    final month = DateTime.now().month;
-    return month >= 5 && month <= 9;
-  }
+  final _scrollController = ScrollController();
+  final _routeSectionKey = GlobalKey();
 
-  String get _currentHeatLabel {
-    final month = DateTime.now().month;
-    if (month >= 6 && month <= 8) return 'EXTREME HEAT';
-    if (month >= 5 && month <= 9) return 'HIGH HEAT';
-    if (month >= 10 && month <= 11) return 'WARM';
-    return 'PLEASANT';
-  }
-
-  Color get _heatLabelColor {
-    final month = DateTime.now().month;
-    if (month >= 6 && month <= 8) return const Color(0xFFE63946);
-    if (month >= 5 && month <= 9) return const Color(0xFFFF6B35);
-    if (month >= 10 && month <= 11) return const Color(0xFFFFB627);
-    return const Color(0xFF2DC653);
-  }
-
-  final _popularFrom = [
-    'Al Khor',
-    'Lusail',
-    'West Bay',
-    'Al Sadd',
-    'Industrial Area',
-    'Wakra',
-  ];
-
-  final _popularTo = [
-    'Hamad Airport',
-    'City Center Mall',
-    'Souq Waqif',
-    'The Pearl',
-    'QatarEnergy HQ',
-    'Hamad Medical City',
-    'Education City',
-    'Villagio Mall',
-  ];
+  static const _doctorFinderRoute = '/health-insurance';
 
   @override
   void dispose() {
-    _fromController.dispose();
-    _toController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _getRouteAdvice() async {
-    final from = _fromController.text.trim();
-    final to = _toController.text.trim();
+  @override
+  void initState() {
+    super.initState();
+    _loadRouteHistory();
+    ref.listenManual(qatarWeatherProvider, (_, next) {
+      next.whenData((weather) {
+        final locale = ref.read(userLanguageProvider);
+        NotificationService.scheduleHeatSafetyAlert(
+          heatIndexC: weather.heatIndexC,
+          heatRiskLabel:
+              ClimateStrings.heatIndexRiskLabel(weather.heatIndexC, locale),
+        );
+      });
+    });
+  }
 
-    if (from.isEmpty || to.isEmpty) {
+  Future<void> _loadRouteHistory() async {
+    final entries = await ClimateRouteHistoryRepository.load();
+    if (mounted) setState(() => _recentRoutes = entries);
+  }
+
+  void _applyHistoryEntry(ClimateRouteHistoryEntry entry) {
+    climateSelectionHaptic();
+    setState(() {
+      _fromLocation = entry.from;
+      _toLocation = entry.to;
+      _fieldVersion++;
+      _advice = null;
+      _error = null;
+    });
+  }
+
+  Future<void> _getRouteAdvice() async {
+    final locale = AppLocale.normalize(ref.read(userLanguageProvider));
+
+    if (_fromLocation.trim().isEmpty || _toLocation.trim().isEmpty) {
       setState(() {
-        _error = 'Please enter both your starting point and destination.';
+        _error = ClimateStrings.t('route_error_missing', locale);
       });
       return;
     }
@@ -131,8 +152,16 @@ class _ClimateNavigatorScreenState extends ConsumerState<ClimateNavigatorScreen>
 
     try {
       final now = DateTime.now();
-      final month = now.month;
-      final hour = now.hour;
+      const dayNames = [
+        '',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ];
       const monthNames = [
         '',
         'January',
@@ -149,21 +178,33 @@ class _ClimateNavigatorScreenState extends ConsumerState<ClimateNavigatorScreen>
         'December',
       ];
 
+      QatarWeather weather;
+      try {
+        weather = await ref.read(qatarWeatherProvider.future);
+      } catch (_) {
+        weather = QatarWeather.fallback();
+      }
+
       final prompt = '''
-You are a Qatar climate and navigation expert helping expats stay 
-safe from extreme heat. Current month: ${monthNames[month]}, 
-Current time: $hour:00.
+You are a Qatar climate and navigation expert helping expats
+stay safe from extreme heat. Provide heat-safe route advice.
 
-Journey: FROM "$from" TO "$to" in Qatar.
+IMPORTANT: Respond in $locale (the user's app language).
+All JSON string values (summary, heatAlert, titles, descriptions,
+steps, tips, bestTime) must be written in $locale.
 
-Peak summer in Qatar is May-September with temperatures 45-48°C.
-Current conditions: ${_isPeakSummer ? 'PEAK SUMMER — dangerous heat' : 'NON-SUMMER — relatively comfortable'}.
+Journey: FROM "$_fromLocation" TO "$_toLocation" in Qatar.
+Day: ${dayNames[now.weekday]}
+Month: ${monthNames[now.month]}
+Hour: ${now.hour}:00
 
-Generate heat-aware route advice. Respond ONLY with valid JSON:
+${weather.toPromptContext()}
+
+Generate 3 route options ranked from LOWEST to HIGHEST
+heat exposure. Respond ONLY with valid JSON, no markdown:
 {
-  "summary": "<2 sentences about the journey and heat context>",
+  "summary": "<2 sentences about this journey and heat context>",
   "heatAlert": "<one line current heat warning or all-clear>",
-  "isPeakSummer": $_isPeakSummer,
   "options": [
     {
       "title": "<route name e.g. Metro + Indoor Route>",
@@ -171,33 +212,27 @@ Generate heat-aware route advice. Respond ONLY with valid JSON:
       "heatRisk": "<low|medium|high>",
       "heatRiskColor": "<#2DC653|#FFB627|#E63946>",
       "duration": "<estimated total time e.g. 35 mins>",
-      "description": "<2 sentences why this is the smart choice>",
-      "steps": [
-        "<step 1>",
-        "<step 2>",
-        "<step 3>"
-      ],
-      "bestTime": "<ideal time of day to travel e.g. Before 9AM or After 6PM>",
+      "description": "<2 sentences why this is smart>",
+      "steps": ["<step 1>", "<step 2>", "<step 3>"],
+      "bestTime": "<ideal time to travel e.g. Before 9AM>",
       "mapQuery": "<Google Maps search query for this route>"
     }
   ],
   "generalTips": [
-    "<Qatar-specific heat survival tip 1>",
-    "<Qatar-specific heat survival tip 2>",
-    "<Qatar-specific heat survival tip 3>"
+    "<Qatar-specific heat tip 1>",
+    "<Qatar-specific heat tip 2>",
+    "<Qatar-specific heat tip 3>"
   ]
 }
 
-Provide exactly 3 route options ranked from lowest to highest heat risk.
-Include Qatar-specific knowledge:
-- Qatar Metro (Red Line, Gold Line, Green Line) stations
-- Major indoor malls as waypoints (City Center, Villaggio, Mall of Qatar)
-- Park and Ride locations
-- Shaded parking at specific Qatar landmarks
-- Cooling centers (mosques, malls, metro stations)
-- Karwa taxi and Uber availability
-- Peak heat hours: 11AM-4PM — always warn about this window
-- Best routes during Ramadan if applicable
+Qatar-specific knowledge to apply:
+- Qatar Metro: Red Line, Gold Line, Green Line — always cool
+- Indoor waypoints: City Center, Villagio, Mall of Qatar
+- Park & Ride: Legtaifiya, DECC, Hamad Hospital stations
+- Peak heat: 11AM–4PM — always flag this window
+- Kareem/Uber AC: good option when walking < 50m each end
+- Labour Law: outdoor work banned 10AM–3:30PM June–Sept
+- Al Khor: 45 min north of Doha — factor in longer exposure
 ''';
 
       final claudeService = ref.read(claudeAIServiceProvider);
@@ -220,8 +255,7 @@ Include Qatar-specific knowledge:
       final json =
           jsonDecode(clean.substring(start, end + 1)) as Map<String, dynamic>;
 
-      final options = (json['options'] as List? ?? []).map((raw) {
-        final o = Map<String, dynamic>.from(raw as Map);
+      final options = (json['options'] as List? ?? []).map((o) {
         final hex = (o['heatRiskColor'] as String? ?? '#FFB627')
             .replaceAll('#', '');
         return RouteOption(
@@ -231,18 +265,26 @@ Include Qatar-specific knowledge:
           heatColor: Color(int.parse('FF$hex', radix: 16)),
           duration: o['duration'] as String? ?? 'N/A',
           description: o['description'] as String? ?? '',
-          steps: (o['steps'] as List? ?? []).map((s) => s.toString()).toList(),
+          steps: (o['steps'] as List? ?? [])
+              .map((s) => s.toString())
+              .toList(),
           bestTime: o['bestTime'] as String? ?? 'Anytime',
-          mapQuery: o['mapQuery'] as String? ?? '$from to $to Qatar',
+          mapQuery: o['mapQuery'] as String? ??
+              '$_fromLocation to $_toLocation Qatar',
         );
       }).toList();
 
       if (!mounted) return;
+      climateSuccessHaptic();
+      await ClimateRouteHistoryRepository.save(
+        from: _fromLocation,
+        to: _toLocation,
+      );
+      await _loadRouteHistory();
       setState(() {
         _advice = ClimateAdvice(
           summary: json['summary'] as String? ?? '',
           heatAlert: json['heatAlert'] as String? ?? '',
-          isPeakSummer: _isPeakSummer,
           options: options,
           generalTips: (json['generalTips'] as List? ?? [])
               .map((t) => t.toString())
@@ -251,8 +293,9 @@ Include Qatar-specific knowledge:
       });
     } catch (_) {
       if (!mounted) return;
+      final locale = AppLocale.normalize(ref.read(userLanguageProvider));
       setState(() {
-        _error = 'Could not get route advice. Check connection and try again.';
+        _error = ClimateStrings.t('route_error_failed', locale);
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -268,7 +311,6 @@ Include Qatar-specific knowledge:
     final appleUri = Uri.parse(
       'https://maps.apple.com/?daddr=${Uri.encodeComponent(query)}',
     );
-
     if (await canLaunchUrl(googleUri)) {
       await launchUrl(googleUri, mode: LaunchMode.externalApplication);
     } else if (await canLaunchUrl(appleUri)) {
@@ -276,334 +318,501 @@ Include Qatar-specific knowledge:
     }
   }
 
-  void _reset() {
+  void _resetRoute() {
     setState(() {
       _advice = null;
       _error = null;
-      _fromController.clear();
-      _toController.clear();
+      _fromLocation = '';
+      _toLocation = '';
+      _fieldVersion++;
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0826),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0826),
-        elevation: 0,
-        title: const Text(
-          'Climate Navigator',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
+  void _swapLocations() {
+    climateSelectionHaptic();
+    setState(() {
+      final tmp = _fromLocation;
+      _fromLocation = _toLocation;
+      _toLocation = tmp;
+      _fieldVersion++;
+    });
+  }
+
+  void _setDestinationFromCooling(String destination) {
+    setState(() {
+      _toLocation = destination;
+      _fieldVersion++;
+      _advice = null;
+      _error = null;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ClimateStrings.t(
+            'cooling_destination_set',
+            AppLocale.normalize(ref.read(userLanguageProvider)),
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          if (_advice != null)
-            TextButton(
-              onPressed: _reset,
-              child: const Text(
-                'New Route',
-                style: TextStyle(
-                  color: Color(0xFF00B4D8),
-                  fontWeight: FontWeight.w700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _routeSectionKey.currentContext;
+      if (ctx != null && mounted) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          alignment: 0.1,
+        );
+      }
+    });
+  }
+
+  void _openHeatIllnessGuide(String locale) {
+    HeatIllnessGuidePanel.showSheet(context, locale);
+  }
+
+  Widget _buildStatusHero(String locale, AsyncValue<QatarWeather> weatherAsync) {
+    return weatherAsync.when(
+      loading: () => _buildWeatherSkeleton(locale),
+      error: (_, _) => ClimateStatusHero(
+        weather: QatarWeather.fallback(),
+        locale: locale,
+        onOpenGuide: () => _openHeatIllnessGuide(locale),
+      ),
+      data: (weather) => ClimateStatusHero(
+        weather: weather,
+        locale: locale,
+        onOpenGuide: () => _openHeatIllnessGuide(locale),
+      ),
+    );
+  }
+
+  Widget _buildRoutePlannerSection(
+    String locale,
+    AsyncValue<QatarWeather> weatherAsync,
+  ) {
+    return Column(
+      key: _routeSectionKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        HomeSectionHeader(
+          overline: ClimateStrings.t('section_route_overline', locale),
+          title: ClimateStrings.t('section_route_title', locale),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (_recentRoutes.isNotEmpty) ...[
+          Text(
+            ClimateStrings.t('route_history_title', locale),
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textOnGlassSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _recentRoutes.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final entry = _recentRoutes[index];
+                final fromShort = entry.from.split(',').first.trim();
+                final toShort = entry.to.split(',').first.trim();
+                return Semantics(
+                  button: true,
+                  label: ClimateStrings.format(
+                    'route_history_chip',
+                    locale,
+                    params: {'from': fromShort, 'to': toShort},
+                  ),
+                  child: ActionChip(
+                    avatar: Icon(
+                      Icons.history_rounded,
+                      size: 14,
+                      color: climateAccent,
+                    ),
+                    label: Text(
+                      ClimateStrings.format(
+                        'route_history_chip',
+                        locale,
+                        params: {'from': fromShort, 'to': toShort},
+                      ),
+                      style: AppTypography.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: () => _applyHistoryEntry(entry),
+                    backgroundColor: climateAccent.withValues(alpha: 0.1),
+                    side: BorderSide(
+                      color: climateAccent.withValues(alpha: 0.25),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        LocationSearchField(
+          key: ValueKey('from_$_fieldVersion'),
+          label: ClimateStrings.t('route_from_label', locale),
+          hint: ClimateStrings.t('route_from_hint', locale),
+          iconColor: AppColors.successBright,
+          prefixIcon: Icons.my_location_rounded,
+          initialValue: _fromLocation,
+          locale: locale,
+          onLocationSelected: (v) => setState(() => _fromLocation = v),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: Semantics(
+            button: true,
+            label: ClimateStrings.t('route_swap_locations', locale),
+            child: Material(
+              color: AppColors.sharePurple.withValues(alpha: 0.15),
+              shape: CircleBorder(
+                side: BorderSide(
+                  color: AppColors.sharePurple.withValues(alpha: 0.3),
+                ),
+              ),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _swapLocations,
+                child: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Icon(
+                    Icons.swap_vert_rounded,
+                    color: AppColors.sharePurple,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _heatLabelColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _heatLabelColor.withValues(alpha: 0.3),
-                ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        LocationSearchField(
+          key: ValueKey('to_$_fieldVersion'),
+          label: ClimateStrings.t('route_to_label', locale),
+          hint: ClimateStrings.t('route_to_hint', locale),
+          iconColor: AppColors.errorBright,
+          prefixIcon: Icons.location_on_rounded,
+          initialValue: _toLocation,
+          locale: locale,
+          onLocationSelected: (v) => setState(() => _toLocation = v),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 14),
+          GlassContainer(
+            padding: const EdgeInsets.all(12),
+            borderRadius: 10,
+            glowColor: AppColors.error,
+            glowIntensity: 0.1,
+            backgroundColor: AppColors.error.withValues(alpha: 0.08),
+            child: Text(
+              _error!,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.errorBright,
               ),
-              child: Row(
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        if (_isLoading) ...[
+          _buildInlineRouteLoading(locale),
+          const SizedBox(height: AppSpacing.lg),
+        ] else
+          weatherAsync.when(
+            loading: () => GlassPrimaryButton(
+              label: ClimateStrings.t('route_loading_weather', locale),
+              expand: true,
+              accentColor: AppColors.sharePurple,
+              icon: Icons.cloud_outlined,
+              onPressed: null,
+            ),
+            error: (_, _) => _routeButton(locale, AppColors.accentGold),
+            data: (weather) =>
+                _routeButton(locale, weather.heatRiskColor),
+          ),
+        if (_advice == null && !_isLoading && _recentRoutes.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: ClimateFeatureEmptyState(
+              compact: true,
+              icon: Icons.route_rounded,
+              title: ClimateStrings.t('empty_route_title', locale),
+              description: ClimateStrings.t('empty_route_body', locale),
+            ),
+          ),
+        if (_advice != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          ClimateEntranceReveal(
+            child: GlassContainer(
+              padding: const EdgeInsets.all(14),
+              borderRadius: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _isPeakSummer ? '🌡️' : '🌤️',
-                    style: const TextStyle(fontSize: 28),
+                  RouteMapPreview(
+                    fromLabel: _fromLocation,
+                    toLabel: _toLocation,
+                    routeLabel:
+                        ClimateStrings.t('route_map_preview', locale),
+                    accentColor: climateAccent,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _currentHeatLabel,
-                          style: TextStyle(
-                            color: _heatLabelColor,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14,
-                            letterSpacing: 1,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: climateAccent,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _advice!.heatAlert,
+                          style: AppTypography.caption.copyWith(
+                            color: climateAccent,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _isPeakSummer
-                              ? 'Peak summer active. AI will prioritize '
-                                  'indoor and shaded routes.'
-                              : 'Weather is comfortable for outdoor routes.',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _advice!.summary,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textOnGlassMuted,
+                      height: 1.5,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            const _FieldLabel('From'),
-            const SizedBox(height: 6),
-            _LocationField(
-              controller: _fromController,
-              hint: 'Your location (e.g. Al Khor, Lusail)',
-              icon: Icons.my_location_rounded,
-              iconColor: const Color(0xFF2DC653),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ClimateEntranceReveal(
+            delay: const Duration(milliseconds: 60),
+            child: Text(
+              ClimateStrings.t('route_options_heading', locale),
+              style: AppTypography.title,
             ),
-            const SizedBox(height: 8),
-            _ChipRow(
-              chips: _popularFrom,
-              onTap: (v) => setState(() => _fromController.text = v),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  final temp = _fromController.text;
-                  _fromController.text = _toController.text;
-                  _toController.text = temp;
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C3FC5).withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF6C3FC5).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.swap_vert_rounded,
-                    color: Color(0xFF6C3FC5),
-                    size: 18,
+          ),
+          const SizedBox(height: 12),
+          ..._advice!.options.asMap().entries.map(
+                (e) => ClimateEntranceReveal(
+                  delay: Duration(milliseconds: 80 + e.key * 70),
+                  child: _RouteCard(
+                    option: e.value,
+                    rank: e.key + 1,
+                    locale: locale,
+                    fromLocation: _fromLocation,
+                    toLocation: _toLocation,
+                    onOpenMaps: () => _openInMaps(e.value.mapQuery),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const _FieldLabel('To'),
-            const SizedBox(height: 6),
-            _LocationField(
-              controller: _toController,
-              hint: 'Destination (e.g. City Center Mall)',
-              icon: Icons.location_on_rounded,
-              iconColor: const Color(0xFFE63946),
-            ),
-            const SizedBox(height: 8),
-            _ChipRow(
-              chips: _popularTo,
-              onTap: (v) => setState(() => _toController.text = v),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE63946).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: const Color(0xFFE63946).withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(
-                    color: Color(0xFFE63946),
-                    fontSize: 13,
-                  ),
-                ),
+          if (_advice!.generalTips.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            ClimateEntranceReveal(
+              delay: Duration(
+                milliseconds: 80 + _advice!.options.length * 70,
               ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _getRouteAdvice,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.air_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                label: Text(
-                  _isLoading
-                      ? 'Calculating heat-safe routes...'
-                      : 'Get Heat-Safe Route',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _heatLabelColor,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  disabledBackgroundColor: _heatLabelColor.withValues(alpha: 0.4),
-                ),
+              child: Text(
+                ClimateStrings.t('route_tips_heading', locale),
+                style: AppTypography.title,
               ),
             ),
-            if (_advice != null) ...[
-              const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Column(
+            const SizedBox(height: 10),
+            ..._advice!.generalTips.map(
+              (tip) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline_rounded,
-                          color: Color(0xFF00B4D8),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _advice!.heatAlert,
-                            style: const TextStyle(
-                              color: Color(0xFF00B4D8),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      _advice!.summary,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: 13,
-                        height: 1.5,
+                      '•  ',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.accentGold,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        tip,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textOnGlassMuted,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                '🗺️  Route Options',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+    final isRtl = AppLocale.isRtl(locale);
+    final weatherAsync = ref.watch(qatarWeatherProvider);
+
+    return Directionality(
+      textDirection: isRtl ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GlassScreenScaffold(
+        title: ClimateStrings.t('screen_title', locale),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+        actions: [
+          if (_advice != null)
+            TextButton(
+              onPressed: () {
+                climateLightHaptic();
+                _resetRoute();
+              },
+              child: Text(
+                ClimateStrings.t('route_new', locale),
+                style: AppTypography.button.copyWith(color: climateAccent),
               ),
-              const SizedBox(height: 12),
-              ..._advice!.options.asMap().entries.map((entry) {
-                final i = entry.key;
-                final opt = entry.value;
-                return _RouteCard(
-                  option: opt,
-                  rank: i + 1,
-                  onOpenMaps: () => _openInMaps(opt.mapQuery),
-                );
-              }),
-              if (_advice!.generalTips.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                const Text(
-                  '💡  Qatar Heat Survival Tips',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ..._advice!.generalTips.map(
-                  (tip) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '•  ',
-                          style: TextStyle(
-                            color: Color(0xFFFFB627),
-                            fontSize: 14,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            tip,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: 48),
+            ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+        padding: climateScreenPadding,
+        body: ListView(
+          controller: _scrollController,
+          children: [
+            HomeSectionHeader(
+              overline:
+                  ClimateStrings.t('section_conditions_overline', locale),
+              title: ClimateStrings.t('section_conditions_title', locale),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildStatusHero(locale, weatherAsync),
+            const SizedBox(height: AppSpacing.xl),
+            _buildRoutePlannerSection(locale, weatherAsync),
+            const SizedBox(height: AppSpacing.xl),
+            CoolingResourcesPanel(
+              locale: locale,
+              onSetDestination: _setDestinationFromCooling,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            HomeSectionHeader(
+              overline:
+                  ClimateStrings.t('section_emergency_overline', locale),
+              title: ClimateStrings.t('section_emergency_title', locale),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            HeatSymptomChecker(
+              doctorFinderRoute: _doctorFinderRoute,
+              locale: locale,
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildInlineRouteLoading(String locale) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      borderRadius: AppSpacing.radiusSm,
+      glowColor: climateAccent,
+      glowIntensity: 0.1,
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              color: AppColors.accentGold,
+              strokeWidth: 2.5,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ClimateStrings.t('route_loading_inline', locale),
+                  style: AppTypography.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  ClimateStrings.t('route_loading_subtitle', locale),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textOnGlassMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeatherSkeleton(String locale) {
+    return const GlassLoadingCard(height: 220);
+  }
+
+  Widget _routeButton(String locale, Color color) {
+    final label = ClimateStrings.t('route_get_cta', locale);
+    return Semantics(
+      button: true,
+      enabled: !_isLoading,
+      label: label,
+      child: GlassPrimaryButton(
+        label: label,
+        expand: true,
+        accentColor: color,
+        icon: Icons.air_rounded,
+        onPressed: _isLoading
+            ? null
+            : () {
+                climateMediumHaptic();
+                _getRouteAdvice();
+              },
+      ),
+    );
+  }
 }
 
-// ─── ROUTE CARD ─────────────────────────────────────────
+// ─── Route card ───────────────────────────────────────────
 
 class _RouteCard extends StatefulWidget {
   final RouteOption option;
   final int rank;
+  final String locale;
+  final String fromLocation;
+  final String toLocation;
   final VoidCallback onOpenMaps;
 
   const _RouteCard({
     required this.option,
     required this.rank,
+    required this.locale,
+    required this.fromLocation,
+    required this.toLocation,
     required this.onOpenMaps,
   });
 
@@ -617,26 +826,27 @@ class _RouteCardState extends State<_RouteCard> {
   @override
   Widget build(BuildContext context) {
     final opt = widget.option;
-    return Container(
+    final locale = widget.locale;
+
+    return GlassContainer(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: opt.heatColor.withValues(alpha: 0.3),
-        ),
-      ),
+      borderRadius: 16,
+      glowColor: opt.heatColor,
+      glowIntensity: 0.1,
       child: Column(
         children: [
           GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: () {
+              climateSelectionHaptic();
+              setState(() => _expanded = !_expanded);
+            },
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       color: opt.heatColor.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
@@ -647,12 +857,12 @@ class _RouteCardState extends State<_RouteCard> {
                         style: TextStyle(
                           color: opt.heatColor,
                           fontWeight: FontWeight.w900,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Text(
                     opt.emoji,
                     style: const TextStyle(fontSize: 22),
@@ -664,8 +874,10 @@ class _RouteCardState extends State<_RouteCard> {
                       children: [
                         Text(
                           opt.title,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppColors.isLight
+                                ? AppColors.textPrimary
+                                : Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -675,29 +887,36 @@ class _RouteCardState extends State<_RouteCard> {
                           children: [
                             Icon(
                               Icons.schedule_rounded,
-                              color: Colors.white.withValues(alpha: 0.35),
+                              color: AppColors.isLight
+                                  ? AppColors.textOnGlassMuted
+                                  : Colors.white.withValues(alpha: 0.35),
                               size: 12,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               opt.duration,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.45),
+                                color: AppColors.isLight
+                                    ? AppColors.textOnGlassMuted
+                                    : Colors.white.withValues(alpha: 0.45),
                                 fontSize: 11,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
+                                horizontal: 6,
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
                                 color: opt.heatColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                '${opt.heatRisk.toUpperCase()} HEAT',
+                                ClimateStrings.routeHeatBadge(
+                                  opt.heatRisk,
+                                  locale,
+                                ),
                                 style: TextStyle(
                                   color: opt.heatColor,
                                   fontSize: 9,
@@ -715,7 +934,9 @@ class _RouteCardState extends State<_RouteCard> {
                     _expanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white38,
+                    color: AppColors.isLight
+                        ? AppColors.textOnGlassMuted
+                        : Colors.white38,
                     size: 20,
                   ),
                 ],
@@ -728,69 +949,94 @@ class _RouteCardState extends State<_RouteCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(color: Colors.white10),
-                  const SizedBox(height: 10),
+                  Divider(
+                    color: AppColors.isLight
+                        ? AppColors.glassBorder
+                        : Colors.white10,
+                    height: 1,
+                  ),
+                  const SizedBox(height: 12),
+                  RouteMapPreview(
+                    fromLabel: widget.fromLocation,
+                    toLabel: widget.toLocation,
+                    routeLabel: ClimateStrings.t('route_map_preview', locale),
+                    accentColor: opt.heatColor,
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     opt.description,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: AppColors.isLight
+                          ? AppColors.textOnGlassSecondary
+                          : Colors.white.withValues(alpha: 0.6),
                       fontSize: 13,
                       height: 1.5,
                     ),
                   ),
                   const SizedBox(height: 14),
                   ...opt.steps.asMap().entries.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C3FC5).withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${e.key + 1}',
-                                style: const TextStyle(
-                                  color: Color(0xFF6C3FC5),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                margin: const EdgeInsets.only(top: 1),
+                                decoration: BoxDecoration(
+                                  color: AppColors.sharePurple.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${e.key + 1}',
+                                    style: const TextStyle(
+                                      color: AppColors.sharePurple,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              e.value,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 13,
-                                height: 1.4,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  e.value,
+                                  style: TextStyle(
+                                    color: AppColors.isLight
+                                        ? AppColors.textOnGlassSecondary
+                                        : Colors.white.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       const Icon(
                         Icons.wb_sunny_outlined,
-                        color: Color(0xFFFFB627),
+                        color: AppColors.accentGold,
                         size: 14,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Best time: ${opt.bestTime}',
+                        ClimateStrings.format(
+                          'route_best_time',
+                          locale,
+                          params: {'time': opt.bestTime},
+                        ),
                         style: const TextStyle(
-                          color: Color(0xFFFFB627),
+                          color: AppColors.accentGold,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -801,22 +1047,25 @@ class _RouteCardState extends State<_RouteCard> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: widget.onOpenMaps,
+                      onPressed: () {
+                        climateLightHaptic();
+                        widget.onOpenMaps();
+                      },
                       icon: const Icon(
                         Icons.map_rounded,
                         color: Colors.white,
                         size: 16,
                       ),
-                      label: const Text(
-                        'Open in Google Maps',
-                        style: TextStyle(
+                      label: Text(
+                        ClimateStrings.t('route_open_maps', locale),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C3FC5),
+                        backgroundColor: AppColors.sharePurple,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -829,107 +1078,6 @@ class _RouteCardState extends State<_RouteCard> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-// ─── HELPER WIDGETS ──────────────────────────────────────
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-        ),
-      );
-}
-
-class _LocationField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final Color iconColor;
-
-  const _LocationField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          color: Colors.white.withValues(alpha: 0.25),
-          fontSize: 13,
-        ),
-        prefixIcon: Icon(icon, color: iconColor, size: 18),
-        fillColor: Colors.white.withValues(alpha: 0.05),
-        filled: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: iconColor, width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipRow extends StatelessWidget {
-  final List<String> chips;
-  final void Function(String) onTap;
-
-  const _ChipRow({required this.chips, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: chips.length,
-        separatorBuilder: (context, _) => const SizedBox(width: 6),
-        itemBuilder: (_, i) => GestureDetector(
-          onTap: () => onTap(chips[i]),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C3FC5).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF6C3FC5).withValues(alpha: 0.25),
-              ),
-            ),
-            child: Text(
-              chips[i],
-              style: const TextStyle(
-                color: Color(0xFF6C3FC5),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "codes": [
+    {"code": "91", "countryEn": "India", "countryAr": "الهند"},
+    {"code": "92", "countryEn": "Pakistan", "countryAr": "باكستان"},
+    {"code": "880", "countryEn": "Bangladesh", "countryAr": "بنغلاديش"},
+    {"code": "977", "countryEn": "Nepal", "countryAr": "نيبال"},
+    {"code": "94", "countryEn": "Sri Lanka", "countryAr": "سريلانka"},
+    {"code": "63", "countryEn": "Philippines", "countryAr": "الفلبين"},
+    {"code": "971", "countryEn": "United Arab Emirates", "countryAr": "الإمارات"},
+    {"code": "966", "countryEn": "Saudi Arabia", "countryAr": "السعودية"},
+    {"code": "965", "countryEn": "Kuwait", "countryAr": "الكويت"},
+    {"code": "973", "countryEn": "Bahrain", "countryAr": "البحرين"},
+    {"code": "968", "countryEn": "Oman", "countryAr": "عُمان"},
+    {"code": "20", "countryEn": "Egypt", "countryAr": "مصر"},
+    {"code": "1", "countryEn": "United States / Canada", "countryAr": "الولايات المتحدة / كندا"},
+    {"code": "44", "countryEn": "United Kingdom", "countryAr": "المملكة المتحدة"},
+    {"code": "86", "countryEn": "China", "countryAr": "الصين"},
+    {"code": "234", "countryEn": "Nigeria", "countryAr": "نيجيريا"}
+  ]
+}

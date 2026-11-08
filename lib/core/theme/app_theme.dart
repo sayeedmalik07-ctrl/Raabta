@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:raabta/core/design/app_colors.dart';
 import 'package:raabta/core/design/app_text_styles.dart';
 
 class AppTheme {
-  static ThemeData get dark => ThemeData(
+  AppTheme._();
+
+  static final ThemeData light = _buildLight();
+  static final ThemeData dark = _buildDark();
+
+  static ThemeData _buildDark() {
+    final base = _baseDark();
+    return base.copyWith(
+      textTheme: GoogleFonts.interTextTheme(base.textTheme),
+    );
+  }
+
+  static ThemeData _buildLight() {
+    final base = _baseLight();
+    return base.copyWith(
+      textTheme: GoogleFonts.interTextTheme(base.textTheme),
+    );
+  }
+
+  static ThemeData _baseDark() => ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.background,
         primaryColor: AppColors.primary,
@@ -30,6 +50,11 @@ class AppTheme {
           elevation: 0,
         ),
         iconTheme: IconThemeData(color: AppColors.textSecondary),
+        listTileTheme: ListTileThemeData(
+          tileColor: AppColors.surface,
+          selectedTileColor: AppColors.surfaceElevated,
+          iconColor: AppColors.textSecondary,
+        ),
         textTheme: TextTheme(
           displayLarge: AppTextStyles.displayLarge,
           displayMedium: AppTextStyles.displayMedium,
@@ -43,7 +68,7 @@ class AppTheme {
         ),
       );
 
-  static ThemeData get light => ThemeData(
+  static ThemeData _baseLight() => ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFF4F6FA),
         primaryColor: AppColors.primary,
@@ -72,6 +97,11 @@ class AppTheme {
           elevation: 0,
         ),
         iconTheme: const IconThemeData(color: Color(0xFF64748B)),
+        listTileTheme: const ListTileThemeData(
+          tileColor: Colors.white,
+          selectedTileColor: Color(0xFFF1F5F9),
+          iconColor: Color(0xFF64748B),
+        ),
         textTheme: TextTheme(
           displayLarge: AppTextStyles.displayLarge
               .copyWith(color: const Color(0xFF0F172A)),

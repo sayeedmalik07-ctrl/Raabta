@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "qfscamInfoUrl": {
+    "url": "https://www.qfcra.com/financial-scams/",
+    "verified": false,
+    "lastVerified": null,
+    "note": "Sayeed to verify before showing — QFCRA financial scams page"
+  },
+  "regulators": [
+    {
+      "id": "qfcra",
+      "nameKey": "ss_inv_reg_qfcra_name",
+      "scopeKey": "ss_inv_reg_qfcra_scope",
+      "links": [
+        {
+          "labelKey": "ss_inv_reg_qfcra_auth_firms",
+          "url": "https://www.qfcra.com/public-registers/authorised-firms/",
+          "verified": false,
+          "lastVerified": null
+        },
+        {
+          "labelKey": "ss_inv_reg_qfcra_public_register",
+          "url": "https://www.qfcra.com/public-registers/",
+          "verified": false,
+          "lastVerified": null
+        }
+      ]
+    },
+    {
+      "id": "qcb",
+      "nameKey": "ss_inv_reg_qcb_name",
+      "scopeKey": "ss_inv_reg_qcb_scope",
+      "links": []
+    },
+    {
+      "id": "qfma",
+      "nameKey": "ss_inv_reg_qfma_name",
+      "scopeKey": "ss_inv_reg_qfma_scope",
+      "links": []
+    }
+  ],
+  "reportLinks": [
+    {
+      "labelKey": "ss_inv_qfcra_scams_report",
+      "url": "",
+      "verified": false,
+      "lastVerified": null
+    }
+  ]
+}

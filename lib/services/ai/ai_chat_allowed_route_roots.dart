@@ -1,0 +1,90 @@
+/// User-facing GoRouter path roots allowed for AI [[action:...]] navigation chips.
+///
+/// Prefix-matched by [AiChatRouteValidator] — sub-routes inherit from their root.
+/// Exhaustive against `lib/core/router/app_router.dart` (Part B.0 audit, Sep 2026).
+abstract final class AiChatAllowedRouteRoots {
+  /// Clear user-facing feature screens — linkable from AI chat.
+  static const userFacing = {
+    '/home',
+    '/eosb',
+    '/health-insurance',
+    '/tenancy',
+    '/sponsorship-transfer',
+    '/scanner',
+    '/document-vault',
+    '/barcode-scanner',
+    '/arabic-companion',
+    '/bill-splitter',
+    '/warranty-shield',
+    '/climate-navigator',
+    '/queue-avoidance',
+    '/bill-tracker',
+    '/scam-shield',
+    '/leaving-qatar',
+    '/know-qatar',
+    '/trip-planner',
+    '/prayer-mosque',
+    '/ramadan',
+    '/concierge-90-day',
+    '/prospective',
+    '/evidence-trail',
+    '/driving',
+    '/daily-ussd',
+    '/money',
+    '/money-services',
+    '/exchange-locator',
+    '/jobs',
+    '/housing',
+    '/businesses',
+    '/services',
+    '/marketplace',
+    '/visa',
+    '/community',
+    '/news',
+    '/expat-score',
+    '/global-search',
+    '/employer-track-record',
+    '/agency-verification',
+    '/case-timeline',
+    '/consumer-complaint',
+    '/freelance-visa-qatar',
+    '/buying-car-qatar',
+    '/telecom-contract-decoder',
+    '/profile',
+    '/notifications',
+    '/notification-preferences',
+    '/premium',
+    '/advertise',
+    '/business-advertise',
+    '/boost-listing',
+    '/my-posts',
+    '/my-splits',
+    '/invite',
+    '/dietary-profile',
+  };
+
+  /// Registered routes intentionally excluded from AI deep-links.
+  static const intentionallyExcluded = {
+    '/splash',
+    '/login',
+    '/language',
+    '/onboarding',
+    '/maintenance',
+    '/force-update',
+    '/suspended',
+    '/feature-disabled',
+    '/admin',
+    '/dev',
+    '/ai-chat',
+    '/appearance',
+    '/notification-settings',
+    '/daily-phrases',
+    '/landmark-translator',
+    '/doctors',
+  };
+
+  /// Redirect-only aliases — excluded; AI should target canonical routes instead.
+  static const redirectAliases = {
+    '/money/corridor-comparator',
+  };
+}

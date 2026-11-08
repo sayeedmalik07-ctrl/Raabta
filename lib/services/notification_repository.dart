@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:raabta/models/notification_models.dart';
 import 'package:raabta/services/firebase_service.dart';
 import 'package:raabta/services/raabta_notification_service.dart';
@@ -15,7 +16,9 @@ class NotificationRepository {
   static const _localSettingsKey = 'notification_settings';
 
   CollectionReference<Map<String, dynamic>>? get _notificationsRef {
-    if (!FirebaseService.isReady) return null;
+    if (!FirebaseService.isReady || FirebaseAuth.instance.currentUser == null) {
+      return null;
+    }
     return FirebaseFirestore.instance
         .collection('users')
         .doc(_userId)
@@ -23,7 +26,9 @@ class NotificationRepository {
   }
 
   DocumentReference<Map<String, dynamic>>? get _settingsRef {
-    if (!FirebaseService.isReady) return null;
+    if (!FirebaseService.isReady || FirebaseAuth.instance.currentUser == null) {
+      return null;
+    }
     return FirebaseFirestore.instance
         .collection('users')
         .doc(_userId)
@@ -90,7 +95,7 @@ class NotificationRepository {
       AppNotification(
         id: 'demo-2',
         title: 'New Housing Match',
-        body: 'Room in Al Khor — 1,200 QR/month matches your search',
+        body: 'Room in Qatar — 1,200 QR/month matches your search',
         type: NotificationType.housingMatch,
         route: '/housing',
         read: false,
@@ -192,6 +197,26 @@ class NotificationRepository {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localSettingsKey, jsonEncode(settings.toJson()));
+  }
+
+  Future<void> addInboxNotification(AppNotification notification) async {
+    final ref = _notificationsRef;
+    if (ref != null) {
+      try {
+        await ref.doc(notification.id).set(notification.toJson());
+        return;
+      } catch (e) {
+        // Fall through to local cache.
+      }
+    }
+
+    final items = await _loadLocalNotifications();
+    items.removeWhere((n) => n.id == notification.id);
+    items.insert(0, notification);
+    if (items.length > 100) {
+      items.removeRange(100, items.length);
+    }
+    await _saveLocalNotifications(items);
   }
 }
 

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "name": "Metrash2",
+      "replacement": "Metrash",
+      "since": "March 2025",
+      "sourceLabel": "Ministry of Interior announcement, 16 Feb 2025 (Sayeed to attach URL)",
+      "sourceUrl": "",
+      "verified": false,
+      "matchAliases": ["metrash 2", "metrash2", "متراش 2", "متراش٢"]
+    }
+  ]
+}

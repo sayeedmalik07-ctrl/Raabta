@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/models/advanced_profile.dart';
 import 'package:raabta/services/ai/debouncer.dart';
+import 'package:raabta/services/ai/expat_score_live_calculator.dart';
 import 'package:raabta/services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +28,7 @@ class ExpatLifeScore {
     required this.weeklyGrowth,
     required this.monthlyGrowth,
     required this.lastCalculated,
+    this.categoryMeta = const {},
   });
 
   final double total;
@@ -37,6 +42,7 @@ class ExpatLifeScore {
   final double weeklyGrowth;
   final double monthlyGrowth;
   final DateTime lastCalculated;
+  final Map<String, ExpatScoreCategoryMeta> categoryMeta;
 
   factory ExpatLifeScore.initial() {
     final now = DateTime.now();
@@ -67,6 +73,7 @@ class ExpatLifeScore {
     double? weeklyGrowth,
     double? monthlyGrowth,
     DateTime? lastCalculated,
+    Map<String, ExpatScoreCategoryMeta>? categoryMeta,
   }) {
     return ExpatLifeScore(
       total: total ?? this.total,
@@ -80,6 +87,7 @@ class ExpatLifeScore {
       weeklyGrowth: weeklyGrowth ?? this.weeklyGrowth,
       monthlyGrowth: monthlyGrowth ?? this.monthlyGrowth,
       lastCalculated: lastCalculated ?? this.lastCalculated,
+      categoryMeta: categoryMeta ?? this.categoryMeta,
     );
   }
 
@@ -95,9 +103,24 @@ class ExpatLifeScore {
         'weeklyGrowth': weeklyGrowth,
         'monthlyGrowth': monthlyGrowth,
         'lastCalculated': lastCalculated.toIso8601String(),
+        'categoryMeta': categoryMeta.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
       };
 
   factory ExpatLifeScore.fromJson(Map<String, dynamic> json) {
+    final rawMeta = json['categoryMeta'];
+    final parsedMeta = <String, ExpatScoreCategoryMeta>{};
+    if (rawMeta is Map) {
+      for (final entry in rawMeta.entries) {
+        if (entry.value is Map) {
+          parsedMeta[entry.key.toString()] = ExpatScoreCategoryMeta.fromJson(
+            Map<String, dynamic>.from(entry.value as Map),
+          );
+        }
+      }
+    }
+
     return ExpatLifeScore(
       total: _toDouble(json['total']),
       career: _toDouble(json['career']),
@@ -110,6 +133,7 @@ class ExpatLifeScore {
       weeklyGrowth: _toDouble(json['weeklyGrowth']),
       monthlyGrowth: _toDouble(json['monthlyGrowth']),
       lastCalculated: _parseDateTime(json['lastCalculated']),
+      categoryMeta: parsedMeta,
     );
   }
 }
@@ -136,6 +160,11 @@ class UserAIProfile {
     required this.communityGroups,
     required this.lastUpdated,
     required this.score,
+    this.advancedProfile,
+    this.advancedProfileConsentGiven = false,
+    this.advancedProfileConsentDate,
+    this.spokenLanguageCodes = const [],
+    this.areaCode = '',
   });
 
   final String uid;
@@ -158,14 +187,19 @@ class UserAIProfile {
   final List<String> communityGroups;
   final DateTime lastUpdated;
   final ExpatLifeScore score;
+  final AdvancedProfile? advancedProfile;
+  final bool advancedProfileConsentGiven;
+  final DateTime? advancedProfileConsentDate;
+  final List<String> spokenLanguageCodes;
+  final String areaCode;
 
   factory UserAIProfile.defaultProfile(String uid) {
     return UserAIProfile(
       uid: uid,
       profession: '',
       yearsExperience: 0,
-      preferredArea: 'Al Khor',
-      budgetRange: const {'min': 0, 'max': 5000},
+      preferredArea: '',
+      budgetRange: const {'min': 0, 'max': 0},
       familyStatus: 'single',
       nationality: '',
       language: 'en',
@@ -204,6 +238,13 @@ class UserAIProfile {
     List<String>? communityGroups,
     DateTime? lastUpdated,
     ExpatLifeScore? score,
+    AdvancedProfile? advancedProfile,
+    bool? advancedProfileConsentGiven,
+    DateTime? advancedProfileConsentDate,
+    bool clearAdvancedProfile = false,
+    bool clearAdvancedProfileConsentDate = false,
+    List<String>? spokenLanguageCodes,
+    String? areaCode,
   }) {
     return UserAIProfile(
       uid: uid,
@@ -226,6 +267,16 @@ class UserAIProfile {
       communityGroups: communityGroups ?? this.communityGroups,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       score: score ?? this.score,
+      advancedProfile: clearAdvancedProfile
+          ? null
+          : (advancedProfile ?? this.advancedProfile),
+      advancedProfileConsentGiven:
+          advancedProfileConsentGiven ?? this.advancedProfileConsentGiven,
+      advancedProfileConsentDate: clearAdvancedProfileConsentDate
+          ? null
+          : (advancedProfileConsentDate ?? this.advancedProfileConsentDate),
+      spokenLanguageCodes: spokenLanguageCodes ?? this.spokenLanguageCodes,
+      areaCode: areaCode ?? this.areaCode,
     );
   }
 
@@ -250,6 +301,14 @@ class UserAIProfile {
         'communityGroups': communityGroups,
         'lastUpdated': lastUpdated.toIso8601String(),
         'score': score.toJson(),
+        if (advancedProfile != null && advancedProfile!.hasAnyField)
+          'advancedProfile': advancedProfile!.toJson(),
+        'advancedProfileConsentGiven': advancedProfileConsentGiven,
+        if (advancedProfileConsentDate != null)
+          'advancedProfileConsentDate':
+              advancedProfileConsentDate!.toIso8601String(),
+        'spokenLanguageCodes': spokenLanguageCodes,
+        if (areaCode.isNotEmpty) 'areaCode': areaCode,
       };
 
   factory UserAIProfile.fromJson(Map<String, dynamic> json) {
@@ -266,7 +325,7 @@ class UserAIProfile {
       uid: json['uid'] as String? ?? '',
       profession: json['profession'] as String? ?? '',
       yearsExperience: json['yearsExperience'] as int? ?? 0,
-      preferredArea: json['preferredArea'] as String? ?? 'Al Khor',
+      preferredArea: json['preferredArea'] as String? ?? '',
       budgetRange: budget,
       familyStatus: json['familyStatus'] as String? ?? 'single',
       nationality: json['nationality'] as String? ?? '',
@@ -285,7 +344,71 @@ class UserAIProfile {
       score: json['score'] is Map<String, dynamic>
           ? ExpatLifeScore.fromJson(json['score'] as Map<String, dynamic>)
           : ExpatLifeScore.initial(),
+      advancedProfile: json['advancedProfile'] is Map<String, dynamic>
+          ? AdvancedProfile.fromJson(
+              Map<String, dynamic>.from(json['advancedProfile'] as Map),
+            )
+          : null,
+      advancedProfileConsentGiven:
+          json['advancedProfileConsentGiven'] as bool? ?? false,
+      advancedProfileConsentDate: json['advancedProfileConsentDate'] != null
+          ? _parseDateTime(json['advancedProfileConsentDate'])
+          : null,
+      spokenLanguageCodes: _toStringList(json['spokenLanguageCodes']),
+      areaCode: json['areaCode'] as String? ?? '',
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Saved job toggle results (Jobs hub)
+// ---------------------------------------------------------------------------
+
+enum SavedJobToggleOutcome { saved, unsaved }
+
+/// Result of [UserProfileAIService.toggleSavedJob].
+class SavedJobToggleResult {
+  const SavedJobToggleResult({
+    required this.profileReady,
+    required this.localUpdated,
+    required this.remotePersisted,
+    this.outcome,
+  });
+
+  /// False when profile is not initialized or auth ownership does not match.
+  final bool profileReady;
+
+  /// True when `_cachedProfile` and local cache were updated.
+  final bool localUpdated;
+
+  /// True when Firestore accepted the write (false on error or offline Firestore).
+  final bool remotePersisted;
+
+  final SavedJobToggleOutcome? outcome;
+}
+
+// ---------------------------------------------------------------------------
+// Auth-bound profile ownership helpers
+// ---------------------------------------------------------------------------
+
+/// UID binding checks shared by profile consumers and the AI profile service.
+abstract final class UserProfileOwnership {
+  UserProfileOwnership._();
+
+  static String? currentAuthUid() => FirebaseAuth.instance.currentUser?.uid;
+
+  static bool needsInit(UserAIProfile? profile, String? currentUid) {
+    if (currentUid == null || currentUid.isEmpty) return false;
+    return profile == null || profile.uid != currentUid;
+  }
+
+  static bool matches(UserAIProfile profile, String currentUid) {
+    return profile.uid == currentUid;
+  }
+
+  static bool matchesCurrentAuth(UserAIProfile profile) {
+    final authUid = currentAuthUid();
+    return authUid != null && profile.uid == authUid;
   }
 }
 
@@ -296,12 +419,16 @@ class UserAIProfile {
 class UserProfileAIService {
   UserProfileAIService({
     FirebaseFirestore? firestore,
-    this._prefs,
+    SharedPreferences? prefs,
     Debouncer? saveDebouncer,
+    String? Function()? currentAuthUid,
   })  : _firestore = FirebaseService.isReady
             ? (firestore ?? FirebaseFirestore.instance)
             : null,
-        _saveDebouncer = saveDebouncer ?? Debouncer();
+        _saveDebouncer = saveDebouncer ?? Debouncer(),
+        _currentAuthUid = currentAuthUid ?? UserProfileOwnership.currentAuthUid {
+    _prefs = prefs;
+  }
 
   static const _profileDocId = 'profile';
   static const _maxSearchHistory = 50;
@@ -311,9 +438,46 @@ class UserProfileAIService {
   final FirebaseFirestore? _firestore;
   SharedPreferences? _prefs;
   final Debouncer _saveDebouncer;
+  final String? Function() _currentAuthUid;
 
   UserAIProfile? _cachedProfile;
   final Map<String, int> _professionViewCounts = {};
+  int _initGeneration = 0;
+  Future<void> _profileMutationChain = Future<void>.value();
+
+  /// Test hook: awaited at the start of each queued mutation (ordering tests).
+  @visibleForTesting
+  Future<void>? debugAwaitBeforeQueuedMutation;
+
+  /// Test hook: replaces Firestore persistence (ordering / failure tests).
+  @visibleForTesting
+  Future<bool> Function(UserAIProfile profile)? testPersistHandler;
+
+  /// Clears in-memory profile state on auth UID change. Disk caches remain UID-scoped.
+  @visibleForTesting
+  void clearInMemoryState() {
+    _saveDebouncer.cancel();
+    _cachedProfile = null;
+    _professionViewCounts.clear();
+    _initGeneration++;
+    _profileMutationChain = Future<void>.value();
+  }
+
+  /// Serializes read-modify-commit profile mutations on one lane.
+  Future<T> _enqueueProfileMutation<T>(Future<T> Function() action) {
+    final hold = debugAwaitBeforeQueuedMutation;
+    Future<T> run() async {
+      if (hold != null) await hold;
+      return action();
+    }
+
+    final operation = _profileMutationChain.then((_) => run());
+    _profileMutationChain = operation.then((_) {}, onError: (_) {});
+    return operation;
+  }
+
+  @visibleForTesting
+  int get initGeneration => _initGeneration;
 
   DocumentReference<Map<String, dynamic>>? _profileRef(String uid) {
     if (_firestore == null) return null;
@@ -326,12 +490,35 @@ class UserProfileAIService {
 
   String _cacheKey(String uid) => 'user_ai_profile_$uid';
 
+  static String _privacyCacheKey(String uid) => 'privacy_settings_$uid';
+
+  Future<bool> _isPersonalizationEnabled(String uid) async {
+    final prefs = await _getPrefs();
+    final cached = prefs.getString(_privacyCacheKey(uid));
+    if (cached != null && cached.contains('aiPersonalizationEnabled=false')) {
+      return false;
+    }
+    if (_firestore != null) {
+      try {
+        final snap = await _firestore.collection('users').doc(uid).get();
+        final raw = snap.data()?['privacySettings'] as Map<String, dynamic>?;
+        if (raw != null && raw['aiPersonalizationEnabled'] == false) {
+          return false;
+        }
+      } catch (_) {}
+    }
+    return true;
+  }
+
   Future<SharedPreferences> _getPrefs() async {
     return _prefs ??= await SharedPreferences.getInstance();
   }
 
   /// 1. Initialize profile — load from Firestore or create default.
-  Future<UserAIProfile> initProfile(String uid) async {
+  Future<UserAIProfile> initProfile(
+    String uid, {
+    required int initGeneration,
+  }) async {
     UserAIProfile? profile;
 
     final ref = _profileRef(uid);
@@ -349,14 +536,32 @@ class UserProfileAIService {
     profile ??= await _loadFromCache(uid);
     profile ??= UserAIProfile.defaultProfile(uid);
 
-    _cachedProfile = profile;
-    await _cacheLocally(profile);
-    return profile;
+    if (!_canCommitInit(initGeneration, uid)) {
+      return profile;
+    }
+
+    final loaded = profile;
+    await _enqueueProfileMutation(() async {
+      if (!_canCommitInit(initGeneration, uid)) return;
+      _cachedProfile = loaded;
+      await _cacheLocally(loaded);
+    });
+    return _cachedProfile ?? loaded;
   }
 
   /// 2. Track job view and infer profession preferences.
-  Future<void> trackJobView(String jobId, Map<String, dynamic> jobData) async {
-    _ensureProfile();
+  Future<void> trackJobView(String jobId, Map<String, dynamic> jobData) {
+    return _enqueueProfileMutation(
+      () => _trackJobViewInQueue(jobId, jobData),
+    );
+  }
+
+  Future<void> _trackJobViewInQueue(
+    String jobId,
+    Map<String, dynamic> jobData,
+  ) async {
+    if (!_ensureOwnedProfile()) return;
+    if (!await _isPersonalizationEnabled(_cachedProfile!.uid)) return;
     var profile = _cachedProfile!;
 
     final viewed = _appendUnique(profile.viewedJobIds, jobId);
@@ -381,15 +586,25 @@ class UserProfileAIService {
       certifications: _mergeUnique(profile.certifications, certifications),
     );
 
-    await _applyProfileUpdate(profile);
+    await _commitProfileUpdate(profile, immediate: false);
   }
 
   /// 3. Track housing view and update area / budget preferences.
   Future<void> trackHousingView(
     String listingId,
     Map<String, dynamic> listingData,
+  ) {
+    return _enqueueProfileMutation(
+      () => _trackHousingViewInQueue(listingId, listingData),
+    );
+  }
+
+  Future<void> _trackHousingViewInQueue(
+    String listingId,
+    Map<String, dynamic> listingData,
   ) async {
-    _ensureProfile();
+    if (!_ensureOwnedProfile()) return;
+    if (!await _isPersonalizationEnabled(_cachedProfile!.uid)) return;
     var profile = _cachedProfile!;
 
     final viewed = _appendUnique(profile.viewedHousingIds, listingId);
@@ -407,15 +622,25 @@ class UserProfileAIService {
       );
     }
 
-    await _applyProfileUpdate(profile);
+    await _commitProfileUpdate(profile, immediate: false);
   }
 
   /// 4. Track business view and update interests.
   Future<void> trackBusinessView(
     String bizId,
     Map<String, dynamic> bizData,
+  ) {
+    return _enqueueProfileMutation(
+      () => _trackBusinessViewInQueue(bizId, bizData),
+    );
+  }
+
+  Future<void> _trackBusinessViewInQueue(
+    String bizId,
+    Map<String, dynamic> bizData,
   ) async {
-    _ensureProfile();
+    if (!_ensureOwnedProfile()) return;
+    if (!await _isPersonalizationEnabled(_cachedProfile!.uid)) return;
     var profile = _cachedProfile!;
 
     final businesses = _appendUnique(profile.savedBusinessIds, bizId);
@@ -428,12 +653,17 @@ class UserProfileAIService {
       );
     }
 
-    await _applyProfileUpdate(profile);
+    await _commitProfileUpdate(profile, immediate: false);
   }
 
   /// 5. Track search query and parse preferences.
-  Future<void> trackSearch(String query) async {
-    _ensureProfile();
+  Future<void> trackSearch(String query) {
+    return _enqueueProfileMutation(() => _trackSearchInQueue(query));
+  }
+
+  Future<void> _trackSearchInQueue(String query) async {
+    if (!_ensureOwnedProfile()) return;
+    if (!await _isPersonalizationEnabled(_cachedProfile!.uid)) return;
     var profile = _cachedProfile!;
 
     final trimmed = query.trim();
@@ -460,12 +690,16 @@ class UserProfileAIService {
       );
     }
 
-    await _applyProfileUpdate(profile);
+    await _commitProfileUpdate(profile, immediate: false);
   }
 
   /// 6. Track saved item — saved items carry 3x recommendation weight.
-  Future<void> trackSave(String type, String id) async {
-    _ensureProfile();
+  Future<void> trackSave(String type, String id) {
+    return _enqueueProfileMutation(() => _trackSaveInQueue(type, id));
+  }
+
+  Future<void> _trackSaveInQueue(String type, String id) async {
+    if (!_ensureOwnedProfile()) return;
     var profile = _cachedProfile!;
 
     switch (type) {
@@ -494,15 +728,102 @@ class UserProfileAIService {
         throw ArgumentError('type must be job, housing, or business');
     }
 
-    await _applyProfileUpdate(profile);
+    await _commitProfileUpdate(profile, immediate: false);
+  }
+
+  /// Jobs hub — toggle saved state with serialized updates and immediate Firestore sync.
+  Future<SavedJobToggleResult> toggleSavedJob(String jobId) {
+    return _enqueueProfileMutation(() => _toggleSavedJobInQueue(jobId)).catchError(
+      (Object _, StackTrace __) {
+        return const SavedJobToggleResult(
+          profileReady: false,
+          localUpdated: false,
+          remotePersisted: false,
+        );
+      },
+    );
+  }
+
+  Future<SavedJobToggleResult> _toggleSavedJobInQueue(String jobId) async {
+    if (!_ensureOwnedProfile()) {
+      return const SavedJobToggleResult(
+        profileReady: false,
+        localUpdated: false,
+        remotePersisted: false,
+      );
+    }
+
+    var profile = _cachedProfile!;
+    final trimmedId = jobId.trim();
+    if (trimmedId.isEmpty) {
+      return const SavedJobToggleResult(
+        profileReady: true,
+        localUpdated: false,
+        remotePersisted: false,
+      );
+    }
+
+    final wasSaved = profile.savedJobIds.contains(trimmedId);
+    if (wasSaved) {
+      profile = profile.copyWith(
+        savedJobIds: _removeId(profile.savedJobIds, trimmedId),
+      );
+    } else {
+      profile = profile.copyWith(
+        savedJobIds: _appendUnique(profile.savedJobIds, trimmedId),
+        interests: _mergeUnique(
+          profile.interests,
+          ['job:$trimmedId', 'job:$trimmedId', 'job:$trimmedId'],
+        ),
+      );
+    }
+
+    if (!_profileUidMatchesCurrentAuth(profile.uid)) {
+      return const SavedJobToggleResult(
+        profileReady: false,
+        localUpdated: false,
+        remotePersisted: false,
+      );
+    }
+
+    final remotePersisted = await _commitProfileUpdate(
+      profile,
+      immediate: true,
+    );
+
+    return SavedJobToggleResult(
+      profileReady: true,
+      localUpdated: true,
+      remotePersisted: remotePersisted,
+      outcome: wasSaved ? SavedJobToggleOutcome.unsaved : SavedJobToggleOutcome.saved,
+    );
   }
 
   /// 7. Return locally cached profile.
   UserAIProfile? getCachedProfile() => _cachedProfile;
 
+  bool cachedProfileMatchesCurrentAuth() {
+    final profile = _cachedProfile;
+    if (profile == null) return false;
+    return _profileUidMatchesCurrentAuth(profile.uid);
+  }
+
+  /// Persists a freshly calculated Expat Life Score to Firestore + local cache.
+  Future<void> persistCalculatedScore(String uid, ExpatLifeScore score) {
+    return _enqueueProfileMutation(() async {
+      if (_cachedProfile == null || _cachedProfile!.uid != uid) return;
+      final updated = _cachedProfile!.copyWith(score: score);
+      await _commitProfileUpdate(updated, immediate: true);
+    });
+  }
+
   /// 8. Update specific profile fields.
-  Future<void> updateProfile(Map<String, dynamic> updates) async {
-    _ensureProfile();
+  Future<void> updateProfile(Map<String, dynamic> updates) {
+    return _enqueueProfileMutation(() => _updateProfileInQueue(updates));
+  }
+
+  Future<void> _updateProfileInQueue(Map<String, dynamic> updates) async {
+    if (!_ensureOwnedProfile()) return;
     var profile = _cachedProfile!;
 
     if (updates.containsKey('profession')) {
@@ -557,6 +878,18 @@ class UserProfileAIService {
         communityGroups: _toStringList(updates['communityGroups']),
       );
     }
+    if (updates.containsKey('spokenLanguageCodes')) {
+      profile = profile.copyWith(
+        spokenLanguageCodes: _toStringList(updates['spokenLanguageCodes']),
+      );
+    }
+    if (updates.containsKey('areaCode')) {
+      final code = (updates['areaCode'] as String? ?? '').trim();
+      profile = profile.copyWith(
+        areaCode: code,
+        preferredArea: code.isNotEmpty ? code : profile.preferredArea,
+      );
+    }
     if (updates.containsKey('score') && updates['score'] is Map) {
       profile = profile.copyWith(
         score: ExpatLifeScore.fromJson(
@@ -565,7 +898,79 @@ class UserProfileAIService {
       );
     }
 
-    await _applyProfileUpdate(profile, immediate: true);
+    await _commitProfileUpdate(profile, immediate: true);
+  }
+
+  /// Saves optional advanced profile — requires explicit consent.
+  Future<void> updateAdvancedProfile({
+    required AdvancedProfile profile,
+    required bool consentGiven,
+  }) {
+    return _enqueueProfileMutation(
+      () => _updateAdvancedProfileInQueue(
+        profile: profile,
+        consentGiven: consentGiven,
+      ),
+    );
+  }
+
+  Future<void> _updateAdvancedProfileInQueue({
+    required AdvancedProfile profile,
+    required bool consentGiven,
+  }) async {
+    if (!_ensureOwnedProfile()) return;
+    if (!consentGiven) {
+      throw ArgumentError('Advanced profile requires consent before saving');
+    }
+    final updated = _cachedProfile!.copyWith(
+      advancedProfile: profile.hasAnyField ? profile : null,
+      advancedProfileConsentGiven: true,
+      advancedProfileConsentDate: DateTime.now(),
+    );
+    await _commitProfileUpdate(updated, immediate: true);
+  }
+
+  /// Clears one advanced profile field; revokes consent if no fields remain.
+  Future<void> deleteAdvancedProfileField(String fieldKey) {
+    return _enqueueProfileMutation(
+      () => _deleteAdvancedProfileFieldInQueue(fieldKey),
+    );
+  }
+
+  Future<void> _deleteAdvancedProfileFieldInQueue(String fieldKey) async {
+    if (!_ensureOwnedProfile()) return;
+    final current = _cachedProfile!.advancedProfile ?? const AdvancedProfile();
+    final AdvancedProfile next = switch (fieldKey) {
+      'jobTitle' => current.copyWith(clearJobTitle: true),
+      'industry' => current.copyWith(clearIndustry: true),
+      'educationLevel' => current.copyWith(clearEducationLevel: true),
+      'salaryComparisonRange' =>
+        current.copyWith(clearSalaryComparisonRange: true),
+      _ => throw ArgumentError('Unknown advanced profile field: $fieldKey'),
+    };
+
+    if (!next.hasAnyField) {
+      await _revokeAdvancedProfileConsentInQueue();
+      return;
+    }
+
+    final updated = _cachedProfile!.copyWith(advancedProfile: next);
+    await _commitProfileUpdate(updated, immediate: true);
+  }
+
+  /// Revokes consent and deletes all advanced profile fields.
+  Future<void> revokeAdvancedProfileConsent() {
+    return _enqueueProfileMutation(_revokeAdvancedProfileConsentInQueue);
+  }
+
+  Future<void> _revokeAdvancedProfileConsentInQueue() async {
+    if (!_ensureOwnedProfile()) return;
+    final updated = _cachedProfile!.copyWith(
+      clearAdvancedProfile: true,
+      advancedProfileConsentGiven: false,
+      clearAdvancedProfileConsentDate: true,
+    );
+    await _commitProfileUpdate(updated, immediate: true);
   }
 
   /// 9. Comma-separated interest vector for AI prompt context.
@@ -587,6 +992,14 @@ class UserProfileAIService {
         ...['business:$id', 'business:$id', 'business:$id'],
     ];
 
+    final advanced = AdvancedProfileSignals.bucketedMap(
+      profile: profile.advancedProfile,
+      consentGiven: profile.advancedProfileConsentGiven,
+    );
+    for (final entry in advanced.entries) {
+      weighted.add('adv_${entry.key}:${entry.value}');
+    }
+
     return weighted.where((e) => e.trim().isNotEmpty).join(', ');
   }
 
@@ -598,46 +1011,73 @@ class UserProfileAIService {
   // Internal helpers
   // -------------------------------------------------------------------------
 
-  void _ensureProfile() {
-    if (_cachedProfile == null) {
-      throw StateError(
-        'Profile not initialized. Call initProfile(uid) first.',
-      );
-    }
+  bool _ensureOwnedProfile() {
+    if (_cachedProfile == null) return false;
+    return _profileUidMatchesCurrentAuth(_cachedProfile!.uid);
   }
 
-  Future<void> _applyProfileUpdate(
+  bool _profileUidMatchesCurrentAuth(String uid) {
+    final authUid = _currentAuthUid();
+    return authUid != null && authUid == uid;
+  }
+
+  bool _canCommitInit(int initGeneration, String uid) {
+    if (initGeneration != _initGeneration) return false;
+    return _profileUidMatchesCurrentAuth(uid);
+  }
+
+  /// Commits [profile] to memory, local cache, and optional remote persistence.
+  /// Must run inside [_enqueueProfileMutation].
+  Future<bool> _commitProfileUpdate(
     UserAIProfile profile, {
-    bool immediate = false,
+    required bool immediate,
   }) async {
+    if (!_profileUidMatchesCurrentAuth(profile.uid)) return false;
+
     final updated = profile.copyWith(lastUpdated: DateTime.now());
     _cachedProfile = updated;
     await _cacheLocally(updated);
 
     if (immediate) {
       _saveDebouncer.cancel();
-      await _persistToFirestore(updated);
-    } else {
-      _scheduleDebouncedSave();
+      return _persistToFirestore(updated);
     }
+    _scheduleDebouncedSave();
+    return true;
   }
 
   void _scheduleDebouncedSave() {
-    _saveDebouncer.run(() async {
-      final profile = _cachedProfile;
-      if (profile == null) return;
-      await _persistToFirestore(profile);
+    _saveDebouncer.run(() {
+      unawaited(
+        _enqueueProfileMutation(_persistDebouncedSnapshotInQueue),
+      );
     });
   }
 
-  Future<void> _persistToFirestore(UserAIProfile profile) async {
+  Future<void> _persistDebouncedSnapshotInQueue() async {
+    final profile = _cachedProfile;
+    if (profile == null) return;
+    if (!_profileUidMatchesCurrentAuth(profile.uid)) return;
+    await _persistToFirestore(profile);
+  }
+
+  Future<bool> _persistToFirestore(UserAIProfile profile) async {
+    if (!_profileUidMatchesCurrentAuth(profile.uid)) return false;
+
+    final handler = testPersistHandler;
+    if (handler != null) {
+      return handler(profile);
+    }
+
     final ref = _profileRef(profile.uid);
-    if (ref == null) return;
+    if (ref == null) return false;
 
     try {
       await ref.set(profile.toJson(), SetOptions(merge: true));
+      return true;
     } catch (e) {
       debugPrint('UserProfileAIService: Firestore save failed — $e');
+      return false;
     }
   }
 
@@ -675,6 +1115,10 @@ class UserProfileAIService {
       updated.removeRange(_maxTrackedIds, updated.length);
     }
     return updated;
+  }
+
+  List<String> _removeId(List<String> existing, String id) {
+    return existing.where((element) => element != id).toList();
   }
 
   List<String> _mergeUnique(List<String> existing, List<String> incoming) {
@@ -854,14 +1298,32 @@ class UserProfileAINotifier extends StateNotifier<UserAIProfile?> {
   UserProfileAINotifier(this._service) : super(null);
 
   final UserProfileAIService _service;
+  int _authGeneration = 0;
+
+  @visibleForTesting
+  int get authGeneration => _authGeneration;
+
+  /// Clears provider and service memory on authenticated UID change or logout.
+  void resetForAuthChange() {
+    _authGeneration++;
+    _service.clearInMemoryState();
+    state = null;
+  }
 
   Future<void> initProfile(String uid) async {
-    state = await _service.initProfile(uid);
+    final generation = _authGeneration;
+    final profile = await _service.initProfile(
+      uid,
+      initGeneration: generation,
+    );
+    if (generation != _authGeneration) return;
+    if (!UserProfileOwnership.matches(profile, uid)) return;
+    state = profile;
   }
 
   Future<void> trackJobView(String jobId, Map<String, dynamic> jobData) async {
     await _service.trackJobView(jobId, jobData);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
   }
 
   Future<void> trackHousingView(
@@ -869,7 +1331,7 @@ class UserProfileAINotifier extends StateNotifier<UserAIProfile?> {
     Map<String, dynamic> listingData,
   ) async {
     await _service.trackHousingView(listingId, listingData);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
   }
 
   Future<void> trackBusinessView(
@@ -877,27 +1339,62 @@ class UserProfileAINotifier extends StateNotifier<UserAIProfile?> {
     Map<String, dynamic> bizData,
   ) async {
     await _service.trackBusinessView(bizId, bizData);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
   }
 
   Future<void> trackSearch(String query) async {
     await _service.trackSearch(query);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
   }
 
   Future<void> trackSave(String type, String id) async {
     await _service.trackSave(type, id);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
+  }
+
+  Future<SavedJobToggleResult> toggleSavedJob(String jobId) async {
+    final result = await _service.toggleSavedJob(jobId);
+    if (result.localUpdated) {
+      _syncStateFromServiceIfOwned();
+    }
+    return result;
   }
 
   UserAIProfile? getCachedProfile() => _service.getCachedProfile();
 
   Future<void> updateProfile(Map<String, dynamic> updates) async {
     await _service.updateProfile(updates);
-    state = _service.getCachedProfile();
+    _syncStateFromServiceIfOwned();
+  }
+
+  Future<void> updateAdvancedProfile({
+    required AdvancedProfile profile,
+    required bool consentGiven,
+  }) async {
+    await _service.updateAdvancedProfile(
+      profile: profile,
+      consentGiven: consentGiven,
+    );
+    _syncStateFromServiceIfOwned();
+  }
+
+  Future<void> deleteAdvancedProfileField(String fieldKey) async {
+    await _service.deleteAdvancedProfileField(fieldKey);
+    _syncStateFromServiceIfOwned();
+  }
+
+  Future<void> revokeAdvancedProfileConsent() async {
+    await _service.revokeAdvancedProfileConsent();
+    _syncStateFromServiceIfOwned();
   }
 
   String getInterestVector() => _service.getInterestVector();
+
+  void _syncStateFromServiceIfOwned() {
+    if (!_service.cachedProfileMatchesCurrentAuth()) return;
+    final profile = _service.getCachedProfile();
+    if (profile != null) state = profile;
+  }
 }
 
 // ---------------------------------------------------------------------------

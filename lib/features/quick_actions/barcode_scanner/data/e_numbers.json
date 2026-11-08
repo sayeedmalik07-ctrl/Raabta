@@ -1,0 +1,1632 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-06-19",
+  "source": "EU food additive regulations, EFSA, established international E-number references",
+  "entryCount": 232,
+  "entries": [
+    {
+      "code": "E100",
+      "plainName": "Curcumin (turmeric)",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural yellow color from turmeric; widely approved and generally well tolerated."
+    },
+    {
+      "code": "E101",
+      "plainName": "Riboflavin (vitamin B2)",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Essential B vitamin used as a yellow color; safe at approved levels."
+    },
+    {
+      "code": "E101A",
+      "plainName": "Riboflavin-5'-phosphate",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Form of vitamin B2 used as a color; approved food additive."
+    },
+    {
+      "code": "E102",
+      "plainName": "Tartrazine",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic azo dye; some studies link certain artificial colors to hyperactivity in sensitive children."
+    },
+    {
+      "code": "E104",
+      "plainName": "Quinoline yellow",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic yellow dye; among colours sometimes associated with behavioural sensitivity in children."
+    },
+    {
+      "code": "E110",
+      "plainName": "Sunset yellow FCF",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic orange dye; may affect sensitive individuals; check if avoiding azo dyes."
+    },
+    {
+      "code": "E120",
+      "plainName": "Cochineal / carmine",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Red color from insects; can cause allergic reactions in rare cases."
+    },
+    {
+      "code": "E122",
+      "plainName": "Carmoisine",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic red azo dye; included in colours sometimes linked to hyperactivity studies."
+    },
+    {
+      "code": "E123",
+      "plainName": "Amaranth",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic red dye; restricted in some regions; check label if avoiding azo colours."
+    },
+    {
+      "code": "E124",
+      "plainName": "Ponceau 4R",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic red azo dye; may affect sensitive children per some advisory studies."
+    },
+    {
+      "code": "E127",
+      "plainName": "Erythrosine",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic red dye; iodine-containing; limited use in many jurisdictions."
+    },
+    {
+      "code": "E129",
+      "plainName": "Allura red AC",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic red azo dye; among colours flagged in some hyperactivity-related guidance."
+    },
+    {
+      "code": "E131",
+      "plainName": "Patent blue V",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic blue dye; limited approved uses; check if avoiding artificial colours."
+    },
+    {
+      "code": "E132",
+      "plainName": "Indigotine / indigo carmine",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Synthetic blue dye; approved with established safe intake levels."
+    },
+    {
+      "code": "E133",
+      "plainName": "Brilliant blue FCF",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Synthetic blue dye; widely used and approved within limits."
+    },
+    {
+      "code": "E140",
+      "plainName": "Chlorophyll",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural green pigment from plants; generally recognised as safe."
+    },
+    {
+      "code": "E141",
+      "plainName": "Copper chlorophyll complexes",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Green color derived from chlorophyll; approved food colouring."
+    },
+    {
+      "code": "E142",
+      "plainName": "Green S",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic green dye; approved in EU with defined limits."
+    },
+    {
+      "code": "E150A",
+      "plainName": "Plain caramel",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Heat-treated sugar colour; common in colas and baked goods."
+    },
+    {
+      "code": "E150B",
+      "plainName": "Caustic sulphite caramel",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Caramel colour produced with sulphite; widely used."
+    },
+    {
+      "code": "E150C",
+      "plainName": "Ammonia caramel",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Caramel colour used in beers and sauces; approved additive."
+    },
+    {
+      "code": "E150D",
+      "plainName": "Sulphite ammonia caramel",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Common cola caramel; 4-MEI forms during production — regulated within safe limits."
+    },
+    {
+      "code": "E151",
+      "plainName": "Brilliant black BN",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic black azo dye; limited approved food uses."
+    },
+    {
+      "code": "E153",
+      "plainName": "Vegetable carbon",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Black colour from charred vegetable matter; used in confectionery."
+    },
+    {
+      "code": "E155",
+      "plainName": "Brown HT",
+      "category": "colorant",
+      "status": "caution",
+      "reason": "Synthetic brown azo dye; restricted uses in EU."
+    },
+    {
+      "code": "E160A",
+      "plainName": "Carotenes",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural orange-yellow pigments; includes beta-carotene (provitamin A)."
+    },
+    {
+      "code": "E160B",
+      "plainName": "Annatto (bixin/norbixin)",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural orange-red colour from achiote seeds."
+    },
+    {
+      "code": "E160C",
+      "plainName": "Paprika extract",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural red-orange colour from capsicum."
+    },
+    {
+      "code": "E160D",
+      "plainName": "Lycopene",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural red pigment from tomatoes; antioxidant carotenoid."
+    },
+    {
+      "code": "E161B",
+      "plainName": "Lutein",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural yellow pigment; also a dietary carotenoid."
+    },
+    {
+      "code": "E162",
+      "plainName": "Beetroot red (betanin)",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural red colour from beetroot."
+    },
+    {
+      "code": "E163",
+      "plainName": "Anthocyanins",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Natural red, purple, and blue pigments from fruits and vegetables."
+    },
+    {
+      "code": "E170",
+      "plainName": "Calcium carbonate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Mineral anti-caking and calcium source; common in baked goods."
+    },
+    {
+      "code": "E171",
+      "plainName": "Titanium dioxide",
+      "category": "colorant",
+      "status": "avoid",
+      "reason": "White pigment; banned as food additive in the EU from 2022 due to genotoxicity concerns."
+    },
+    {
+      "code": "E172",
+      "plainName": "Iron oxides and hydroxides",
+      "category": "colorant",
+      "status": "safe",
+      "reason": "Mineral colours (red, yellow, black); approved within limits."
+    },
+    {
+      "code": "E200",
+      "plainName": "Sorbic acid",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Antimicrobial preservative against mould and yeast."
+    },
+    {
+      "code": "E202",
+      "plainName": "Potassium sorbate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Salt of sorbic acid; widely used to prevent mould growth."
+    },
+    {
+      "code": "E210",
+      "plainName": "Benzoic acid",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Antimicrobial preservative; naturally occurs in some fruits."
+    },
+    {
+      "code": "E211",
+      "plainName": "Sodium benzoate",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Common preservative; can form benzene with ascorbic acid under certain conditions — rare in normal storage."
+    },
+    {
+      "code": "E212",
+      "plainName": "Potassium benzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Benzoate preservative; similar function to sodium benzoate."
+    },
+    {
+      "code": "E213",
+      "plainName": "Calcium benzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Benzoate salt used as preservative in acidic foods."
+    },
+    {
+      "code": "E214",
+      "plainName": "Ethyl p-hydroxybenzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Paraben preservative; approved with maximum limits."
+    },
+    {
+      "code": "E215",
+      "plainName": "Sodium ethyl p-hydroxybenzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Paraben salt preservative; limited approved uses."
+    },
+    {
+      "code": "E218",
+      "plainName": "Methyl p-hydroxybenzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Methylparaben; antimicrobial preservative."
+    },
+    {
+      "code": "E219",
+      "plainName": "Sodium methyl p-hydroxybenzoate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Salt form of methylparaben preservative."
+    },
+    {
+      "code": "E220",
+      "plainName": "Sulphur dioxide",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite preservative; can trigger reactions in sulphite-sensitive asthma."
+    },
+    {
+      "code": "E221",
+      "plainName": "Sodium sulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite; must be declared for sensitive individuals."
+    },
+    {
+      "code": "E222",
+      "plainName": "Sodium bisulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite agent; avoid if you have sulphite sensitivity."
+    },
+    {
+      "code": "E223",
+      "plainName": "Sodium metabisulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Common wine and dried-fruit sulphite; allergen labelling required in EU."
+    },
+    {
+      "code": "E224",
+      "plainName": "Potassium metabisulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite preservative; same concerns as other sulphites."
+    },
+    {
+      "code": "E226",
+      "plainName": "Calcium sulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite preservative used in some processed foods."
+    },
+    {
+      "code": "E227",
+      "plainName": "Calcium bisulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite; relevant for sulphite-sensitive individuals."
+    },
+    {
+      "code": "E228",
+      "plainName": "Potassium bisulphite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Sulphite preservative with standard sulphite warnings."
+    },
+    {
+      "code": "E234",
+      "plainName": "Nisin",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Natural antimicrobial peptide; used mainly in dairy and canned foods."
+    },
+    {
+      "code": "E235",
+      "plainName": "Natamycin",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Antifungal used on cheese surfaces; not absorbed significantly."
+    },
+    {
+      "code": "E239",
+      "plainName": "Hexamethylene tetramine",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Preservative for provolone-type cheese; limited approved use."
+    },
+    {
+      "code": "E242",
+      "plainName": "Dimethyl dicarbonate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Cold sterilisation agent for beverages; breaks down quickly."
+    },
+    {
+      "code": "E249",
+      "plainName": "Potassium nitrite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Curing salt for processed meats; forms nitrosamines when overcooked — moderation advised."
+    },
+    {
+      "code": "E250",
+      "plainName": "Sodium nitrite",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Used in cured meats; linked to nitrosamine formation at high heat — limit processed meat intake."
+    },
+    {
+      "code": "E251",
+      "plainName": "Sodium nitrate",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Converts to nitrite in curing; associated with processed meat guidance to moderate intake."
+    },
+    {
+      "code": "E252",
+      "plainName": "Potassium nitrate",
+      "category": "preservative",
+      "status": "caution",
+      "reason": "Nitrate curing agent; same processed-meat moderation advice applies."
+    },
+    {
+      "code": "E260",
+      "plainName": "Acetic acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Main component of vinegar; acidity regulator and preservative."
+    },
+    {
+      "code": "E261",
+      "plainName": "Potassium acetate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Salt of acetic acid; buffering and flavour use."
+    },
+    {
+      "code": "E262",
+      "plainName": "Sodium acetates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and preservative in snacks and sauces."
+    },
+    {
+      "code": "E263",
+      "plainName": "Calcium acetate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator; source of calcium acetate."
+    },
+    {
+      "code": "E270",
+      "plainName": "Lactic acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Natural acid from fermentation; common in dairy and bakery."
+    },
+    {
+      "code": "E280",
+      "plainName": "Propionic acid",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Antimould agent; naturally occurs in some cheeses."
+    },
+    {
+      "code": "E281",
+      "plainName": "Sodium propionate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Mould inhibitor widely used in bread."
+    },
+    {
+      "code": "E282",
+      "plainName": "Calcium propionate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Common bread preservative preventing rope spoilage."
+    },
+    {
+      "code": "E283",
+      "plainName": "Potassium propionate",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Propionate salt with antifungal properties."
+    },
+    {
+      "code": "E290",
+      "plainName": "Carbon dioxide",
+      "category": "packaging_gas",
+      "status": "safe",
+      "reason": "Inert gas for carbonation and packaging; GRAS."
+    },
+    {
+      "code": "E296",
+      "plainName": "Malic acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Natural fruit acid; tartness and acidity control."
+    },
+    {
+      "code": "E297",
+      "plainName": "Fumaric acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator in baked goods and beverages."
+    },
+    {
+      "code": "E300",
+      "plainName": "Ascorbic acid (vitamin C)",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Vitamin C antioxidant; prevents browning and nutrient loss."
+    },
+    {
+      "code": "E301",
+      "plainName": "Sodium ascorbate",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Salt form of vitamin C used as antioxidant."
+    },
+    {
+      "code": "E302",
+      "plainName": "Calcium ascorbate",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Buffered vitamin C antioxidant for food."
+    },
+    {
+      "code": "E304",
+      "plainName": "Fatty acid esters of ascorbic acid",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Fat-soluble vitamin C derivative antioxidant."
+    },
+    {
+      "code": "E306",
+      "plainName": "Tocopherol-rich extract",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Natural vitamin E extract preventing fat rancidity."
+    },
+    {
+      "code": "E307",
+      "plainName": "Alpha-tocopherol",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Vitamin E antioxidant for oils and fats."
+    },
+    {
+      "code": "E308",
+      "plainName": "Gamma-tocopherol",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Form of vitamin E used as antioxidant."
+    },
+    {
+      "code": "E309",
+      "plainName": "Delta-tocopherol",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Tocopherol antioxidant homologue."
+    },
+    {
+      "code": "E310",
+      "plainName": "Propyl gallate",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Synthetic antioxidant for fats; approved with limits."
+    },
+    {
+      "code": "E315",
+      "plainName": "Erythorbic acid",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Antioxidant stereoisomer of ascorbic acid."
+    },
+    {
+      "code": "E316",
+      "plainName": "Sodium erythorbate",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Antioxidant in processed meats and beverages."
+    },
+    {
+      "code": "E319",
+      "plainName": "TBHQ",
+      "category": "antioxidant",
+      "status": "caution",
+      "reason": "Synthetic fat antioxidant; approved with strict maximum levels."
+    },
+    {
+      "code": "E320",
+      "plainName": "BHA (butylated hydroxyanisole)",
+      "category": "antioxidant",
+      "status": "caution",
+      "reason": "Synthetic antioxidant; some organisations recommend limiting intake."
+    },
+    {
+      "code": "E321",
+      "plainName": "BHT (butylated hydroxytoluene)",
+      "category": "antioxidant",
+      "status": "caution",
+      "reason": "Fat antioxidant; debated long-term intake — within limits is approved."
+    },
+    {
+      "code": "E322",
+      "plainName": "Lecithins",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Natural emulsifier from soy or sunflower; common in chocolate."
+    },
+    {
+      "code": "E325",
+      "plainName": "Sodium lactate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Salt of lactic acid; flavour and preservation."
+    },
+    {
+      "code": "E326",
+      "plainName": "Potassium lactate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and antimicrobial helper."
+    },
+    {
+      "code": "E327",
+      "plainName": "Calcium lactate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Calcium source and firming agent."
+    },
+    {
+      "code": "E330",
+      "plainName": "Citric acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Very common natural acid from citrus fermentation."
+    },
+    {
+      "code": "E331",
+      "plainName": "Sodium citrates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Buffering salts of citric acid."
+    },
+    {
+      "code": "E332",
+      "plainName": "Potassium citrates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and emulsifying salt."
+    },
+    {
+      "code": "E333",
+      "plainName": "Calcium citrates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Calcium source and acidity control."
+    },
+    {
+      "code": "E334",
+      "plainName": "Tartaric acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Natural acid from grapes; acidity and taste."
+    },
+    {
+      "code": "E335",
+      "plainName": "Sodium tartrates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Tartaric acid salts for buffering."
+    },
+    {
+      "code": "E336",
+      "plainName": "Potassium tartrates (cream of tartar)",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Baking stabiliser and acidity regulator."
+    },
+    {
+      "code": "E337",
+      "plainName": "Sodium potassium tartrate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Seignette salt; emulsifying and buffering agent."
+    },
+    {
+      "code": "E338",
+      "plainName": "Phosphoric acid",
+      "category": "acidity_regulator",
+      "status": "caution",
+      "reason": "Acidulant in cola drinks; high intake may affect bone health — moderation advised."
+    },
+    {
+      "code": "E339",
+      "plainName": "Sodium phosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Phosphate salts for emulsifying and moisture retention."
+    },
+    {
+      "code": "E340",
+      "plainName": "Potassium phosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Phosphate buffering and emulsifying salts."
+    },
+    {
+      "code": "E341",
+      "plainName": "Calcium phosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Calcium and phosphate source; anti-caking."
+    },
+    {
+      "code": "E343",
+      "plainName": "Magnesium phosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and mineral supplement."
+    },
+    {
+      "code": "E385",
+      "plainName": "Calcium disodium EDTA",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Chelating agent preventing metal-catalysed rancidity."
+    },
+    {
+      "code": "E400",
+      "plainName": "Alginic acid",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Seaweed-derived thickener and stabiliser."
+    },
+    {
+      "code": "E401",
+      "plainName": "Sodium alginate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Seaweed gum for texture in desserts and sauces."
+    },
+    {
+      "code": "E402",
+      "plainName": "Potassium alginate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Alginate stabiliser from brown seaweed."
+    },
+    {
+      "code": "E403",
+      "plainName": "Ammonium alginate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Alginate salt thickener."
+    },
+    {
+      "code": "E404",
+      "plainName": "Calcium alginate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Used in spherification and texture gels."
+    },
+    {
+      "code": "E405",
+      "plainName": "Propylene glycol alginate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Emulsifier and stabiliser in dressings."
+    },
+    {
+      "code": "E406",
+      "plainName": "Agar",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Seaweed gelling agent; vegetarian gelatin alternative."
+    },
+    {
+      "code": "E407",
+      "plainName": "Carrageenan",
+      "category": "stabilizer",
+      "status": "caution",
+      "reason": "Seaweed thickener; some digestive sensitivity reported — generally approved."
+    },
+    {
+      "code": "E410",
+      "plainName": "Locust bean gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Natural thickener from carob seeds."
+    },
+    {
+      "code": "E412",
+      "plainName": "Guar gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Legume-derived thickener; high fibre content."
+    },
+    {
+      "code": "E414",
+      "plainName": "Gum arabic (acacia gum)",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Tree sap emulsifier and fibre source."
+    },
+    {
+      "code": "E415",
+      "plainName": "Xanthan gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Fermentation-derived thickener; common in gluten-free products."
+    },
+    {
+      "code": "E416",
+      "plainName": "Karaya gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Natural tree gum thickener."
+    },
+    {
+      "code": "E417",
+      "plainName": "Tara gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Galactomannan thickener similar to guar."
+    },
+    {
+      "code": "E418",
+      "plainName": "Gellan gum",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Microbial gelling agent for jellies and drinks."
+    },
+    {
+      "code": "E420",
+      "plainName": "Sorbitol",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Sugar alcohol sweetener and humectant; laxative if consumed in large amounts."
+    },
+    {
+      "code": "E421",
+      "plainName": "Mannitol",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Low-calorie sugar alcohol; may have laxative effect in excess."
+    },
+    {
+      "code": "E422",
+      "plainName": "Glycerol (glycerin)",
+      "category": "humectant",
+      "status": "safe",
+      "reason": "Humectant and sweetener; generally well tolerated."
+    },
+    {
+      "code": "E431",
+      "plainName": "Polyoxyethylene stearate",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier with approved maximum use levels."
+    },
+    {
+      "code": "E432",
+      "plainName": "Polysorbate 20",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier helping mix oil and water phases."
+    },
+    {
+      "code": "E433",
+      "plainName": "Polysorbate 80",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Common emulsifier in ice cream and baked goods."
+    },
+    {
+      "code": "E434",
+      "plainName": "Polysorbate 40",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Polyoxyethylene sorbitan emulsifier."
+    },
+    {
+      "code": "E435",
+      "plainName": "Polysorbate 60",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier and stabiliser in confectionery."
+    },
+    {
+      "code": "E436",
+      "plainName": "Polysorbate 65",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier approved within defined limits."
+    },
+    {
+      "code": "E440",
+      "plainName": "Pectins",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Natural fruit fibre gelling agent for jams."
+    },
+    {
+      "code": "E442",
+      "plainName": "Ammonium phosphatides",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier in chocolate and cocoa products."
+    },
+    {
+      "code": "E444",
+      "plainName": "Sucrose acetate isobutyrate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Weighting agent in citrus oils; limited use."
+    },
+    {
+      "code": "E445",
+      "plainName": "Glycerol esters of wood rosin",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Stabiliser in clouding agents for beverages."
+    },
+    {
+      "code": "E450",
+      "plainName": "Diphosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Phosphate leavening and emulsifying salts."
+    },
+    {
+      "code": "E451",
+      "plainName": "Triphosphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Phosphate moisture-retention salts."
+    },
+    {
+      "code": "E452",
+      "plainName": "Polyphosphates",
+      "category": "acidity_regulator",
+      "status": "caution",
+      "reason": "Used in processed meats and seafood; moderate processed food intake recommended."
+    },
+    {
+      "code": "E460",
+      "plainName": "Cellulose",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Plant fibre bulking agent; insoluble dietary fibre."
+    },
+    {
+      "code": "E461",
+      "plainName": "Methyl cellulose",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified cellulose thickener and fat replacer."
+    },
+    {
+      "code": "E463",
+      "plainName": "Hydroxypropyl cellulose",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Cellulose ether thickener and film former."
+    },
+    {
+      "code": "E464",
+      "plainName": "Hydroxypropyl methyl cellulose",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Common thickener in sauces and gluten-free baking."
+    },
+    {
+      "code": "E465",
+      "plainName": "Ethyl methyl cellulose",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Cellulose derivative emulsifier."
+    },
+    {
+      "code": "E466",
+      "plainName": "Carboxy methyl cellulose (CMC)",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Thickener and stabiliser in ice cream and dressings."
+    },
+    {
+      "code": "E470A",
+      "plainName": "Sodium/potassium/calcium salts of fatty acids",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Salts of edible fatty acids as emulsifiers."
+    },
+    {
+      "code": "E471",
+      "plainName": "Mono- and diglycerides of fatty acids",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Very common emulsifier in bread and margarine."
+    },
+    {
+      "code": "E472A",
+      "plainName": "Acetic acid esters of mono- and diglycerides",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier improving texture and shelf life."
+    },
+    {
+      "code": "E472B",
+      "plainName": "Lactic acid esters of mono- and diglycerides",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Dough conditioner and emulsifier."
+    },
+    {
+      "code": "E472C",
+      "plainName": "Citric acid esters of mono- and diglycerides",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier and antioxidant synergist."
+    },
+    {
+      "code": "E472E",
+      "plainName": "DATEM",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Dough strengthener and emulsifier in bakery."
+    },
+    {
+      "code": "E473",
+      "plainName": "Sucrose esters of fatty acids",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier and aerating agent."
+    },
+    {
+      "code": "E474",
+      "plainName": "Sucroglycerides",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier in confectionery and dairy."
+    },
+    {
+      "code": "E475",
+      "plainName": "Polyglycerol esters of fatty acids",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier and stabiliser."
+    },
+    {
+      "code": "E476",
+      "plainName": "Polyglycerol polyricinoleate (PGPR)",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Chocolate viscosity reducer."
+    },
+    {
+      "code": "E477",
+      "plainName": "Propylene glycol esters of fatty acids",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier in cake mixes and toppings."
+    },
+    {
+      "code": "E481",
+      "plainName": "Sodium stearoyl-2-lactylate",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Dough conditioner and crumb softener."
+    },
+    {
+      "code": "E482",
+      "plainName": "Calcium stearoyl-2-lactylate",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier and flour treatment agent."
+    },
+    {
+      "code": "E491",
+      "plainName": "Sorbitan monostearate",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier in bakery and confectionery."
+    },
+    {
+      "code": "E492",
+      "plainName": "Sorbitan tristearate",
+      "category": "emulsifier",
+      "status": "safe",
+      "reason": "Emulsifier preventing fat bloom in chocolate."
+    },
+    {
+      "code": "E500",
+      "plainName": "Sodium carbonates (baking soda)",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Leavening agent and acidity regulator."
+    },
+    {
+      "code": "E501",
+      "plainName": "Potassium carbonates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Alkaline regulator in cocoa and noodles."
+    },
+    {
+      "code": "E503",
+      "plainName": "Ammonium carbonates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Leavening agent in traditional biscuits."
+    },
+    {
+      "code": "E504",
+      "plainName": "Magnesium carbonates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Anti-caking and acidity control."
+    },
+    {
+      "code": "E507",
+      "plainName": "Hydrochloric acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity control in starch production."
+    },
+    {
+      "code": "E508",
+      "plainName": "Potassium chloride",
+      "category": "salt_substitute",
+      "status": "safe",
+      "reason": "Salt substitute and gelling agent; check if on low-potassium diet."
+    },
+    {
+      "code": "E509",
+      "plainName": "Calcium chloride",
+      "category": "firming_agent",
+      "status": "safe",
+      "reason": "Firming agent in tofu and canned vegetables."
+    },
+    {
+      "code": "E511",
+      "plainName": "Magnesium chloride",
+      "category": "firming_agent",
+      "status": "safe",
+      "reason": "Coagulant in tofu and mineral supplement."
+    },
+    {
+      "code": "E512",
+      "plainName": "Stannous chloride",
+      "category": "antioxidant",
+      "status": "safe",
+      "reason": "Antioxidant for canned asparagus; limited use."
+    },
+    {
+      "code": "E513",
+      "plainName": "Sulphuric acid",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Technical acidity control; not present in final food."
+    },
+    {
+      "code": "E514",
+      "plainName": "Sodium sulphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Processing aid and acidity regulator."
+    },
+    {
+      "code": "E515",
+      "plainName": "Potassium sulphates",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and processing salt."
+    },
+    {
+      "code": "E516",
+      "plainName": "Calcium sulphate",
+      "category": "firming_agent",
+      "status": "safe",
+      "reason": "Firming agent in tofu and baked goods."
+    },
+    {
+      "code": "E517",
+      "plainName": "Ammonium sulphate",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Dough conditioner and yeast nutrient."
+    },
+    {
+      "code": "E520",
+      "plainName": "Aluminium sulphate",
+      "category": "firming_agent",
+      "status": "caution",
+      "reason": "Aluminium-containing firming agent; cumulative aluminium intake should be limited."
+    },
+    {
+      "code": "E521",
+      "plainName": "Aluminium sodium sulphate",
+      "category": "firming_agent",
+      "status": "caution",
+      "reason": "Aluminium salt; part of overall dietary aluminium exposure."
+    },
+    {
+      "code": "E522",
+      "plainName": "Aluminium potassium sulphate",
+      "category": "firming_agent",
+      "status": "caution",
+      "reason": "Alum; aluminium exposure moderation advised."
+    },
+    {
+      "code": "E523",
+      "plainName": "Aluminium ammonium sulphate",
+      "category": "firming_agent",
+      "status": "caution",
+      "reason": "Aluminium-containing additive with restricted uses."
+    },
+    {
+      "code": "E524",
+      "plainName": "Sodium hydroxide",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Processing alkali for olives and cocoa; not in final product."
+    },
+    {
+      "code": "E525",
+      "plainName": "Potassium hydroxide",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Alkaline processing agent."
+    },
+    {
+      "code": "E526",
+      "plainName": "Calcium hydroxide (lime)",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Traditional processing of maize and olives."
+    },
+    {
+      "code": "E527",
+      "plainName": "Ammonium hydroxide",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity regulator and leavening helper."
+    },
+    {
+      "code": "E528",
+      "plainName": "Magnesium hydroxide",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Acidity control and magnesium source."
+    },
+    {
+      "code": "E529",
+      "plainName": "Calcium oxide (quicklime)",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Processing aid in sugar and maize."
+    },
+    {
+      "code": "E530",
+      "plainName": "Magnesium oxide",
+      "category": "acidity_regulator",
+      "status": "safe",
+      "reason": "Anti-caking and alkalinity control."
+    },
+    {
+      "code": "E535",
+      "plainName": "Sodium ferrocyanide",
+      "category": "anti_caking",
+      "status": "safe",
+      "reason": "Anti-caking in salt; breaks down to safe iron forms."
+    },
+    {
+      "code": "E536",
+      "plainName": "Potassium ferrocyanide",
+      "category": "anti_caking",
+      "status": "safe",
+      "reason": "Anti-caking agent in table salt."
+    },
+    {
+      "code": "E541",
+      "plainName": "Sodium aluminium phosphate",
+      "category": "raising_agent",
+      "status": "caution",
+      "reason": "Leavening acid containing aluminium; moderate intake of aluminium additives advised."
+    },
+    {
+      "code": "E551",
+      "plainName": "Silicon dioxide",
+      "category": "anti_caking",
+      "status": "safe",
+      "reason": "Anti-caking agent in powders and seasonings."
+    },
+    {
+      "code": "E553B",
+      "plainName": "Talc",
+      "category": "anti_caking",
+      "status": "safe",
+      "reason": "Anti-caking in rice and chewing gum; approved limits."
+    },
+    {
+      "code": "E554",
+      "plainName": "Sodium aluminosilicate",
+      "category": "anti_caking",
+      "status": "caution",
+      "reason": "Aluminium silicate anti-caking; contributes to dietary aluminium."
+    },
+    {
+      "code": "E621",
+      "plainName": "Monosodium glutamate (MSG)",
+      "category": "flavor_enhancer",
+      "status": "caution",
+      "reason": "Umami flavour enhancer; some people report sensitivity — not an established allergy."
+    },
+    {
+      "code": "E627",
+      "plainName": "Disodium guanylate",
+      "category": "flavor_enhancer",
+      "status": "safe",
+      "reason": "Nucleotide flavour enhancer; often paired with MSG."
+    },
+    {
+      "code": "E631",
+      "plainName": "Disodium inosinate",
+      "category": "flavor_enhancer",
+      "status": "safe",
+      "reason": "Nucleotide flavour enhancer synergistic with glutamates."
+    },
+    {
+      "code": "E635",
+      "plainName": "Disodium 5'-ribonucleotides",
+      "category": "flavor_enhancer",
+      "status": "safe",
+      "reason": "Combined guanylate and inosinate flavour enhancer."
+    },
+    {
+      "code": "E900",
+      "plainName": "Dimethylpolysiloxane",
+      "category": "anti_foaming",
+      "status": "safe",
+      "reason": "Anti-foaming agent in frying oils; passes through body."
+    },
+    {
+      "code": "E901",
+      "plainName": "Beeswax",
+      "category": "glazing_agent",
+      "status": "safe",
+      "reason": "Natural wax coating on confectionery and fruit."
+    },
+    {
+      "code": "E903",
+      "plainName": "Carnauba wax",
+      "category": "glazing_agent",
+      "status": "safe",
+      "reason": "Plant wax glazing agent; not digested."
+    },
+    {
+      "code": "E904",
+      "plainName": "Shellac",
+      "category": "glazing_agent",
+      "status": "safe",
+      "reason": "Resin glazing agent on confectionery; insect-derived."
+    },
+    {
+      "code": "E920",
+      "plainName": "L-cysteine",
+      "category": "flour_treatment",
+      "status": "safe",
+      "reason": "Dough improver; may be from synthetic or natural sources."
+    },
+    {
+      "code": "E927A",
+      "plainName": "Azodicarbonamide (ADA)",
+      "category": "flour_treatment",
+      "status": "caution",
+      "reason": "Flour bleaching and dough conditioner; banned in EU/Australia; still used elsewhere."
+    },
+    {
+      "code": "E941",
+      "plainName": "Nitrogen",
+      "category": "packaging_gas",
+      "status": "safe",
+      "reason": "Inert packaging gas displacing oxygen."
+    },
+    {
+      "code": "E942",
+      "plainName": "Nitrous oxide",
+      "category": "packaging_gas",
+      "status": "safe",
+      "reason": "Propellant in whipped cream aerosols."
+    },
+    {
+      "code": "E943A",
+      "plainName": "Butane",
+      "category": "propellant",
+      "status": "safe",
+      "reason": "Aerosol propellant in approved food uses."
+    },
+    {
+      "code": "E944",
+      "plainName": "Propane",
+      "category": "propellant",
+      "status": "safe",
+      "reason": "Propellant gas in food aerosols."
+    },
+    {
+      "code": "E948",
+      "plainName": "Oxygen",
+      "category": "packaging_gas",
+      "status": "safe",
+      "reason": "Packaging gas for modified atmosphere."
+    },
+    {
+      "code": "E950",
+      "plainName": "Acesulfame K",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Calorie-free artificial sweetener; approved ADI established."
+    },
+    {
+      "code": "E951",
+      "plainName": "Aspartame",
+      "category": "sweetener",
+      "status": "caution",
+      "reason": "Low-calorie sweetener; avoid if you have phenylketonuria (PKU)."
+    },
+    {
+      "code": "E952",
+      "plainName": "Cyclamic acid / cyclamates",
+      "category": "sweetener",
+      "status": "caution",
+      "reason": "Artificial sweetener; banned in US; approved with limits in EU."
+    },
+    {
+      "code": "E954",
+      "plainName": "Saccharin",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Oldest artificial sweetener; approved within ADI."
+    },
+    {
+      "code": "E955",
+      "plainName": "Sucralose",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Heat-stable sweetener; not metabolised for energy."
+    },
+    {
+      "code": "E960",
+      "plainName": "Steviol glycosides (stevia)",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Natural zero-calorie sweetener from stevia leaf."
+    },
+    {
+      "code": "E965",
+      "plainName": "Maltitol",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Sugar alcohol; lower glycaemic impact; laxative in excess."
+    },
+    {
+      "code": "E966",
+      "plainName": "Lactitol",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Sugar alcohol sweetener and prebiotic fibre."
+    },
+    {
+      "code": "E967",
+      "plainName": "Xylitol",
+      "category": "sweetener",
+      "status": "safe",
+      "reason": "Sugar alcohol; toxic to dogs — safe for humans in normal amounts."
+    },
+    {
+      "code": "E999",
+      "plainName": "Quillaia extract",
+      "category": "foaming_agent",
+      "status": "safe",
+      "reason": "Natural foaming agent from tree bark."
+    },
+    {
+      "code": "E1105",
+      "plainName": "Lysozyme",
+      "category": "preservative",
+      "status": "safe",
+      "reason": "Natural enzyme preservative in cheese and wine."
+    },
+    {
+      "code": "E1200",
+      "plainName": "Polydextrose",
+      "category": "bulking_agent",
+      "status": "safe",
+      "reason": "Low-calorie bulking agent and fibre source."
+    },
+    {
+      "code": "E1201",
+      "plainName": "Polyvinylpyrrolidone",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Clarifying and stabilising agent; limited uses."
+    },
+    {
+      "code": "E1202",
+      "plainName": "Polyvinylpolypyrrolidone",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Beverage stabiliser removing polyphenols."
+    },
+    {
+      "code": "E1404",
+      "plainName": "Oxidised starch",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified starch thickener."
+    },
+    {
+      "code": "E1410",
+      "plainName": "Monostarch phosphate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified food starch."
+    },
+    {
+      "code": "E1412",
+      "plainName": "Distarch phosphate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Cross-linked starch for heat stability."
+    },
+    {
+      "code": "E1414",
+      "plainName": "Acetylated distarch phosphate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified starch for sauces and soups."
+    },
+    {
+      "code": "E1420",
+      "plainName": "Acetylated starch",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Stabiliser and thickener."
+    },
+    {
+      "code": "E1422",
+      "plainName": "Acetylated distarch adipate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified starch resistant to acidity."
+    },
+    {
+      "code": "E1440",
+      "plainName": "Hydroxypropyl starch",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Starch ether for frozen foods."
+    },
+    {
+      "code": "E1442",
+      "plainName": "Hydroxypropyl distarch phosphate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Heat- and acid-stable thickener."
+    },
+    {
+      "code": "E1450",
+      "plainName": "Starch sodium octenyl succinate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Emulsifying starch in beverages."
+    },
+    {
+      "code": "E1451",
+      "plainName": "Acetylated oxidised starch",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Modified starch binder."
+    },
+    {
+      "code": "E1505",
+      "plainName": "Triethyl citrate",
+      "category": "stabilizer",
+      "status": "safe",
+      "reason": "Plasticiser for gum base and stabiliser."
+    },
+    {
+      "code": "E1518",
+      "plainName": "Glyceryl triacetate (triacetin)",
+      "category": "humectant",
+      "status": "safe",
+      "reason": "Humectant and solvent in flavours."
+    },
+    {
+      "code": "E1520",
+      "plainName": "Propylene glycol",
+      "category": "humectant",
+      "status": "safe",
+      "reason": "Humectant and solvent; approved within limits."
+    },
+    {
+      "code": "MSG",
+      "plainName": "Monosodium glutamate",
+      "category": "flavor_enhancer",
+      "status": "caution",
+      "reason": "Umami flavour enhancer; same as E621 — some people prefer to limit intake."
+    },
+    {
+      "code": "ASPARTAME",
+      "plainName": "Aspartame",
+      "category": "sweetener",
+      "status": "caution",
+      "reason": "Artificial sweetener; must be avoided with phenylketonuria (PKU)."
+    }
+  ]
+}

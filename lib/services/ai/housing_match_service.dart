@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/core/colors/app_colors.dart';
 
 // ---------------------------------------------------------------------------
 // Models
@@ -54,17 +55,17 @@ class RankedHousingMatch {
 // ---------------------------------------------------------------------------
 
 class HousingMatchService {
-  static const Color _perfectColor = Color(0xFF34D399);
-  static const Color _highlyRecommendedColor = Color(0xFF22D3EE);
+  static const Color _perfectColor = AppColors.quickActionGreen;
+  static const Color _highlyRecommendedColor = AppColors.quickActionCyan;
   static const Color _aiRecommendedColor = Color(0xFF60A5FA);
   static const Color _goodOptionColor = Color(0xFF818CF8);
   static const Color _considerColor = Color(0xFF6B7280);
 
-  static const Color _tagBudgetGreen = Color(0xFF34D399);
-  static const Color _tagNearYouCyan = Color(0xFF22D3EE);
+  static const Color _tagBudgetGreen = AppColors.quickActionGreen;
+  static const Color _tagNearYouCyan = AppColors.quickActionCyan;
   static const Color _tagFamilyBlue = Color(0xFF60A5FA);
   static const Color _tagBestValueGold = Color(0xFFFFB800);
-  static const Color _tagJustListedAmber = Color(0xFFFBBF24);
+  static const Color _tagJustListedAmber = AppColors.quickActionYellow;
 
   static const Map<String, List<String>> _cityGroups = {
     'doha': [

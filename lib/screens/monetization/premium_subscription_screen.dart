@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-const kPremiumMonthlyPrice = 15;
-const kPremiumYearlyPrice = 129;
-const kProMonthlyPrice = 79;
-const kProYearlyPrice = 699;
+import 'package:raabta/config/monetization_config.dart';
+import 'package:raabta/config/monetization_state.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/intelligence/sensitive_action_confirm.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/monetization/l10n/monetization_strings.dart';
+import 'package:raabta/core/widgets/monetization_coming_soon_panel.dart';
+import 'package:raabta/models/intelligence/permission_level.dart';
+import 'package:raabta/services/intelligence/sensitive_action_audit_service.dart';
 
 class PremiumSubscriptionScreen extends ConsumerStatefulWidget {
   const PremiumSubscriptionScreen({super.key});
@@ -18,163 +28,196 @@ class _PremiumSubscriptionScreenState
     extends ConsumerState<PremiumSubscriptionScreen> {
   bool _isYearly = false;
 
-  final List<Map<String, dynamic>> _features = [
-    {
-      'feature': 'AI questions per day',
-      'free': '10',
-      'premium': 'Unlimited',
-      'pro': 'Unlimited',
-    },
-    {
-      'feature': 'Document scans',
-      'free': '5/month',
-      'premium': 'Unlimited',
-      'pro': 'Unlimited',
-    },
-    {
-      'feature': 'Job applications',
-      'free': '3/day',
-      'premium': 'Unlimited',
-      'pro': 'Unlimited',
-    },
-    {
-      'feature': 'Ad-free experience',
-      'free': false,
-      'premium': true,
-      'pro': true,
-    },
-    {
-      'feature': 'Priority listings',
-      'free': false,
-      'premium': true,
-      'pro': true,
-    },
-    {
-      'feature': 'Advanced filters',
-      'free': false,
-      'premium': true,
-      'pro': true,
-    },
-    {
-      'feature': 'Direct employer contact',
-      'free': false,
-      'premium': true,
-      'pro': true,
-    },
-    {
-      'feature': 'Labour law AI advisor',
-      'free': 'Basic',
-      'premium': 'Full',
-      'pro': 'Full',
-    },
-    {
-      'feature': 'Monthly consultation',
-      'free': false,
-      'premium': false,
-      'pro': '30 min',
-    },
-    {
-      'feature': 'Featured listing monthly',
-      'free': false,
-      'premium': false,
-      'pro': true,
-    },
-    {
-      'feature': 'Business listing',
-      'free': false,
-      'premium': false,
-      'pro': '1 free',
-    },
-    {
-      'feature': 'Priority support',
-      'free': false,
-      'premium': false,
-      'pro': true,
-    },
-  ];
+  bool get _hold => MonetizationState.isHold;
+
+  List<Map<String, dynamic>> _featuresFor(String locale) {
+    final unlimited = MonetizationStrings.t('val_unlimited', locale);
+    final basic = MonetizationStrings.t('val_basic', locale);
+    final full = MonetizationStrings.t('val_full', locale);
+    return [
+      {
+        'feature': MonetizationStrings.t('feat_price', locale),
+        'free': MonetizationConfig.formatQr(0),
+        'premium': MonetizationConfig.formatQrPerMonth(
+          MonetizationConfig.premiumMonthlyQr,
+        ),
+        'pro': MonetizationConfig.formatQrPerMonth(
+          MonetizationConfig.proMonthlyQr,
+        ),
+      },
+      {
+        'feature': MonetizationStrings.t('feat_ai_questions', locale),
+        'free': '10',
+        'premium': unlimited,
+        'pro': unlimited,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_document_scans', locale),
+        'free': '5/month',
+        'premium': unlimited,
+        'pro': unlimited,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_job_applications', locale),
+        'free': '3/day',
+        'premium': unlimited,
+        'pro': unlimited,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_ad_free', locale),
+        'free': false,
+        'premium': true,
+        'pro': true,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_priority_listings', locale),
+        'free': false,
+        'premium': true,
+        'pro': true,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_advanced_filters', locale),
+        'free': false,
+        'premium': true,
+        'pro': true,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_direct_employer', locale),
+        'free': false,
+        'premium': true,
+        'pro': true,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_labour_law_ai', locale),
+        'free': basic,
+        'premium': full,
+        'pro': full,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_monthly_consultation', locale),
+        'free': false,
+        'premium': false,
+        'pro': MonetizationStrings.t('val_30_min', locale),
+      },
+      {
+        'feature': MonetizationStrings.t('feat_featured_listing', locale),
+        'free': false,
+        'premium': false,
+        'pro': true,
+      },
+      {
+        'feature': MonetizationStrings.t('feat_business_listing', locale),
+        'free': false,
+        'premium': false,
+        'pro': MonetizationStrings.t('val_1_free', locale),
+      },
+      {
+        'feature': MonetizationStrings.t('feat_priority_support', locale),
+        'free': false,
+        'premium': false,
+        'pro': true,
+      },
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F0F),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+    final locale = ref.watch(userLanguageProvider);
+    return GlassScreenScaffold(
+      leading: GlassIconButton(
+        icon: Icons.close_rounded,
+        tooltip: CommonActionStrings.t('action_cancel', locale),
+        onPressed: () => Navigator.of(context).pop(),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHero(),
-            _buildBillingToggle(),
-            const SizedBox(height: 20),
+            _buildHero(locale),
+            if (_hold) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: MonetizationHoldBanner(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (!_hold) _buildBillingToggle(locale),
+            if (_hold)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Text(
+                  MonetizationStrings.t('planned_pricing_preview', locale),
+                  textAlign: TextAlign.center,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.lg),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Column(
                 children: [
-                  _buildFreeCard(),
-                  const SizedBox(height: 14),
-                  _buildPremiumCard(),
-                  const SizedBox(height: 14),
-                  _buildProCard(),
+                  _buildFreeCard(locale),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildPremiumCard(locale),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildProCard(locale),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
-            _buildComparisonTable(),
-            const SizedBox(height: 20),
-            _buildTrustSection(),
-            const SizedBox(height: 40),
+            const SizedBox(height: AppSpacing.xl),
+            _buildComparisonTable(locale),
+            const SizedBox(height: AppSpacing.lg),
+            _buildTrustSection(locale),
+            const SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHero() {
-    return Container(
+  Widget _buildHero(String locale) {
+    return GlassContainer(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1A1A2E), Color(0xFF0F0F0F)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      margin: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
+      borderRadius: AppSpacing.radiusLg,
+      glowColor: AppColors.purpleGlow,
+      glowIntensity: 0.12,
       child: Column(
         children: [
           ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFFFFB627), Color(0xFF6C3FC5)],
+              colors: [AppColors.amberGlow, AppColors.purpleGlow],
             ).createShader(bounds),
-            child: const Text(
-              '💎 Raabta Premium',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
+            child: Text(
+              MonetizationStrings.t('premium_hero_title', locale),
+              style: AppTypography.headline2.copyWith(
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Unlock the full Qatar expat experience',
-            style: TextStyle(color: Colors.white60, fontSize: 14),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            MonetizationStrings.t('premium_hero_subtitle', locale),
+            style: AppTypography.body,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _proofChip('👥', '10,000+ expats'),
-              const SizedBox(width: 12),
-              _proofChip('⭐', '4.8 rated'),
-              const SizedBox(width: 12),
-              _proofChip('🔒', 'Cancel anytime'),
+              _proofChip('👥', MonetizationStrings.t('proof_expats', locale)),
+              const SizedBox(width: AppSpacing.md),
+              _proofChip('⭐', MonetizationStrings.t('proof_rated', locale)),
+              if (!_hold) ...[
+                const SizedBox(width: AppSpacing.md),
+                _proofChip(
+                  '🔒',
+                  MonetizationStrings.t('proof_cancel_anytime', locale),
+                ),
+              ],
             ],
           ),
         ],
@@ -183,38 +226,34 @@ class _PremiumSubscriptionScreenState
   }
 
   Widget _proofChip(String icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+    return GlassContainer(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
+      borderRadius: AppSpacing.radiusFull,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(icon, style: const TextStyle(fontSize: 12)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
-          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label, style: AppTypography.caption),
         ],
       ),
     );
   }
 
-  Widget _buildBillingToggle() {
+  Widget _buildBillingToggle(String locale) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'Monthly',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+          Text(
+            MonetizationStrings.t('billing_monthly', locale),
+            style: AppTypography.bodySmall,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           GestureDetector(
             onTap: () => setState(() => _isYearly = !_isYearly),
             child: AnimatedContainer(
@@ -224,8 +263,8 @@ class _PremiumSubscriptionScreenState
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 color: _isYearly
-                    ? const Color(0xFFFFB627)
-                    : const Color(0xFF2A2A3E),
+                    ? AppColors.amberGlow
+                    : AppColors.surfaceElevated,
               ),
               child: AnimatedAlign(
                 duration: const Duration(milliseconds: 250),
@@ -236,34 +275,41 @@ class _PremiumSubscriptionScreenState
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   width: 22,
                   height: 22,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: AppColors.textPrimary,
                     shape: BoxShape.circle,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Row(
             children: [
-              const Text(
-                'Yearly',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              Text(
+                MonetizationStrings.t('billing_yearly', locale),
+                style: AppTypography.bodySmall,
               ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+              const SizedBox(width: AppSpacing.xs),
+              GlassContainer(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: 2,
                 ),
-                child: const Text(
-                  'Save 35%',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 10,
+                borderRadius: AppSpacing.radiusXs,
+                glowColor: AppColors.success,
+                glowIntensity: 0.15,
+                child: Text(
+                  MonetizationStrings.format(
+                    'billing_save_percent',
+                    locale,
+                    params: {
+                      'percent':
+                          '${(MonetizationConfig.yearlyDiscountFraction * 100).round()}',
+                    },
+                  ),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.success,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -275,66 +321,50 @@ class _PremiumSubscriptionScreenState
     );
   }
 
-  Widget _buildFreeCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
-      ),
+  Widget _buildFreeCard(String locale) {
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Text(
-                'Free',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                MonetizationStrings.t('plan_free', locale),
+                style: AppTypography.title,
               ),
-              Spacer(),
+              const Spacer(),
               Text(
-                '0 QR',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                MonetizationConfig.formatQr(0),
+                style: AppTypography.headline2.copyWith(
+                  color: AppColors.textTertiary,
                 ),
               ),
             ],
           ),
-          const Text(
-            'Forever free',
-            style: TextStyle(color: Colors.white38, fontSize: 12),
+          Text(
+            MonetizationStrings.t('plan_forever_free', locale),
+            style: AppTypography.caption,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.md),
           ...[
-            '10 AI questions per day',
-            '5 document scans/month',
-            '3 job applications/day',
-            'Basic listings',
-            'Community access',
-          ].map((f) => _featureRow(f, true, Colors.white54)),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white24),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+            MonetizationStrings.t('free_feat_ai', locale),
+            MonetizationStrings.t('free_feat_scans', locale),
+            MonetizationStrings.t('free_feat_jobs', locale),
+            MonetizationStrings.t('free_feat_listings', locale),
+            MonetizationStrings.t('free_feat_community', locale),
+          ].map((f) => _featureRow(f, true, AppColors.textSecondary)),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            onTap: () => Navigator.of(context).pop(),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            borderRadius: AppSpacing.radiusSm,
+            child: Text(
+              MonetizationStrings.t('plan_current', locale),
+              style: AppTypography.button.copyWith(
+                color: AppColors.textSecondary,
               ),
-              child: const Text(
-                'Current Plan',
-                style: TextStyle(color: Colors.white54),
-              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -342,133 +372,117 @@ class _PremiumSubscriptionScreenState
     );
   }
 
-  Widget _buildPremiumCard() {
-    final price = _isYearly ? kPremiumYearlyPrice : kPremiumMonthlyPrice;
-    final period = _isYearly ? '/year' : '/month';
+  Widget _buildPremiumCard(String locale) {
+    if (_hold) {
+      return MonetizationComingSoonPanel(
+        productName: MonetizationStrings.t('table_premium', locale),
+        plannedPriceLabel:
+            'Planned price: ${MonetizationConfig.premiumMonthlyQr} QR/month',
+        subtitle: MonetizationStrings.t('premium_coming_soon_subtitle', locale),
+        accentColor: AppColors.amberGlow,
+      );
+    }
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFB627), width: 2),
-        gradient: const LinearGradient(
-          colors: [Color(0x1FFFB627), Color(0x08FFB627)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFB627).withValues(alpha: 0.15),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
+    final price = MonetizationConfig.premiumPrice(yearly: _isYearly);
+    final period = _isYearly
+        ? MonetizationStrings.t('period_per_year', locale)
+        : MonetizationStrings.t('period_per_month', locale);
+
+    return GlassCard(
+      glowColor: AppColors.amberGlow,
+      glowIntensity: 0.2,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Premium ⭐',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '$price',
-                              style: const TextStyle(
-                                color: Color(0xFFFFB627),
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                height: 1,
-                              ),
-                            ),
-                            Text(
-                              ' QR$period',
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (_isYearly)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    MonetizationStrings.t('plan_premium', locale),
+                    style: AppTypography.title,
+                  ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                           Text(
-                            '= ${(price / 12).round()} QR/mo',
-                            style: const TextStyle(
-                              color: Colors.white38,
-                              fontSize: 10,
+                            '$price',
+                            style: AppTypography.headline1.copyWith(
+                              color: AppColors.amberGlow,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
                             ),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ...[
-                  'Unlimited AI questions',
-                  'Unlimited document scans',
-                  'Unlimited job applications',
-                  'Ad-free experience',
-                  'Priority listings',
-                  'Advanced filters',
-                  'Direct employer contact',
-                  'Full labour law AI advisor',
-                ].map(
-                  (f) => _featureRow(f, true, const Color(0xFFFFB627)),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _handleSubscribe('Premium', price),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFB627),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                          Text(
+                            ' ${MonetizationConfig.currencyLabel}$period',
+                            style: AppTypography.caption,
+                          ),
+                        ],
                       ),
-                    ),
-                    child: const Text(
-                      'Subscribe Now',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
+                      if (_isYearly)
+                        Text(
+                          '= ${MonetizationConfig.formatQrPerMonth((price / 12).round())}',
+                          style: AppTypography.caption,
+                        ),
+                    ],
                   ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ...[
+                MonetizationStrings.t('premium_feat_ai', locale),
+                MonetizationStrings.t('premium_feat_scans', locale),
+                MonetizationStrings.t('premium_feat_jobs', locale),
+                MonetizationStrings.t('premium_feat_ad_free', locale),
+                MonetizationStrings.t('premium_feat_priority', locale),
+                MonetizationStrings.t('premium_feat_filters', locale),
+                MonetizationStrings.t('premium_feat_employer', locale),
+                MonetizationStrings.t('premium_feat_labour', locale),
+              ].map(
+                (f) => _featureRow(f, true, AppColors.amberGlow),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              GlassCard(
+                onTap: () => _handleSubscribe(
+                  MonetizationStrings.t('table_premium', locale),
+                  price,
+                  locale,
                 ),
-              ],
-            ),
+                glowColor: AppColors.amberGlow,
+                glowIntensity: 0.3,
+                backgroundColor: AppColors.amberGlow,
+                borderRadius: AppSpacing.radiusSm,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Text(
+                  MonetizationStrings.t('plan_subscribe_now', locale),
+                  style: AppTypography.button.copyWith(
+                    color: AppColors.background,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
           Positioned(
-            top: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFB627),
-                borderRadius: BorderRadius.circular(6),
+            top: 0,
+            right: 0,
+            child: GlassContainer(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: 3,
               ),
-              child: const Text(
-                'MOST POPULAR',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 9,
+              borderRadius: AppSpacing.radiusXs,
+              backgroundColor: AppColors.amberGlow,
+              child: Text(
+                MonetizationStrings.t('badge_most_popular', locale),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.background,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.5,
                 ),
@@ -480,109 +494,100 @@ class _PremiumSubscriptionScreenState
     );
   }
 
-  Widget _buildProCard() {
-    final price = _isYearly ? kProYearlyPrice : kProMonthlyPrice;
-    final period = _isYearly ? '/year' : '/month';
+  Widget _buildProCard(String locale) {
+    if (_hold) {
+      return MonetizationComingSoonPanel(
+        productName: MonetizationStrings.t('table_pro', locale),
+        plannedPriceLabel:
+            'Planned price: ${MonetizationConfig.proMonthlyQr} QR/month',
+        subtitle: MonetizationStrings.t('pro_coming_soon_subtitle', locale),
+        accentColor: AppColors.purpleGlow,
+      );
+    }
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF6C3FC5), width: 2),
-        gradient: const LinearGradient(
-          colors: [Color(0x1A6C3FC5), Color(0x086C3FC5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  'Pro 💎',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '$price',
-                          style: const TextStyle(
-                            color: Color(0xFF6C3FC5),
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
-                          ),
-                        ),
-                        Text(
-                          ' QR$period',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_isYearly)
+    final price = MonetizationConfig.proPrice(yearly: _isYearly);
+    final period = _isYearly
+        ? MonetizationStrings.t('period_per_year', locale)
+        : MonetizationStrings.t('period_per_month', locale);
+
+    return GlassCard(
+      glowColor: AppColors.purpleGlow,
+      glowIntensity: 0.2,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                MonetizationStrings.t('plan_pro', locale),
+                style: AppTypography.title,
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                       Text(
-                        '= ${(price / 12).round()} QR/mo',
-                        style: const TextStyle(
-                          color: Colors.white38,
-                          fontSize: 10,
+                        '$price',
+                        style: AppTypography.headline1.copyWith(
+                          color: AppColors.purpleGlow,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
                         ),
                       ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Everything in Premium, plus:',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            ...[
-              '30 min monthly PRO consultation',
-              'Featured listing every month',
-              '1 free business listing',
-              'Priority customer support',
-              'Exclusive PRO community badge',
-            ].map((f) => _featureRow(f, true, const Color(0xFF6C3FC5))),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _handleSubscribe('Pro', price),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C3FC5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                      Text(
+                        ' ${MonetizationConfig.currencyLabel}$period',
+                        style: AppTypography.caption,
+                      ),
+                    ],
                   ),
-                ),
-                child: const Text(
-                  'Get Pro',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
+                  if (_isYearly)
+                    Text(
+                      '= ${MonetizationConfig.formatQrPerMonth((price / 12).round())}',
+                      style: AppTypography.caption,
+                    ),
+                ],
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            MonetizationStrings.t('pro_includes_premium', locale),
+            style: AppTypography.caption,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ...[
+            MonetizationStrings.t('pro_feat_consultation', locale),
+            MonetizationStrings.t('pro_feat_featured', locale),
+            MonetizationStrings.t('pro_feat_business', locale),
+            MonetizationStrings.t('pro_feat_support', locale),
+            MonetizationStrings.t('pro_feat_badge', locale),
+          ].map((f) => _featureRow(f, true, AppColors.purpleGlow)),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            onTap: () => _handleSubscribe(
+              MonetizationStrings.t('table_pro', locale),
+              price,
+              locale,
             ),
-          ],
-        ),
+            glowColor: AppColors.purpleGlow,
+            glowIntensity: 0.3,
+            backgroundColor: AppColors.purpleGlow,
+            borderRadius: AppSpacing.radiusSm,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text(
+              MonetizationStrings.t('plan_get_pro', locale),
+              style: AppTypography.button.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -594,16 +599,17 @@ class _PremiumSubscriptionScreenState
         children: [
           Icon(
             included ? Icons.check_circle : Icons.remove_circle,
-            color: included ? checkColor : Colors.white24,
-            size: 16,
+            color: included ? checkColor : AppColors.textTertiary,
+            size: AppSpacing.iconSm,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                color: included ? Colors.white70 : Colors.white30,
-                fontSize: 13,
+              style: AppTypography.bodySmall.copyWith(
+                color: included
+                    ? AppColors.textSecondary
+                    : AppColors.textTertiary,
               ),
             ),
           ),
@@ -612,42 +618,35 @@ class _PremiumSubscriptionScreenState
     );
   }
 
-  Widget _buildComparisonTable() {
+  Widget _buildComparisonTable(String locale) {
+    final features = _featuresFor(locale);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Compare all features',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          Text(
+            MonetizationStrings.t('compare_features', locale),
+            style: AppTypography.title,
           ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
-            ),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
-                _tableHeader(),
-                const Divider(color: Colors.white12, height: 1),
-                ..._features.asMap().entries.map((entry) {
-                  final isLast = entry.key == _features.length - 1;
+                _tableHeader(locale),
+                Divider(color: AppColors.glassBorder, height: 1),
+                ...features.asMap().entries.map((entry) {
+                  final isLast = entry.key == features.length - 1;
                   return Column(
                     children: [
                       _tableRow(entry.value),
                       if (!isLast)
                         Divider(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: AppColors.glassBorder,
                           height: 1,
-                          indent: 12,
-                          endIndent: 12,
+                          indent: AppSpacing.md,
+                          endIndent: AppSpacing.md,
                         ),
                     ],
                   );
@@ -660,25 +659,32 @@ class _PremiumSubscriptionScreenState
     );
   }
 
-  Widget _tableHeader() {
+  Widget _tableHeader(String locale) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             flex: 3,
             child: Text(
-              'Feature',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
+              MonetizationStrings.t('table_feature', locale),
+              style: AppTypography.caption.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          _headerCell('Free'),
-          _headerCell('Premium', color: const Color(0xFFFFB627)),
-          _headerCell('Pro', color: const Color(0xFF6C3FC5)),
+          _headerCell(MonetizationStrings.t('table_free', locale)),
+          _headerCell(
+            MonetizationStrings.t('table_premium', locale),
+            color: AppColors.amberGlow,
+          ),
+          _headerCell(
+            MonetizationStrings.t('table_pro', locale),
+            color: AppColors.purpleGlow,
+          ),
         ],
       ),
     );
@@ -690,9 +696,8 @@ class _PremiumSubscriptionScreenState
       child: Center(
         child: Text(
           label,
-          style: TextStyle(
-            color: color ?? Colors.white38,
-            fontSize: 11,
+          style: AppTypography.caption.copyWith(
+            color: color ?? AppColors.textTertiary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -702,19 +707,19 @@ class _PremiumSubscriptionScreenState
 
   Widget _tableRow(Map<String, dynamic> row) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Expanded(
             flex: 3,
-            child: Text(
-              row['feature'],
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
+            child: Text(row['feature'], style: AppTypography.bodySmall),
           ),
           _tableCell(row['free']),
-          _tableCell(row['premium'], color: const Color(0xFFFFB627)),
-          _tableCell(row['pro'], color: const Color(0xFF6C3FC5)),
+          _tableCell(row['premium'], color: AppColors.amberGlow),
+          _tableCell(row['pro'], color: AppColors.purpleGlow),
         ],
       ),
     );
@@ -725,16 +730,15 @@ class _PremiumSubscriptionScreenState
     if (value is bool) {
       child = Icon(
         value ? Icons.check : Icons.close,
-        size: 16,
-        color: value ? (color ?? Colors.white54) : Colors.white24,
+        size: AppSpacing.iconSm,
+        color: value ? (color ?? AppColors.textSecondary) : AppColors.textTertiary,
       );
     } else {
       child = Text(
         value.toString(),
         textAlign: TextAlign.center,
-        style: TextStyle(
-          color: color ?? Colors.white54,
-          fontSize: 11,
+        style: AppTypography.caption.copyWith(
+          color: color ?? AppColors.textSecondary,
           fontWeight: FontWeight.w500,
         ),
       );
@@ -742,16 +746,55 @@ class _PremiumSubscriptionScreenState
     return Expanded(flex: 2, child: Center(child: child));
   }
 
-  Widget _buildTrustSection() {
+  Widget _buildTrustSection(String locale) {
+    if (_hold) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _trustItem(
+              '🆓',
+              MonetizationStrings.t('trust_currently_free', locale),
+            ),
+            _trustItem(
+              '🔒',
+              MonetizationStrings.t('trust_privacy_first', locale),
+            ),
+            _trustItem(
+              '📞',
+              MonetizationStrings.t('trust_support_247', locale),
+            ),
+            _trustItem(
+              '🌍',
+              MonetizationStrings.t('trust_qatar_based', locale),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _trustItem('🔒', 'Secure\nPayment'),
-          _trustItem('↩️', 'Cancel\nAnytime'),
-          _trustItem('📞', '24/7\nSupport'),
-          _trustItem('🌍', 'Qatar\nBased'),
+          _trustItem(
+            '🔒',
+            MonetizationStrings.t('trust_secure_payment', locale),
+          ),
+          _trustItem(
+            '↩️',
+            MonetizationStrings.t('trust_cancel_anytime', locale),
+          ),
+          _trustItem(
+            '📞',
+            MonetizationStrings.t('trust_support_247', locale),
+          ),
+          _trustItem(
+            '🌍',
+            MonetizationStrings.t('trust_qatar_based', locale),
+          ),
         ],
       ),
     );
@@ -761,23 +804,52 @@ class _PremiumSubscriptionScreenState
     return Column(
       children: [
         Text(icon, style: const TextStyle(fontSize: 24)),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white38, fontSize: 10),
+          style: AppTypography.caption,
         ),
       ],
     );
   }
 
-  void _handleSubscribe(String plan, int price) {
+  Future<void> _handleSubscribe(
+    String plan,
+    int price,
+    String locale,
+  ) async {
+    if (!MonetizationState.canInitiatePayment) return;
+    final priceLabel = MonetizationConfig.formatQr(price);
+    final confirmed = await showSensitiveActionConfirmDialog(
+      context,
+      title: MonetizationStrings.t('confirm_subscription_title', locale),
+      message: MonetizationStrings.format(
+        'confirm_subscription_message',
+        locale,
+        params: {'plan': plan, 'price': priceLabel},
+      ),
+      confirmLabel: MonetizationStrings.t('confirm_payment_continue', locale),
+    );
+    if (!confirmed || !mounted) return;
+
+    await SensitiveActionAuditService.log(
+      actionId: SensitiveActionIds.premiumSubscriptionPayment,
+      level: PermissionLevel.execute,
+      metadata: {'plan': plan, 'priceQr': price},
+    );
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '💎 $plan selected — QR $price. Redirecting to payment…',
+          MonetizationStrings.format(
+            'subscription_selected_snackbar',
+            locale,
+            params: {'plan': plan, 'price': priceLabel},
+          ),
         ),
-        backgroundColor: const Color(0xFF6C3FC5),
+        backgroundColor: AppColors.purpleGlow,
       ),
     );
   }

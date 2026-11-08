@@ -1,16 +1,44 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
-import 'package:raabta/core/widgets/section_header.dart';
+import 'package:go_router/go_router.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/providers/auth_providers.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/animated_background.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/hub/hub_advanced_filter_toggle.dart';
+import 'package:raabta/core/widgets/hub/hub_feed_footer_notice.dart';
+import 'package:raabta/core/widgets/hub/hub_filter_chip.dart';
+import 'package:raabta/core/widgets/hub/hub_landing_header.dart';
+import 'package:raabta/core/widgets/hub/hub_layout_tokens.dart';
+import 'package:raabta/core/widgets/hub/hub_loading_placeholder.dart';
+import 'package:raabta/core/widgets/hub/hub_post_fab.dart';
+import 'package:raabta/core/widgets/hub/hub_quick_action_tile.dart';
+import 'package:raabta/core/widgets/hub/hub_search_decoration.dart';
+import 'package:raabta/core/widgets/hub/hub_summary_strip_card.dart';
+import 'package:raabta/features/home/widgets/metric_chip.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_vertical.dart';
+import 'package:raabta/features/saved_search/l10n/saved_search_strings.dart';
+import 'package:raabta/features/saved_search/providers/saved_search_providers.dart';
+import 'package:raabta/features/tenancy/presentation/l10n/tenancy_strings.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:raabta/models/housing_models.dart';
 import 'package:raabta/providers/housing_providers.dart';
 import 'package:raabta/screens/housing/listing_card.dart';
-import 'package:raabta/screens/housing/post_listing_screen.dart';
+import 'package:raabta/screens/housing/l10n/housing_strings.dart';
+import 'package:raabta/services/ai/housing_match_service.dart';
 import 'package:raabta/widgets/ai/housing_match_widget.dart';
+import 'package:raabta/core/utils/profile_display_helper.dart';
+import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/features/global_search/domain/search_route_parameters.dart';
+import 'package:raabta/features/global_search/presentation/search_route_parameter_consumer.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_criteria.dart';
+import 'package:raabta/features/saved_search/presentation/widgets/save_search_button.dart';
 import 'package:share_plus/share_plus.dart';
 
 Map<String, dynamic> housingListingToMatchData(HousingListing listing) {
@@ -22,7 +50,9 @@ Map<String, dynamic> housingListingToMatchData(HousingListing listing) {
 }
 
 class HousingListScreen extends ConsumerStatefulWidget {
-  const HousingListScreen({super.key});
+  const HousingListScreen({super.key, this.routeParameters});
+
+  final SearchRouteParameters? routeParameters;
 
   @override
   ConsumerState<HousingListScreen> createState() => _HousingListScreenState();
@@ -32,21 +62,30 @@ class _HousingListScreenState extends ConsumerState<HousingListScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _showAdvancedFilters = false;
 
-  static const List<({String label, ListingType type})> _typeFilters = [
-    (label: 'All', type: ListingType.all),
-    (label: 'Room', type: ListingType.room),
-    (label: 'Flat', type: ListingType.flat),
-    (label: 'Sharing', type: ListingType.sharing),
-    (label: 'Studio', type: ListingType.studio),
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final params = widget.routeParameters;
+      if (params != null && !params.isEmpty) {
+        SearchRouteParameterConsumer.applyHousingFilters(ref, params);
+      }
+    });
+  }
+
+  static const List<ListingType> _typeFilterTypes = [
+    ListingType.all,
+    ListingType.room,
+    ListingType.flat,
+    ListingType.sharing,
+    ListingType.studio,
   ];
 
-  static const List<({String emoji, String name, int count})> _trendingLocations = [
-    (emoji: '🏙️', name: 'Al Khor', count: 234),
-    (emoji: '🌆', name: 'Doha', count: 891),
-    (emoji: '✨', name: 'Lusail', count: 456),
-    (emoji: '🏖️', name: 'The Pearl', count: 178),
-    (emoji: '🏘️', name: 'Al Wakrah', count: 123),
-  ];
+  String _areaLabel(HousingFilters filters, UserAIProfile? profile) {
+    final selected = filters.area?.trim();
+    if (selected != null && selected.isNotEmpty) return selected;
+    return ProfileDisplayHelper.preferredAreaLabel(profile);
+  }
 
   @override
   void dispose() {
@@ -91,14 +130,271 @@ class _HousingListScreenState extends ConsumerState<HousingListScreen> {
   }
 
   void _openPostListing() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PostListingScreen()),
+    final locale = ref.read(userLanguageProvider);
+    if (ref.read(currentUserProvider) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(HousingStrings.t('sign_in_to_post_listing', locale)),
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
+    context.push('/housing/post');
+  }
+
+  int _newTodayCount(List<HousingListing> listings) =>
+      listings.where((listing) => listing.daysAgo == 0).length;
+
+  List<HousingListing> _filteredListings(List<HousingListing> allListings) {
+    var listings = List<HousingListing>.from(allListings);
+    final profile = ref.read(userAIProfileProvider);
+    if (profile != null) {
+      listings.sort((a, b) => _matchScore(b).compareTo(_matchScore(a)));
+    }
+    return listings;
+  }
+
+  List<HousingListing> _recommendedListings(List<HousingListing> allListings) {
+    if (allListings.isEmpty) return const [];
+
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return allListings.take(2).toList();
+
+    final matcher = ref.read(housingMatchServiceProvider);
+    final ranked = matcher.rankListings(
+      allListings.map(housingListingToMatchData).toList(),
+      profile,
+    );
+
+    return ranked.take(2).map((match) {
+      final id = match.listing['id'] as String? ?? '';
+      return allListings.firstWhere(
+        (listing) => listing.id == id,
+        orElse: () => allListings.first,
+      );
+    }).toList();
+  }
+
+  int _matchedListingCount(List<HousingListing> allListings) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return 0;
+
+    final matcher = ref.read(housingMatchServiceProvider);
+    return allListings
+        .where(
+          (listing) =>
+              matcher
+                  .calculateMatch(
+                    housingListingToMatchData(listing),
+                    profile,
+                  )
+                  .matchScore >=
+              72,
+        )
+        .length;
+  }
+
+  int? _averageMatchRate(List<HousingListing> allListings) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null || allListings.isEmpty) return null;
+
+    final matcher = ref.read(housingMatchServiceProvider);
+    final scores = allListings
+        .map(
+          (listing) => matcher
+              .calculateMatch(housingListingToMatchData(listing), profile)
+              .matchScore,
+        )
+        .toList();
+    if (scores.isEmpty) return null;
+    return (scores.reduce((a, b) => a + b) / scores.length).round();
+  }
+
+  int _matchScore(HousingListing listing) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return 0;
+    return ref
+        .read(housingMatchServiceProvider)
+        .calculateMatch(housingListingToMatchData(listing), profile)
+        .matchScore;
+  }
+
+  Widget _buildAiMatchBanner(String locale, List<HousingListing> allListings) {
+    final matched = _matchedListingCount(allListings);
+    final avgRate = _averageMatchRate(allListings);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        0,
+      ),
+      child: GlassCard(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        borderRadius: AppSpacing.radiusLg,
+        glowColor: AppColors.brandFamilyMain,
+        glowIntensity: 0.12,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              HousingStrings.t('ai_match_title', locale),
+              style: AppTypography.title,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              HousingStrings.format(
+                'ai_match_count',
+                locale,
+                params: {'count': '$matched'},
+              ),
+              style: AppTypography.body,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              avgRate != null
+                  ? HousingStrings.format(
+                      'ai_match_avg',
+                      locale,
+                      params: {'rate': '$avgRate'},
+                    )
+                  : HousingStrings.t('ai_match_complete_profile', locale),
+              style: AppTypography.headline2.copyWith(
+                color: AppColors.brandFamilyMain,
+                fontSize: 28,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: () => context.push('/profile'),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              child: Text(
+                HousingStrings.t('update_profile_link', locale),
+                style: AppTypography.caption,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  String get _selectedAreaLabel {
-    final area = ref.read(housingFiltersProvider).area;
-    return area ?? 'Al Khor';
+  List<Widget> _hubChromeSlivers({
+    required HousingFilters filters,
+    required String locale,
+  }) {
+    return [
+      SliverToBoxAdapter(child: _buildHeader(filters)),
+      SliverToBoxAdapter(child: _buildSearchSection(filters)),
+      SliverToBoxAdapter(child: _buildSummaryStrip(locale)),
+      SliverToBoxAdapter(child: _buildQuickActionRow(locale)),
+      SliverToBoxAdapter(child: _buildFilterChipRows(filters)),
+      if (_showAdvancedFilters)
+        SliverToBoxAdapter(child: _buildAdvancedFilters(filters)),
+    ];
+  }
+
+  void _toggleAdvancedFilters() {
+    setState(() => _showAdvancedFilters = !_showAdvancedFilters);
+  }
+
+  Widget _buildSummaryStrip(String locale) {
+    final uid = ref.watch(currentUserProvider)?.uid ?? '';
+    if (uid.isEmpty) return const SizedBox.shrink();
+
+    final housingSavedAsync =
+        ref.watch(userSavedSearchesForVerticalProvider(SavedSearchVertical.housing));
+    final myListingsAsync = ref.watch(userHousingListingsProvider(uid));
+
+    final savedCount = housingSavedAsync.maybeWhen(
+      data: (searches) =>
+          searches.where((search) => search.active).length,
+      orElse: () => null,
+    );
+    final approvedCount = myListingsAsync.maybeWhen(
+      data: (listings) => listings
+          .where((listing) => listing.status == ListingStatus.approved)
+          .length,
+      orElse: () => null,
+    );
+
+    if (savedCount == null && approvedCount == null) {
+      return const SizedBox.shrink();
+    }
+
+    final cards = <Widget>[];
+    if (savedCount != null && savedCount > 0) {
+      cards.add(
+        Expanded(
+          child: HubSummaryStripCard(
+            value: ProfileDisplayHelper.formatCount(savedCount),
+            label: SavedSearchStrings.t('saved_searches_title', locale),
+            icon: Icons.search,
+            onTap: () => context.push('/profile/saved-searches'),
+          ),
+        ),
+      );
+    }
+    if (approvedCount != null && approvedCount > 0) {
+      if (cards.isNotEmpty) {
+        cards.add(const SizedBox(width: AppSpacing.sm));
+      }
+      cards.add(
+        Expanded(
+          child: HubSummaryStripCard(
+            value: ProfileDisplayHelper.formatCount(approvedCount),
+            label: HousingStrings.t('my_listings', locale),
+            icon: Icons.home_work_outlined,
+            onTap: () => context.push('/housing/my-listings'),
+          ),
+        ),
+      );
+    }
+
+    if (cards.isEmpty) return const SizedBox.shrink();
+
+    return HubSummaryStripPadding(child: Row(children: cards));
+  }
+
+  Widget _buildQuickActionRow(String locale) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.add,
+              label: HousingStrings.t('post_listing', locale),
+              onTap: _openPostListing,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.bookmark_border,
+              label: SavedSearchStrings.t('saved_searches_title', locale),
+              onTap: () => context.push('/profile/saved-searches'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.balance_outlined,
+              label: TenancyStrings.t('tenancy_title', locale),
+              onTap: () => context.push('/tenancy'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   List<Widget> _buildListingItems(List<HousingListing> listings) {
@@ -125,383 +421,259 @@ class _HousingListScreenState extends ConsumerState<HousingListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(userLanguageProvider);
     final filters = ref.watch(housingFiltersProvider);
     final listingsAsync = ref.watch(housingListingsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: _openPostListing,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            'Post Room',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+    return AnimatedAuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+      floatingActionButton: HubPostFab(
+        onPressed: _openPostListing,
+        tooltip: HousingStrings.t('post_listing', locale),
       ),
       body: SafeArea(
         child: listingsAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-          error: (error, _) => _EmptyState(
-            icon: Icons.error_outline,
-            title: 'Could not load listings',
-            subtitle: error.toString(),
-            actionLabel: 'Retry',
-            onAction: () => ref.invalidate(housingListingsProvider),
+          loading: () => const HubLoadingPlaceholder(),
+          error: (error, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: GlassEmptyState(
+                accent: GlassEmptyStateAccent.brand,
+                icon: Icons.error_outline,
+                title: HousingStrings.t('error_load_listings', locale),
+                description: error.toString(),
+                actionLabel: CommonActionStrings.t('action_retry', locale),
+                onAction: () => ref.invalidate(housingListingsProvider),
+              ),
+            ),
           ),
           data: (listings) {
-            if (listings.isEmpty) {
-              return Column(
-                children: [
-                  _buildHeader(filters),
-                  Expanded(
-                    child: _EmptyState(
-                      icon: Icons.home_outlined,
-                      title: 'No listings found',
-                      subtitle:
-                          'Try adjusting your filters or post a new listing.',
-                      actionLabel: 'Post Listing',
-                      onAction: _openPostListing,
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            final recommended = listings.take(2).toList();
-            final listingWidgets = _buildListingItems(listings);
+            final filtered = _filteredListings(listings);
+            final listingWidgets = _buildListingItems(filtered);
 
             return RefreshIndicator(
-              color: AppColors.primary,
+              color: AppColors.brandFamilyMain,
               onRefresh: () async {
                 ref.invalidate(housingListingsProvider);
-                await ref.read(housingListingsProvider.future);
               },
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  SliverToBoxAdapter(child: _buildHeader(filters)),
-                  SliverToBoxAdapter(
-                    child: _HeroStatsBar(
-                      propertyCount: '1,247',
-                      areaLabel: _selectedAreaLabel,
-                      newToday: '23 New',
-                    ),
-                  ),
-                  SliverToBoxAdapter(child: _buildSearchAndFilters(filters)),
-                  if (_showAdvancedFilters)
+                  ..._hubChromeSlivers(filters: filters, locale: locale),
+                  if (filtered.isEmpty)
                     SliverToBoxAdapter(
-                      child: _buildAdvancedFilters(filters),
-                    ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.xl,
-                        AppSpacing.xxl,
-                        AppSpacing.xl,
-                        AppSpacing.md,
-                      ),
-                      child: SectionHeader(
-                        title: '✨ Recommended For You',
-                        onSeeAll: () {},
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 380,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.xl,
+                          AppSpacing.lg,
+                          AppSpacing.xl,
+                          100,
                         ),
-                        itemCount: recommended.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(width: AppSpacing.md),
-                        itemBuilder: (context, index) {
-                          return PremiumPropertyCard(
-                            listing: recommended[index],
-                            showMatchBadge: index == 0,
-                            badgeType: index == 0
-                                ? PremiumCardBadge.featured
-                                : PremiumCardBadge.urgent,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.xl,
-                        AppSpacing.xxl,
-                        AppSpacing.xl,
-                        AppSpacing.md,
-                      ),
-                      child: Text('📍 Trending Locations', style: AppTextStyles.h2),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 44,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl,
+                        child: GlassEmptyState(
+                          key: const Key('housing_hub_empty_state'),
+                          accent: GlassEmptyStateAccent.brand,
+                          icon: Icons.home_outlined,
+                          title: HousingStrings.t('empty_no_listings', locale),
+                          description: HousingStrings.t(
+                            'empty_no_listings_hint',
+                            locale,
+                          ),
+                          actionLabel: HousingStrings.t('post_listing', locale),
+                          onAction: _openPostListing,
                         ),
-                        itemCount: _trendingLocations.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(width: AppSpacing.sm),
-                        itemBuilder: (context, index) {
-                          final location = _trendingLocations[index];
-                          final selected = filters.area == location.name;
-                          return GestureDetector(
-                            onTap: () => _selectArea(
-                              selected ? null : location.name,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                                vertical: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? AppColors.primary.withValues(alpha: 0.15)
-                                    : AppColors.surface,
-                                borderRadius: BorderRadius.circular(AppRadius.xl),
-                                border: Border.all(
-                                  color: selected
-                                      ? AppColors.primary
-                                      : AppColors.border,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(location.emoji),
-                                  const SizedBox(width: AppSpacing.xs),
-                                  Text(
-                                    location.name,
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.xs),
-                                  Text(
-                                    '(${location.count})',
-                                    style: AppTextStyles.labelLarge.copyWith(
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
                       ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
+                    )
+                  else ...[
+                    SliverPadding(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.xl,
-                        AppSpacing.xxl,
-                        AppSpacing.xl,
                         AppSpacing.md,
+                        AppSpacing.xl,
+                        0,
                       ),
-                      child: Text('All Listings', style: AppTextStyles.h2),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      0,
-                      AppSpacing.xl,
-                      100,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: index < listingWidgets.length - 1
-                                  ? AppSpacing.md
-                                  : 0,
-                            ),
-                            child: listingWidgets[index],
-                          );
-                        },
-                        childCount: listingWidgets.length,
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index < listingWidgets.length - 1
+                                    ? AppSpacing.md
+                                    : 0,
+                              ),
+                              child: listingWidgets[index],
+                            );
+                          },
+                          childCount: listingWidgets.length,
+                        ),
                       ),
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: HubFeedFooterNotice(locale: locale),
+                    ),
+                  ],
                 ],
               ),
             );
           },
         ),
       ),
+      ),
     );
   }
 
   Widget _buildHeader(HousingFilters filters) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Housing', style: AppTextStyles.h1),
-              Text(
-                'Find rooms & flats across Qatar',
-                style: AppTextStyles.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          onPressed: () =>
-              setState(() => _showAdvancedFilters = !_showAdvancedFilters),
-          icon: Icon(
-            _showAdvancedFilters
-                ? Icons.filter_alt
-                : Icons.filter_alt_outlined,
-            color: AppColors.primary,
-          ),
-        ),
-      ],
+    final locale = ref.watch(userLanguageProvider);
+    return HubLandingHeader(
+      title: HousingStrings.t('hub_title', locale),
+      subtitle: HousingStrings.t('hub_subtitle', locale),
+      onBack: () => Navigator.of(context).pop(),
+      trailing: IconButton(
+        onPressed: () => context.push('/housing/my-listings'),
+        icon: Icon(Icons.list_alt_outlined, color: AppColors.brandFamilyMain),
+        tooltip: HousingStrings.t('my_listings', locale),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      ),
     );
   }
 
-  Widget _buildSearchAndFilters(HousingFilters filters) {
+  Widget _buildSearchSection(HousingFilters filters) {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-          child: TextField(
-            controller: _searchController,
-            style: AppTextStyles.bodyLarge,
-            onChanged: _applySearch,
-            decoration: InputDecoration(
-              hintText: 'Search rooms, flats in Qatar...',
-              hintStyle: AppTextStyles.bodyMedium,
-              prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                borderSide: BorderSide.none,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: HubLayoutTokens.searchMinHeight,
+                  ),
+                  child: TextField(
+                    key: const Key('housing_hub_search'),
+                    controller: _searchController,
+                    style: AppTypography.subtitle,
+                    onChanged: _applySearch,
+                    textInputAction: TextInputAction.search,
+                    decoration: hubSearchInputDecoration(
+                      hintText: HousingStrings.t('search_hint', locale),
+                    ),
+                  ),
+                ),
               ),
+              const SizedBox(width: AppSpacing.sm),
+              HubAdvancedFilterToggle(
+                expanded: _showAdvancedFilters,
+                onToggle: _toggleAdvancedFilters,
+                semanticsLabel: HousingStrings.t(
+                  'hub_advanced_filters_semantics',
+                  locale,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: SaveSearchButton(
+              vertical: SavedSearchVertical.housing,
+              criteria: SavedSearchCriteria.fromHousingFilters(filters),
+              accent: SaveSearchButtonAccent.hubBrand,
             ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 36,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            itemCount: qatarAreas.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, index) {
-              final area = qatarAreas[index];
-              final selected = filters.area == area;
-              return FilterChip(
-                label: Text(area),
-                selected: selected,
-                onSelected: (_) => _selectArea(selected ? null : area),
-                backgroundColor: AppColors.surface,
-                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                labelStyle: TextStyle(
-                  color: selected ? AppColors.primary : AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-                showCheckmark: false,
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            itemCount: _typeFilters.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-            itemBuilder: (context, index) {
-              final item = _typeFilters[index];
-              final selected = filters.type == item.type;
-              return FilterChip(
-                label: Text(item.label),
-                selected: selected,
-                onSelected: (_) => _selectType(item.type),
-                backgroundColor: AppColors.surface,
-                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                labelStyle: TextStyle(
-                  color: selected ? AppColors.primary : AppColors.textSecondary,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                ),
-                side: BorderSide(
-                  color: selected ? AppColors.primary : Colors.transparent,
-                ),
-                showCheckmark: false,
-              );
-            },
           ),
         ),
       ],
     );
   }
 
+  Widget _buildFilterChipRows(HousingFilters filters) {
+    final locale = ref.watch(userLanguageProvider);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              itemCount: qatarAreas.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final area = qatarAreas[index];
+                final selected = filters.area == area;
+                return buildHubFilterChip(
+                  label: Text(area),
+                  selected: selected,
+                  onSelected: (_) => _selectArea(selected ? null : area),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              itemCount: _typeFilterTypes.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final type = _typeFilterTypes[index];
+                final selected = filters.type == type;
+                return buildHubFilterChip(
+                  label: Text(HousingStrings.filterTypeLabel(type, locale)),
+                  selected: selected,
+                  onSelected: (_) => _selectType(type),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAdvancedFilters(HousingFilters filters) {
+    final locale = ref.watch(userLanguageProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-      child: Container(
+      child: GlassContainer(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
+        borderRadius: AppSpacing.radiusMd,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Price: ${filters.minPrice.round()} – ${filters.maxPrice.round()} QR/month',
-              style: AppTextStyles.bodyLarge,
+              HousingStrings.format(
+                'price_range_label',
+                locale,
+                params: {
+                  'min': '${filters.minPrice.round()}',
+                  'max': '${filters.maxPrice.round()}',
+                },
+              ),
+              style: AppTypography.subtitle,
             ),
             RangeSlider(
               values: RangeValues(filters.minPrice, filters.maxPrice),
               min: 500,
               max: 5000,
               divisions: 45,
-              activeColor: AppColors.primary,
+              activeColor: AppColors.brandFamilyMain,
               inactiveColor: AppColors.surfaceElevated,
               labels: RangeLabels(
                 '${filters.minPrice.round()}',
@@ -509,44 +681,38 @@ class _HousingListScreenState extends ConsumerState<HousingListScreen> {
               ),
               onChanged: _updatePriceRange,
             ),
-            Text('Gender preference', style: AppTextStyles.bodyMedium),
+            Text(
+              HousingStrings.t('gender_preference', locale),
+              style: AppTypography.body,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: GenderPreference.values.map((g) {
                 final selected = filters.gender == g;
-                return ChoiceChip(
-                  label: Text(genderLabel(g)),
+                return buildHubChoiceChip(
+                  label: Text(HousingStrings.genderLabel(g, locale)),
                   selected: selected,
                   onSelected: (_) => _selectGender(g),
-                  backgroundColor: AppColors.background,
-                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                  labelStyle: TextStyle(
-                    color: selected ? AppColors.primary : AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
                 );
               }).toList(),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Nationality preference', style: AppTextStyles.bodyMedium),
+            Text(
+              HousingStrings.t('nationality_preference', locale),
+              style: AppTypography.body,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: NationalityPreference.values.map((n) {
                 final selected = filters.nationality == n;
-                return ChoiceChip(
-                  label: Text(nationalityLabel(n)),
+                return buildHubChoiceChip(
+                  label: Text(HousingStrings.nationalityLabel(n, locale)),
                   selected: selected,
                   onSelected: (_) => _selectNationality(n),
-                  backgroundColor: AppColors.background,
-                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                  labelStyle: TextStyle(
-                    color: selected ? AppColors.primary : AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
                 );
               }).toList(),
             ),
@@ -558,7 +724,7 @@ class _HousingListScreenState extends ConsumerState<HousingListScreen> {
 }
 
 class HousingScreen extends HousingListScreen {
-  const HousingScreen({super.key});
+  const HousingScreen({super.key, super.routeParameters});
 }
 
 enum PremiumCardBadge { featured, urgent }
@@ -568,15 +734,16 @@ class PremiumPropertyCard extends ConsumerWidget {
     super.key,
     required this.listing,
     required this.badgeType,
-    this.showMatchBadge = false,
+    this.matchScore,
   });
 
   final HousingListing listing;
   final PremiumCardBadge badgeType;
-  final bool showMatchBadge;
+  final int? matchScore;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(userLanguageProvider);
     final savedIds = ref.watch(savedListingIdsProvider);
     final isSaved = savedIds.contains(listing.id);
     final photoUrl = listing.photoUrls.isNotEmpty
@@ -585,14 +752,10 @@ class PremiumPropertyCard extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () => ListingCard.openDetail(context, listing.id),
-      child: Container(
+      child: GlassCard(
         width: 260,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: AppColors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
+        padding: EdgeInsets.zero,
+        borderRadius: AppSpacing.radiusMd,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -606,9 +769,12 @@ class PremiumPropertyCard extends ConsumerWidget {
                     imageUrl: photoUrl,
                     fit: BoxFit.cover,
                     placeholder: (_, _) => Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xFF1A2535), Color(0xFF0D1520)],
+                          colors: [
+                            AppColors.surfaceElevated,
+                            AppColors.surface,
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -616,7 +782,13 @@ class PremiumPropertyCard extends ConsumerWidget {
                     ),
                     errorWidget: (_, _, _) => Container(
                       color: AppColors.surfaceElevated,
-                      child: const Icon(Icons.home, color: Colors.white54, size: 48),
+                      child: Icon(
+                        Icons.home,
+                        color: AppColors.isLight
+                            ? AppColors.textTertiary
+                            : Colors.white54,
+                        size: 48,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -626,6 +798,7 @@ class PremiumPropertyCard extends ConsumerWidget {
                       type: badgeType == PremiumCardBadge.featured
                           ? ListingBadgeType.featured
                           : ListingBadgeType.urgent,
+                      locale: locale,
                     ),
                   ),
                   Positioned(
@@ -659,22 +832,22 @@ class PremiumPropertyCard extends ConsumerWidget {
                 children: [
                   Text(
                     listing.title,
-                    style: AppTextStyles.h3,
+                    style: AppTypography.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '📍 ${listing.area}',
-                    style: AppTextStyles.bodySmall,
+                    style: AppTypography.bodySmall,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     listing.priceLabel,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: AppColors.primary,
+                    style: AppTypography.subtitle.copyWith(
+                      color: AppColors.brandFamilyMain,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -696,17 +869,21 @@ class PremiumPropertyCard extends ConsumerWidget {
                     listingData: housingListingToMatchData(listing),
                     compact: true,
                   ),
-                  if (showMatchBadge) ...[
+                  if (matchScore != null) ...[
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.success.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                       ),
                       child: Text(
-                        '🤖 95% Match',
-                        style: AppTextStyles.bodySmall.copyWith(
+                        HousingStrings.format(
+                          'match_score_badge',
+                          locale,
+                          params: {'score': '$matchScore'},
+                        ),
+                        style: AppTypography.bodySmall.copyWith(
                           color: AppColors.success,
                           fontWeight: FontWeight.w700,
                           fontSize: 10,
@@ -722,7 +899,7 @@ class PremiumPropertyCard extends ConsumerWidget {
                           listing.daysAgo == 0
                               ? 'Today'
                               : '${listing.daysAgo} days ago',
-                          style: AppTextStyles.bodySmall,
+                          style: AppTypography.bodySmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -732,6 +909,7 @@ class PremiumPropertyCard extends ConsumerWidget {
                       ListingCard.buildViewButton(
                         context,
                         listing.id,
+                        locale: locale,
                         compact: true,
                       ),
                     ],
@@ -746,19 +924,20 @@ class PremiumPropertyCard extends ConsumerWidget {
   }
 }
 
-class SponsoredListingCard extends StatelessWidget {
+class SponsoredListingCard extends ConsumerWidget {
   const SponsoredListingCard({super.key, required this.listing});
 
   final HousingListing listing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '📢 SPONSORED',
-          style: AppTextStyles.bodySmall.copyWith(
+          HousingStrings.t('sponsored_label', locale),
+          style: AppTypography.bodySmall.copyWith(
             color: AppColors.warning,
             fontWeight: FontWeight.w700,
           ),
@@ -788,7 +967,7 @@ class SponsoredListingCard extends StatelessWidget {
             },
             child: Text(
               'Why am I seeing this?',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiary),
             ),
           ),
         ),
@@ -811,68 +990,40 @@ class _HeroStatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-      child: Container(
-        width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        0,
+      ),
+      child: GlassCard(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surface, AppColors.surfaceElevated],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.borderPrimary),
-        ),
-        child: Row(
+        borderRadius: AppSpacing.radiusLg,
+        child: Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
-            Expanded(
-              child: _StatColumn(emoji: '🏠', value: propertyCount, label: 'Properties'),
+            MetricChip(
+              icon: Icons.home_outlined,
+              value: propertyCount,
+              label: 'Properties',
+              accentColor: AppColors.brandFamilyMain,
             ),
-            Container(width: 1, height: 36, color: AppColors.border),
-            Expanded(
-              child: _StatColumn(emoji: '📍', value: areaLabel, label: 'Your Area'),
+            MetricChip(
+              icon: Icons.location_on_outlined,
+              value: areaLabel,
+              label: 'Your Area',
+              accentColor: AppColors.brandFamilyDark,
             ),
-            Container(width: 1, height: 36, color: AppColors.border),
-            Expanded(
-              child: _StatColumn(emoji: '✨', value: newToday, label: 'Today'),
+            MetricChip(
+              icon: Icons.auto_awesome_outlined,
+              value: newToday,
+              label: 'Today',
+              accentColor: AppColors.success,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StatColumn extends StatelessWidget {
-  const _StatColumn({
-    required this.emoji,
-    required this.value,
-    required this.label,
-  });
-
-  final String emoji;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppTextStyles.bodyLarge.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
-      ],
     );
   }
 }
@@ -911,53 +1062,9 @@ class _AmenityChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
       ),
-      child: Text(label, style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.actionLabel,
-    required this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String actionLabel;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppColors.textSecondary, size: 56),
-            const SizedBox(height: AppSpacing.lg),
-            Text(title, style: AppTextStyles.h2, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.sm),
-            Text(subtitle, style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.xl),
-            FilledButton(
-              onPressed: onAction,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
-              ),
-              child: Text(actionLabel),
-            ),
-          ],
-        ),
-      ),
+      child: Text(label, style: AppTypography.bodySmall.copyWith(fontSize: 10)),
     );
   }
 }

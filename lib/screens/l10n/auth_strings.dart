@@ -1,0 +1,340 @@
+import 'package:flutter/foundation.dart';
+import 'package:raabta/core/l10n/app_locale.dart';
+import 'package:raabta/core/l10n/locale_catalog_coverage.dart';
+
+/// Auth / OTP strings — verification flow and error-key namespace.
+abstract final class AuthStrings {
+  static const supportedLocales = AppLocale.supportedLocales;
+
+  static String t(String key, [String locale = 'English']) {
+    final normalized = AppLocale.normalize(locale);
+    final map = _catalog[key];
+    if (map == null) return key;
+    return map[normalized] ?? map['English'] ?? key;
+  }
+
+  static String format(
+    String key,
+    String locale, {
+    required Map<String, String> params,
+  }) {
+    var value = t(key, locale);
+    params.forEach((placeholder, replacement) {
+      value = value.replaceAll('{$placeholder}', replacement);
+    });
+    return value;
+  }
+
+  @visibleForTesting
+  static Map<String, Set<String>> get localeCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: _catalog,
+        supportedLocales: supportedLocales,
+      );
+
+  static const _catalog = <String, Map<String, String>>{
+    'error_otp_incomplete': {
+      'English': 'Please enter the 6-digit code',
+      'Arabic': 'يرجى إدخال الرمز المكوّن من 6 أرقام',
+      'Hindi': 'कृपया 6 अंकों का कोड दर्ज करें',
+      'Urdu': 'براہ کرم 6 ہندسوں کا کوڈ درج کریں',
+      'Malayalam': 'Please enter the 6-digit code',
+      'Nepali': 'Please enter the 6-digit code',
+      'Bengali': 'অনুগ্রহ করে ৬-অঙ্কের কোড লিখুন',
+      'Filipino': 'Please enter the 6-digit code',
+    },
+    'error_otp_wrong': {
+      'English': 'Wrong code. Try again.',
+      'Arabic': 'رمز خاطئ. حاول مرة أخرى.',
+      'Hindi': 'गलत कोड। पुनः प्रयास करें।',
+      'Urdu': 'غلط کوڈ۔ دوبارہ کوشش کریں۔',
+      'Malayalam': 'Wrong code. Try again.',
+      'Nepali': 'Wrong code. Try again.',
+      'Bengali': 'ভুল কোড। আবার চেষ্টা করুন।',
+      'Filipino': 'Wrong code. Try again.',
+    },
+    'error_sign_in_failed': {
+      'English': 'Sign-in failed',
+      'Arabic': 'فشل تسجيل الدخول',
+      'Hindi': 'साइन-इन विफल',
+      'Urdu': 'سائن ان ناکام',
+      'Malayalam': 'Sign-in failed',
+      'Nepali': 'Sign-in failed',
+      'Bengali': 'সাইন-ইন ব্যর্থ',
+      'Filipino': 'Sign-in failed',
+    },
+    'error_resend_failed': {
+      'English': 'Resend failed',
+      'Arabic': 'فشل إعادة الإرسال',
+      'Hindi': 'पुनः भेजना विफल',
+      'Urdu': 'دوبارہ بھیجنا ناکام',
+      'Malayalam': 'Resend failed',
+      'Nepali': 'Resend failed',
+      'Bengali': 'পুনরায় পাঠানো ব্যর্থ',
+      'Filipino': 'Resend failed',
+    },
+    'error_with_message': {
+      'English': 'Error: {message}',
+      'Arabic': 'خطأ: {message}',
+      'Hindi': 'त्रुटि: {message}',
+      'Urdu': 'خرابی: {message}',
+      'Malayalam': 'Error: {message}',
+      'Nepali': 'Error: {message}',
+      'Bengali': 'ত্রুটি: {message}',
+      'Filipino': 'Error: {message}',
+    },
+    'success_code_sent': {
+      'English': 'New code sent',
+      'Arabic': 'تم إرسال رمز جديد',
+      'Hindi': 'नया कोड भेजा गया',
+      'Urdu': 'نیا کوڈ بھیج دیا گیا',
+      'Malayalam': 'New code sent',
+      'Nepali': 'New code sent',
+      'Bengali': 'নতুন কোড পাঠানো হয়েছে',
+      'Filipino': 'New code sent',
+    },
+    'title_enter_code': {
+      'English': 'Enter verification code',
+      'Arabic': 'أدخل رمز التحقق',
+      'Hindi': 'सत्यापन कोड दर्ज करें',
+      'Urdu': 'تصدیقی کوڈ درج کریں',
+      'Malayalam': 'Enter verification code',
+      'Nepali': 'Enter verification code',
+      'Bengali': 'যাচাইকরণ কোড লিখুন',
+      'Filipino': 'Enter verification code',
+    },
+    'subtitle_sent_to': {
+      'English': 'Sent to {phone}',
+      'Arabic': 'أُرسل إلى {phone}',
+      'Hindi': '{phone} पर भेजा गया',
+      'Urdu': '{phone} پر بھیجا گیا',
+      'Malayalam': 'Sent to {phone}',
+      'Nepali': 'Sent to {phone}',
+      'Bengali': '{phone}-এ পাঠানো হয়েছে',
+      'Filipino': 'Sent to {phone}',
+    },
+    'action_verify': {
+      'English': 'Verify',
+      'Arabic': 'تحقق',
+      'Hindi': 'सत्यापित करें',
+      'Urdu': 'تصدیق',
+      'Malayalam': 'Verify',
+      'Nepali': 'Verify',
+      'Bengali': 'যাচাই',
+      'Filipino': 'Verify',
+    },
+    'resend_timer': {
+      'English': 'Resend code in {seconds} s',
+      'Arabic': 'إعادة الإرسال خلال {seconds} ث',
+      'Hindi': '{seconds} सेकंड में कोड पुनः भेजें',
+      'Urdu': '{seconds} سیکنڈ میں کوڈ دوبارہ بھیجیں',
+      'Malayalam': 'Resend code in {seconds} s',
+      'Nepali': 'Resend code in {seconds} s',
+      'Bengali': '{seconds} সেকেন্ডে কোড পুনরায় পাঠান',
+      'Filipino': 'Resend code in {seconds} s',
+    },
+    'action_resend_code': {
+      'English': 'Resend code',
+      'Arabic': 'إعادة إرسال الرمز',
+      'Hindi': 'कोड पुनः भेजें',
+      'Urdu': 'کوڈ دوبارہ بھیجیں',
+      'Malayalam': 'Resend code',
+      'Nepali': 'Resend code',
+      'Bengali': 'কোড পুনরায় পাঠান',
+      'Filipino': 'Resend code',
+    },
+    'action_send_code': {
+      'English': 'Send Code',
+      'Arabic': 'إرسال الرمز',
+      'Hindi': 'कोड भेजें',
+      'Urdu': 'کوڈ بھیجیں',
+      'Malayalam': 'Send Code',
+      'Nepali': 'Send Code',
+      'Bengali': 'कोड भेजें',
+      'Tamil': 'Send Code',
+      'Filipino': 'Send Code',
+    },
+    'label_phone_number': {
+      'English': 'Phone number',
+      'Arabic': 'رقم الهاتف',
+      'Hindi': 'फ़ोन नंबर',
+      'Urdu': 'فون نمبر',
+      'Malayalam': 'Phone number',
+      'Nepali': 'Phone number',
+      'Bengali': 'फ़ोन नंबर',
+      'Tamil': 'Phone number',
+      'Filipino': 'Phone number',
+    },
+    'title_welcome': {
+      'English': 'Welcome to Raabta',
+      'Arabic': 'مرحباً بك في رابطت',
+      'Hindi': 'Raabta mein aapka swagat hai',
+      'Urdu': 'Raabta mein khush amdeed',
+      'Malayalam': 'Welcome to Raabta',
+      'Nepali': 'Welcome to Raabta',
+      'Bengali': 'Raabta mein aapka swagat hai',
+      'Tamil': 'Welcome to Raabta',
+      'Filipino': 'Welcome to Raabta',
+    },
+    'subtitle_enter_number': {
+      'English': 'Enter your number to get started',
+      'Arabic': 'أدخل رقمك للبدء',
+      'Hindi': 'Shuru karne ke liye apna number darj karein',
+      'Urdu': 'Shuru karne ke liye apna number darj karein',
+      'Malayalam': 'Enter your number to get started',
+      'Nepali': 'Enter your number to get started',
+      'Bengali': 'Shuru karne ke liye apna number darj karein',
+      'Tamil': 'Enter your number to get started',
+      'Filipino': 'Enter your number to get started',
+    },
+    'label_sent_to': {
+      'English': 'Sent to',
+      'Arabic': 'أُرسل إلى',
+      'Hindi': 'Bheja gaya',
+      'Urdu': 'Bheja gaya',
+      'Malayalam': 'Sent to',
+      'Nepali': 'Sent to',
+      'Bengali': 'Bheja gaya',
+      'Tamil': 'Sent to',
+      'Filipino': 'Sent to',
+    },
+    'terms_agreement': {
+      'English': 'By continuing you agree to our Terms',
+      'Arabic': 'بالمتابعة فإنك توافق على شروطنا',
+      'Hindi': 'By continuing you agree to our Terms',
+      'Urdu': 'By continuing you agree to our Terms',
+      'Malayalam': 'By continuing you agree to our Terms',
+      'Nepali': 'By continuing you agree to our Terms',
+      'Bengali': 'By continuing you agree to our Terms',
+      'Tamil': 'By continuing you agree to our Terms',
+      'Filipino': 'By continuing you agree to our Terms',
+    },
+    'action_continue_without_signin': {
+      'English': 'Continue without signing in',
+      'Arabic': 'المتابعة دون تسجيل الدخول',
+      'Hindi': 'Continue without signing in',
+      'Urdu': 'Continue without signing in',
+      'Malayalam': 'Continue without signing in',
+      'Nepali': 'Continue without signing in',
+      'Bengali': 'Continue without signing in',
+      'Tamil': 'Continue without signing in',
+      'Filipino': 'Continue without signing in',
+    },
+    'success_setting_up': {
+      'English': 'Setting up your experience…',
+      'Arabic': 'جاري إعداد تجربتك…',
+      'Hindi': 'Setting up your experience…',
+      'Urdu': 'Setting up your experience…',
+      'Malayalam': 'Setting up your experience…',
+      'Nepali': 'Setting up your experience…',
+      'Bengali': 'Setting up your experience…',
+      'Tamil': 'Setting up your experience…',
+      'Filipino': 'Setting up your experience…',
+    },
+    'error_phone_required': {
+      'English': 'Please enter your phone number',
+      'Arabic': 'يرجى إدخال رقم هاتفك',
+      'Hindi': 'Apna phone number darj karein',
+      'Urdu': 'Apna phone number darj karein',
+      'Malayalam': 'Please enter your phone number',
+      'Nepali': 'Please enter your phone number',
+      'Bengali': 'Apna phone number darj karein',
+      'Tamil': 'Please enter your phone number',
+      'Filipino': 'Please enter your phone number',
+    },
+    'error_sign_in_retry': {
+      'English': 'Sign-in failed. Please try again.',
+      'Arabic': 'فشل تسجيل الدخول. حاول مرة أخرى.',
+      'Hindi': 'Sign-in failed. Please try again.',
+      'Urdu': 'Sign-in failed. Please try again.',
+      'Malayalam': 'Sign-in failed. Please try again.',
+      'Nepali': 'Sign-in failed. Please try again.',
+      'Bengali': 'Sign-in failed. Please try again.',
+      'Tamil': 'Sign-in failed. Please try again.',
+      'Filipino': 'Sign-in failed. Please try again.',
+    },
+    'error_verification_failed': {
+      'English': 'Verification failed. Check your number.',
+      'Arabic': 'فشل التحقق. تحقق من رقمك.',
+      'Hindi': 'Verification failed. Check your number.',
+      'Urdu': 'Verification failed. Check your number.',
+      'Malayalam': 'Verification failed. Check your number.',
+      'Nepali': 'Verification failed. Check your number.',
+      'Bengali': 'Verification failed. Check your number.',
+      'Tamil': 'Verification failed. Check your number.',
+      'Filipino': 'Verification failed. Check your number.',
+    },
+    'error_send_code_failed': {
+      'English': 'Could not send verification code. Please try again.',
+      'Arabic': 'تعذّر إرسال رمز التحقق. حاول مرة أخرى.',
+      'Hindi': 'Could not send verification code. Please try again.',
+      'Urdu': 'Could not send verification code. Please try again.',
+      'Malayalam': 'Could not send verification code. Please try again.',
+      'Nepali': 'Could not send verification code. Please try again.',
+      'Bengali': 'Could not send verification code. Please try again.',
+      'Tamil': 'Could not send verification code. Please try again.',
+      'Filipino': 'Could not send verification code. Please try again.',
+    },
+    'error_generic_retry': {
+      'English': 'Something went wrong. Try again.',
+      'Arabic': 'حدث خطأ. حاول مرة أخرى.',
+      'Hindi': 'Something went wrong. Try again.',
+      'Urdu': 'Something went wrong. Try again.',
+      'Malayalam': 'Something went wrong. Try again.',
+      'Nepali': 'Something went wrong. Try again.',
+      'Bengali': 'Something went wrong. Try again.',
+      'Tamil': 'Something went wrong. Try again.',
+      'Filipino': 'Something went wrong. Try again.',
+    },
+    'error_resend_retry': {
+      'English': 'Resend failed. Try again shortly.',
+      'Arabic': 'فشل إعادة الإرسال. حاول بعد قليل.',
+      'Hindi': 'Resend failed. Try again shortly.',
+      'Urdu': 'Resend failed. Try again shortly.',
+      'Malayalam': 'Resend failed. Try again shortly.',
+      'Nepali': 'Resend failed. Try again shortly.',
+      'Bengali': 'Resend failed. Try again shortly.',
+      'Tamil': 'Resend failed. Try again shortly.',
+      'Filipino': 'Resend failed. Try again shortly.',
+    },
+    'error_phone_auth_unsupported': {
+      'English':
+          'Phone sign-in is not available on this device. Continue without signing in or use a mobile build.',
+      'Arabic':
+          'تسجيل الدخول بالهاتف غير متاح على هذا الجهاز. تابع دون تسجيل أو استخدم نسخة الجوال.',
+      'Hindi': 'Phone sign-in is not available on this device.',
+      'Urdu': 'Phone sign-in is not available on this device.',
+      'Malayalam':
+          'Phone sign-in is not available on this device. Continue without signing in or use a mobile build.',
+      'Nepali':
+          'Phone sign-in is not available on this device. Continue without signing in or use a mobile build.',
+      'Bengali': 'Phone sign-in is not available on this device.',
+      'Tamil':
+          'Phone sign-in is not available on this device. Continue without signing in or use a mobile build.',
+      'Filipino':
+          'Phone sign-in is not available on this device. Continue without signing in or use a mobile build.',
+    },
+    'lang_screen_subtitle': {
+      'English': 'Select the language you prefer across Raabta',
+      'Arabic': 'اختر اللغة التي تفضلها في Raabta',
+      'Hindi': 'Raabta में अपनी पसंदीदा भाषा चुनें',
+      'Urdu': 'Raabta میں اپنی پسندیدہ زبان منتخب کریں',
+      'Malayalam': 'Select the language you prefer across Raabta',
+      'Nepali': 'Select the language you prefer across Raabta',
+      'Bengali': 'Raabta-তে আপনার পছন্দের ভাষা নির্বাচন করুন',
+      'Tamil': 'Raabta-வில் நீங்கள் விரும்பும் மொழியைத் தேர்ந்தெடுக்கவும்',
+      'Filipino': 'Piliin ang wikang gusto mo sa Raabta',
+    },
+    'lang_continue': {
+      'English': 'Continue',
+      'Arabic': 'متابعة',
+      'Hindi': 'जारी रखें',
+      'Urdu': 'جاری رکھیں',
+      'Malayalam': 'Continue',
+      'Nepali': 'Continue',
+      'Bengali': 'চালিয়ে যান',
+      'Tamil': 'தொடரவும்',
+      'Filipino': 'Magpatuloy',
+    },
+  };
+}

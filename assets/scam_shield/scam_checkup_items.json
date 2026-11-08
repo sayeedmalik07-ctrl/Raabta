@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "wa_silence_unknown_calls",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_silence_unknown_title",
+      "whyKey": "ss_checkup_wa_silence_unknown_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "wa_group_privacy",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_groups_title",
+      "whyKey": "ss_checkup_wa_groups_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "wa_two_step",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_2fa_title",
+      "whyKey": "ss_checkup_wa_2fa_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "wa_linked_devices",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_devices_title",
+      "whyKey": "ss_checkup_wa_devices_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "wa_profile_privacy",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_profile_title",
+      "whyKey": "ss_checkup_wa_profile_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "wa_screen_share",
+      "group": "whatsapp",
+      "platform": "both",
+      "titleKey": "ss_checkup_wa_screen_share_title",
+      "whyKey": "ss_checkup_wa_screen_share_why",
+      "stepKeys": [],
+      "deepLink": "none",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "phone_apps_official_stores",
+      "group": "phone",
+      "platform": "both",
+      "titleKey": "ss_checkup_phone_store_title",
+      "whyKey": "ss_checkup_phone_store_why",
+      "stepKeys": [],
+      "deepLink": "officialDirectory",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "phone_os_updates",
+      "group": "phone",
+      "platform": "both",
+      "titleKey": "ss_checkup_phone_updates_title",
+      "whyKey": "ss_checkup_phone_updates_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "phone_sim_pin",
+      "group": "phone",
+      "platform": "both",
+      "titleKey": "ss_checkup_phone_sim_pin_title",
+      "whyKey": "ss_checkup_phone_sim_pin_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "phone_screen_lock",
+      "group": "phone",
+      "platform": "both",
+      "titleKey": "ss_checkup_phone_lock_title",
+      "whyKey": "ss_checkup_phone_lock_why",
+      "stepKeys": [],
+      "deepLink": "openAppSettings",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "raabta_ios_sms_filter",
+      "group": "raabta",
+      "platform": "ios",
+      "titleKey": "ss_checkup_raabta_sms_title",
+      "whyKey": "ss_checkup_raabta_sms_why",
+      "stepKeys": [],
+      "deepLink": "smsFilterGuide",
+      "phase7StatusKey": "smsFilterUserConfirmed",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "raabta_android_call_screen",
+      "group": "raabta",
+      "platform": "android",
+      "titleKey": "ss_checkup_raabta_call_title",
+      "whyKey": "ss_checkup_raabta_call_why",
+      "stepKeys": [],
+      "deepLink": "callScreeningGuide",
+      "phase7StatusKey": "callScreeningActive",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "money_bank_alerts",
+      "group": "money",
+      "platform": "both",
+      "titleKey": "ss_checkup_money_alerts_title",
+      "whyKey": "ss_checkup_money_alerts_why",
+      "stepKeys": [],
+      "deepLink": "none",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "money_transfer_limits",
+      "group": "money",
+      "platform": "both",
+      "titleKey": "ss_checkup_money_limits_title",
+      "whyKey": "ss_checkup_money_limits_why",
+      "stepKeys": [],
+      "deepLink": "none",
+      "lastVerified": null,
+      "verified": false
+    },
+    {
+      "id": "raabta_my_providers",
+      "group": "raabta",
+      "platform": "both",
+      "titleKey": "ss_checkup_my_providers_title",
+      "whyKey": "ss_checkup_my_providers_why",
+      "stepKeys": ["ss_checkup_my_providers_step1"],
+      "deepLink": "personalContextSettings",
+      "lastVerified": "2026-10-18",
+      "verified": true
+    }
+  ]
+}

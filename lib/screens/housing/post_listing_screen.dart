@@ -4,8 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:raabta/config/monetization_state.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/providers/auth_providers.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/housing/l10n/housing_strings.dart';
+import 'package:raabta/screens/housing/post_listing_validation.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/mixins/draft_persistence_mixin.dart';
+import 'package:raabta/services/drafts/draft_box_keys.dart';
+import 'package:raabta/services/drafts/draft_service.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/core/widgets/glass_settings_tile.dart';
 import 'package:raabta/models/housing_models.dart';
 import 'package:raabta/providers/housing_providers.dart';
+import 'package:raabta/screens/monetization/boost_listing_screen.dart';
 import 'package:raabta/services/firebase_service.dart';
 import 'package:raabta/services/housing_firestore_service.dart';
 import 'package:raabta/services/listings_api_service.dart';
@@ -17,12 +35,8 @@ class PostListingScreen extends ConsumerStatefulWidget {
   ConsumerState<PostListingScreen> createState() => _PostListingScreenState();
 }
 
-class _PostListingScreenState extends ConsumerState<PostListingScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
+class _PostListingScreenState extends ConsumerState<PostListingScreen>
+    with DraftPersistenceMixin {
   static const List<String> _amenityOptions = [
     'WiFi',
     'AC',
@@ -36,8 +50,6 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
 
   int _step = 0;
   bool _isSubmitting = false;
-  bool _isPremiumUser = false;
-  bool _featured = false;
 
   final List<File> _photoFiles = [];
   final List<String> _uploadedPhotoUrls = [];
@@ -60,7 +72,86 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   final Set<String> _selectedAmenities = {'WiFi', 'AC'};
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await setupDraftPersistence(
+        formId: DraftBoxKeys.housingPostListing,
+        controllers: [
+          _titleController,
+          _priceController,
+          _descriptionController,
+          _bedroomsController,
+          _bathroomsController,
+          _whatsappController,
+          _phoneController,
+          _contactNameController,
+        ],
+        serialize: _serializeDraft,
+        applyDraft: _applyDraft,
+      );
+    });
+  }
+
+  Map<String, dynamic> _serializeDraft() => {
+        'step': _step,
+        'title': _titleController.text,
+        'price': _priceController.text,
+        'description': _descriptionController.text,
+        'bedrooms': _bedroomsController.text,
+        'bathrooms': _bathroomsController.text,
+        'whatsapp': _whatsappController.text,
+        'phone': _phoneController.text,
+        'contactName': _contactNameController.text,
+        'type': _type.name,
+        'furnished': _furnished,
+        'area': _area,
+        'gender': _gender.name,
+        'nationality': _nationality.name,
+        'amenities': _selectedAmenities.toList(),
+        'photoPaths': _photoFiles.map((f) => f.path).toList(),
+      };
+
+  void _applyDraft(Map<String, dynamic> data) {
+    _step = data['step'] as int? ?? _step;
+    _titleController.text = data['title']?.toString() ?? '';
+    _priceController.text = data['price']?.toString() ?? '';
+    _descriptionController.text = data['description']?.toString() ?? '';
+    _bedroomsController.text = data['bedrooms']?.toString() ?? '1';
+    _bathroomsController.text = data['bathrooms']?.toString() ?? '1';
+    _whatsappController.text = data['whatsapp']?.toString() ?? '';
+    _phoneController.text = data['phone']?.toString() ?? '';
+    _contactNameController.text = data['contactName']?.toString() ?? '';
+    _type = ListingType.values.byName(
+      data['type']?.toString() ?? ListingType.room.name,
+    );
+    _furnished = data['furnished'] != false;
+    _area = data['area']?.toString() ?? qatarAreas.first;
+    _gender = GenderPreference.values.byName(
+      data['gender']?.toString() ?? GenderPreference.any.name,
+    );
+    _nationality = NationalityPreference.values.byName(
+      data['nationality']?.toString() ?? NationalityPreference.any.name,
+    );
+    _selectedAmenities
+      ..clear()
+      ..addAll(
+        (data['amenities'] as List<dynamic>? ?? const ['WiFi', 'AC'])
+            .map((e) => e.toString()),
+      );
+    _photoFiles
+      ..clear()
+      ..addAll(
+        DraftService.filterExistingPaths(data['photoPaths'] as List?)
+            .map(File.new),
+      );
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    disposeDraftMixin();
     _titleController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
@@ -75,14 +166,33 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   InputDecoration _decoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: _subtitleColor),
-      filled: true,
-      fillColor: _surfaceColor,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+      hintStyle: AppTypography.body.copyWith(color: AppColors.textTertiary),
+      border: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  Widget _glassField({
+    required TextEditingController controller,
+    required String hint,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return GlassContainer(
+      padding: EdgeInsets.zero,
+      borderRadius: AppSpacing.radiusSm,
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        style: AppTypography.body.copyWith(color: AppColors.textPrimary),
+        decoration: _decoration(hint),
+      ),
     );
   }
 
@@ -101,59 +211,39 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
     }
   }
 
-  String? _validateStep(int step) {
-    switch (step) {
-      case 0:
-        if (_photoFiles.isEmpty) return 'Add at least one photo';
-        return null;
-      case 1:
-        if (_titleController.text.trim().length < 5) {
-          return 'Title must be at least 5 characters';
-        }
-        final price = int.tryParse(_priceController.text.trim());
-        if (price == null || price < 500 || price > 20000) {
-          return 'Enter a valid price (500–20,000 QR)';
-        }
-        if (_descriptionController.text.trim().length < 20) {
-          return 'Description must be at least 20 characters';
-        }
-        return null;
-      case 2:
-        return null;
-      case 3:
-        if (_whatsappController.text.trim().length < 8) {
-          return 'Enter a valid WhatsApp number';
-        }
-        if (_contactNameController.text.trim().isEmpty) {
-          return 'Enter contact name';
-        }
-        return null;
-      default:
-        return null;
-    }
+  String? _validateStep(int step, String locale) {
+    return validatePostListingStep(
+      step: step,
+      locale: locale,
+      input: PostListingStepInput(
+        photoCount: _photoFiles.length,
+        title: _titleController.text,
+        priceText: _priceController.text,
+        description: _descriptionController.text,
+        whatsapp: _whatsappController.text,
+        contactName: _contactNameController.text,
+      ),
+    );
   }
 
-  Future<List<String>> _uploadPhotos() async {
+  Future<List<String>> _uploadPhotos({required String listingId}) async {
     if (_uploadedPhotoUrls.isNotEmpty) return _uploadedPhotoUrls;
 
     final urls = <String>[];
     final api = ref.read(listingsApiServiceProvider);
     final storage = HousingFirestoreService();
-    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
 
     for (final file in _photoFiles) {
       try {
         if (FirebaseService.isReady) {
-          final url = await storage.uploadPhoto(file, listingId: tempId);
+          final url = await storage.uploadPhoto(file, listingId: listingId);
           urls.add(url);
         } else {
           final url = await api.uploadPhoto(file);
           urls.add(url);
         }
       } catch (_) {
-        urls.add(
-          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=${urls.length}',
-        );
+        // Skip failed uploads — never substitute placeholder URLs.
       }
     }
 
@@ -162,10 +252,22 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Future<void> _submit() async {
+    // Snapshot at submit tap — snackbars/errors stay in the language active when posted.
+    final locale = ref.read(userLanguageProvider);
+    if (FirebaseService.isReady && ref.read(currentUserProvider) == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(HousingStrings.t('error_sign_in_required', locale)),
+        ),
+      );
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      final photoUrls = await _uploadPhotos();
       final request = CreateListingRequest(
         title: _titleController.text.trim(),
         area: _area,
@@ -174,7 +276,7 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
         furnished: _furnished,
         bedrooms: int.tryParse(_bedroomsController.text.trim()) ?? 1,
         bathrooms: int.tryParse(_bathroomsController.text.trim()) ?? 1,
-        photoUrls: photoUrls,
+        photoUrls: const [],
         description: _descriptionController.text.trim(),
         amenities: _selectedAmenities.toList(),
         genderPreference: _gender,
@@ -184,12 +286,20 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
             ? '+${_whatsappController.text.trim()}'
             : _phoneController.text.trim(),
         contactName: _contactNameController.text.trim(),
-        featured: _featured,
-        isPremiumUser: _isPremiumUser,
+        featured: false,
+        isPremiumUser: false,
       );
 
       final listing =
           await ref.read(housingRepositoryProvider).createListing(request);
+
+      final photoUrls =
+          await _uploadPhotos(listingId: listing.id);
+      if (photoUrls.isNotEmpty) {
+        await ref
+            .read(housingRepositoryProvider)
+            .attachPhotos(listing.id, photoUrls);
+      }
 
       try {
         final scan = await ref.read(housingRepositoryProvider).scanListingScam(
@@ -200,8 +310,11 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '⚠️ AI flagged possible scam (${scan.scamScore}/100). '
-                'Our team will review your listing.',
+                HousingStrings.format(
+                  'scam_review_notice',
+                  locale,
+                  params: {'score': '${scan.scamScore}'},
+                ),
               ),
               backgroundColor: const Color(0xFFEF4444),
             ),
@@ -213,15 +326,47 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
 
       ref.invalidate(housingListingsProvider);
 
+      await clearFormDraft();
+
       if (!mounted) return;
+      final photosFailed = _photoFiles.isNotEmpty &&
+          photoUrls.length < _photoFiles.length;
+      if (photosFailed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              HousingStrings.t('photos_upload_warning', locale),
+            ),
+          ),
+        );
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             listing.status == ListingStatus.pending
-                ? 'Listing submitted! Status: Pending admin approval.'
-                : 'Listing published successfully!',
+                ? HousingStrings.t('success_listing_pending', locale)
+                : HousingStrings.t('success_listing_published', locale),
           ),
           backgroundColor: const Color(0xFF22C55E),
+          action: MonetizationState.showPremiumTierUi
+              ? SnackBarAction(
+                  label: HousingStrings.t('promote_snackbar_action', locale),
+                  textColor: Colors.black,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        fullscreenDialog: true,
+                        builder: (_) => BoostListingScreen(
+                          listingTitle: listing.title,
+                          currentViews: 0,
+                          currentContacts: 0,
+                          listingId: listing.id,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : null,
         ),
       );
       Navigator.of(context).pop();
@@ -233,7 +378,15 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit: $e')),
+        SnackBar(
+          content: Text(
+            HousingStrings.format(
+              'submit_failed',
+              locale,
+              params: {'error': '$e'},
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -241,13 +394,16 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   void _nextStep() {
-    final error = _validateStep(_step);
+    // Snapshot at step advance — validation message matches locale when user tapped Next.
+    final locale = ref.read(userLanguageProvider);
+    final error = _validateStep(_step, locale);
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     if (_step < 5) {
       setState(() => _step++);
+      notifyDraftChanged();
     } else {
       _submit();
     }
@@ -255,36 +411,52 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const stepTitles = [
-      'Photos',
-      'Details',
-      'Location',
-      'Contact',
-      'Preview',
-      'Submit',
+    final locale = ref.watch(userLanguageProvider);
+    final stepTitles = [
+      HousingStrings.t('step_photos', locale),
+      HousingStrings.t('step_details', locale),
+      HousingStrings.t('step_location', locale),
+      HousingStrings.t('step_contact', locale),
+      HousingStrings.t('step_preview', locale),
+      HousingStrings.t('step_submit', locale),
     ];
 
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        backgroundColor: _backgroundColor,
-        foregroundColor: Colors.white,
-        title: const Text('Post Listing'),
-        elevation: 0,
+    return GlassScreenScaffold(
+      title: HousingStrings.t('post_listing_title', locale),
+      leading: GlassIconButton(
+        icon: Icons.arrow_back_ios_rounded,
+        tooltip: CommonActionStrings.t('action_back', locale),
+        onPressed: () => Navigator.of(context).pop(),
       ),
+      safeArea: false,
       body: Column(
         children: [
+          if (draftRestoreBanner != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                0,
+              ),
+              child: draftRestoreBanner!,
+            ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
             child: Row(
               children: List.generate(stepTitles.length, (index) {
                 final active = index <= _step;
                 return Expanded(
                   child: Container(
                     height: 4,
-                    margin: EdgeInsets.only(right: index < 5 ? 4 : 0),
+                    margin: EdgeInsets.only(right: index < 5 ? AppSpacing.xs : 0),
                     decoration: BoxDecoration(
-                      color: active ? _cyanColor : const Color(0xFF1A2535),
+                      color: active
+                          ? AppColors.cyanGlow
+                          : AppColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -293,52 +465,60 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Step ${_step + 1}: ${stepTitles[_step]}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                HousingStrings.format(
+                  'step_label',
+                  locale,
+                  params: {
+                    'step': '${_step + 1}',
+                    'title': stepTitles[_step],
+                  },
                 ),
+                style: AppTypography.title,
               ),
             ),
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: _buildStepContent(),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Row(
               children: [
                 if (_step > 0)
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: _isSubmitting
+                    child: GlassCard(
+                      onTap: _isSubmitting
                           ? null
                           : () => setState(() => _step--),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF1A2535)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
                       ),
-                      child: const Text('Back'),
+                      borderRadius: AppSpacing.radiusSm,
+                      child: Text(
+                        CommonActionStrings.t('action_back', locale),
+                        style: AppTypography.button,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                if (_step > 0) const SizedBox(width: 12),
+                if (_step > 0) const SizedBox(width: AppSpacing.md),
                 Expanded(
                   flex: 2,
-                  child: FilledButton(
-                    onPressed: _isSubmitting ? null : _nextStep,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _cyanColor,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: GlassCard(
+                    onTap: _isSubmitting ? null : _nextStep,
+                    glowColor: AppColors.cyanGlow,
+                    glowIntensity: 0.25,
+                    backgroundColor: AppColors.cyanGlow,
+                    borderRadius: AppSpacing.radiusSm,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
@@ -347,8 +527,14 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            _step == 5 ? 'Submit Listing' : 'Continue',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            _step == 5
+                                ? HousingStrings.t('submit_listing', locale)
+                                : HousingStrings.t('action_continue', locale),
+                            style: AppTypography.button.copyWith(
+                              color: AppColors.background,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                   ),
                 ),
@@ -380,51 +566,60 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Widget _buildPhotosStep() {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Add photos of your property',
-          style: TextStyle(color: _subtitleColor),
+        Text(
+          HousingStrings.t('photos_add_title', locale),
+          style: AppTypography.body,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _pickPhotos(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Gallery'),
-                style: OutlinedButton.styleFrom(foregroundColor: _cyanColor),
+              child: GlassCard(
+                onTap: () => _pickPhotos(ImageSource.gallery),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                borderRadius: AppSpacing.radiusSm,
+                glowColor: AppColors.cyanGlow,
+                glowIntensity: 0.15,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.photo_library, color: AppColors.cyanGlow),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(HousingStrings.t('photos_gallery', locale), style: AppTypography.link),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _pickPhotos(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Camera'),
-                style: OutlinedButton.styleFrom(foregroundColor: _cyanColor),
+              child: GlassCard(
+                onTap: () => _pickPhotos(ImageSource.camera),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                borderRadius: AppSpacing.radiusSm,
+                glowColor: AppColors.cyanGlow,
+                glowIntensity: 0.15,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.camera_alt, color: AppColors.cyanGlow),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(HousingStrings.t('photos_camera', locale), style: AppTypography.link),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         if (_photoFiles.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: _surfaceColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Column(
-              children: [
-                Icon(Icons.add_photo_alternate, color: _subtitleColor, size: 48),
-                SizedBox(height: 8),
-                Text('No photos yet', style: TextStyle(color: _subtitleColor)),
-              ],
-            ),
+          GlassEmptyState(
+            icon: Icons.add_photo_alternate_outlined,
+            title: HousingStrings.t('photos_empty_title', locale),
+            description: HousingStrings.t('photos_empty_body', locale),
           )
         else
           GridView.builder(
@@ -468,34 +663,35 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Widget _buildDetailsStep() {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
+        _glassField(
           controller: _titleController,
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('Listing title'),
+          hint: HousingStrings.t('field_listing_title', locale),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: AppSpacing.md),
+        _glassField(
           controller: _priceController,
+          hint: HousingStrings.t('field_price_month', locale),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('Price per month (QR)'),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: AppSpacing.md),
+        _glassField(
           controller: _descriptionController,
+          hint: HousingStrings.t('field_description', locale),
           maxLines: 4,
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('Full description'),
         ),
-        const SizedBox(height: 16),
-        const Text('Property type', style: TextStyle(color: _subtitleColor)),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          HousingStrings.t('label_property_type', locale),
+          style: AppTypography.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 8,
+          spacing: AppSpacing.sm,
           children: [
             ListingType.room,
             ListingType.flat,
@@ -503,68 +699,90 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
             ListingType.studio,
           ].map((t) {
             final selected = _type == t;
-            return ChoiceChip(
-              label: Text(t.name[0].toUpperCase() + t.name.substring(1)),
-              selected: selected,
-              onSelected: (_) => setState(() => _type = t),
-              selectedColor: _cyanColor.withValues(alpha: 0.2),
-              labelStyle: TextStyle(color: selected ? _cyanColor : _subtitleColor),
+            return GlassCard(
+              onTap: () => setState(() => _type = t),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              borderRadius: AppSpacing.radiusFull,
+              glowColor: selected ? AppColors.cyanGlow : null,
+              glowIntensity: selected ? 0.2 : 0,
+              child: Text(
+                HousingStrings.listingTypeLabel(t, locale)[0].toUpperCase() +
+                    HousingStrings.listingTypeLabel(t, locale).substring(1),
+                style: AppTypography.chipLabel.copyWith(
+                  color: selected
+                      ? AppColors.cyanGlow
+                      : AppColors.textSecondary,
+                ),
+              ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 12),
-        SwitchListTile(
+        const SizedBox(height: AppSpacing.md),
+        GlassSwitchTile(
+          title: HousingStrings.t('label_furnished', locale),
           value: _furnished,
           onChanged: (v) => setState(() => _furnished = v),
-          title: const Text('Furnished', style: TextStyle(color: Colors.white)),
-          activeThumbColor: _cyanColor,
-          contentPadding: EdgeInsets.zero,
         ),
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: _glassField(
                 controller: _bedroomsController,
+                hint: HousingStrings.t('field_bedrooms', locale),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(color: Colors.white),
-                decoration: _decoration('Bedrooms'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: TextField(
+              child: _glassField(
                 controller: _bathroomsController,
+                hint: HousingStrings.t('field_bathrooms', locale),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(color: Colors.white),
-                decoration: _decoration('Bathrooms'),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        const Text('Amenities', style: TextStyle(color: _subtitleColor)),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          HousingStrings.t('label_amenities_post', locale),
+          style: AppTypography.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: _amenityOptions.map((a) {
             final selected = _selectedAmenities.contains(a);
-            return FilterChip(
-              label: Text(a),
-              selected: selected,
-              onSelected: (v) {
+            return GlassCard(
+              onTap: () {
                 setState(() {
-                  if (v) {
-                    _selectedAmenities.add(a);
-                  } else {
+                  if (selected) {
                     _selectedAmenities.remove(a);
+                  } else {
+                    _selectedAmenities.add(a);
                   }
                 });
               },
-              selectedColor: _cyanColor.withValues(alpha: 0.2),
-              labelStyle: TextStyle(color: selected ? _cyanColor : _subtitleColor),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              borderRadius: AppSpacing.radiusFull,
+              glowColor: selected ? AppColors.cyanGlow : null,
+              glowIntensity: selected ? 0.2 : 0,
+              child: Text(
+                a,
+                style: AppTypography.chipLabel.copyWith(
+                  color: selected
+                      ? AppColors.cyanGlow
+                      : AppColors.textSecondary,
+                ),
+              ),
             );
           }).toList(),
         ),
@@ -573,58 +791,99 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Widget _buildLocationStep() {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select area (exact address hidden for safety)',
-          style: TextStyle(color: _subtitleColor),
+        Text(
+          HousingStrings.t('location_step_hint', locale),
+          style: AppTypography.body,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         ...qatarAreas.map((area) {
           final selected = _area == area;
-          return ListTile(
-            title: Text(area, style: const TextStyle(color: Colors.white)),
-            leading: Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: selected ? _cyanColor : _subtitleColor,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: GlassCard(
+              onTap: () => setState(() => _area = area),
+              glowColor: selected ? AppColors.cyanGlow : null,
+              glowIntensity: selected ? 0.15 : 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                    color: selected ? AppColors.cyanGlow : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(area, style: AppTypography.subtitle.copyWith(
+                    color: AppColors.textPrimary,
+                  )),
+                ],
+              ),
             ),
-            tileColor:
-                selected ? _cyanColor.withValues(alpha: 0.08) : _surfaceColor,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            onTap: () => setState(() => _area = area),
           );
         }),
-        const SizedBox(height: 16),
-        const Text('Gender preference', style: TextStyle(color: _subtitleColor)),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          HousingStrings.t('gender_preference', locale),
+          style: AppTypography.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 8,
+          spacing: AppSpacing.sm,
           children: GenderPreference.values.map((g) {
             final selected = _gender == g;
-            return ChoiceChip(
-              label: Text(genderLabel(g)),
-              selected: selected,
-              onSelected: (_) => setState(() => _gender = g),
-              selectedColor: _cyanColor.withValues(alpha: 0.2),
-              labelStyle: TextStyle(color: selected ? _cyanColor : _subtitleColor),
+            return GlassCard(
+              onTap: () => setState(() => _gender = g),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              borderRadius: AppSpacing.radiusFull,
+              glowColor: selected ? AppColors.cyanGlow : null,
+              glowIntensity: selected ? 0.2 : 0,
+              child: Text(
+                HousingStrings.genderLabel(g, locale),
+                style: AppTypography.chipLabel.copyWith(
+                  color: selected
+                      ? AppColors.cyanGlow
+                      : AppColors.textSecondary,
+                ),
+              ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 12),
-        const Text('Nationality preference', style: TextStyle(color: _subtitleColor)),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          HousingStrings.t('nationality_preference', locale),
+          style: AppTypography.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 8,
+          spacing: AppSpacing.sm,
           children: NationalityPreference.values.map((n) {
             final selected = _nationality == n;
-            return ChoiceChip(
-              label: Text(nationalityLabel(n)),
-              selected: selected,
-              onSelected: (_) => setState(() => _nationality = n),
-              selectedColor: _cyanColor.withValues(alpha: 0.2),
-              labelStyle: TextStyle(color: selected ? _cyanColor : _subtitleColor),
+            return GlassCard(
+              onTap: () => setState(() => _nationality = n),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              borderRadius: AppSpacing.radiusFull,
+              glowColor: selected ? AppColors.cyanGlow : null,
+              glowIntensity: selected ? 0.2 : 0,
+              child: Text(
+                HousingStrings.nationalityLabel(n, locale),
+                style: AppTypography.chipLabel.copyWith(
+                  color: selected
+                      ? AppColors.cyanGlow
+                      : AppColors.textSecondary,
+                ),
+              ),
             );
           }).toList(),
         ),
@@ -633,44 +892,39 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Widget _buildContactStep() {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       children: [
-        TextField(
+        _glassField(
           controller: _contactNameController,
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('Contact name'),
+          hint: HousingStrings.t('field_contact_name', locale),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: AppSpacing.md),
+        _glassField(
           controller: _whatsappController,
+          hint: HousingStrings.t('field_whatsapp', locale),
           keyboardType: TextInputType.phone,
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('WhatsApp number (e.g. 97455123456)'),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: AppSpacing.md),
+        _glassField(
           controller: _phoneController,
+          hint: HousingStrings.t('field_phone_optional', locale),
           keyboardType: TextInputType.phone,
-          style: const TextStyle(color: Colors.white),
-          decoration: _decoration('Phone number (optional)'),
         ),
       ],
     );
   }
 
   Widget _buildPreviewStep() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
+    final locale = ref.watch(userLanguageProvider);
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_photoFiles.isNotEmpty)
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               child: Image.file(
                 _photoFiles.first,
                 height: 160,
@@ -678,27 +932,34 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
                 fit: BoxFit.cover,
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
+          Text(_titleController.text, style: AppTypography.title),
+          const SizedBox(height: AppSpacing.xs),
+          Text('📍 $_area', style: AppTypography.body),
           Text(
-            _titleController.text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
+            HousingStrings.format(
+              'preview_price_month',
+              locale,
+              params: {'price': _priceController.text},
+            ),
+            style: AppTypography.subtitle.copyWith(
+              color: AppColors.cyanGlow,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-          Text('📍 $_area', style: const TextStyle(color: _subtitleColor)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(_descriptionController.text, style: AppTypography.body),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            '${_priceController.text} QR/month',
-            style: const TextStyle(color: _cyanColor, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(_descriptionController.text, style: const TextStyle(color: _subtitleColor)),
-          const SizedBox(height: 8),
-          Text(
-            'Contact: ${_contactNameController.text} · WhatsApp: ${_whatsappController.text}',
-            style: const TextStyle(color: _subtitleColor, fontSize: 13),
+            HousingStrings.format(
+              'preview_contact',
+              locale,
+              params: {
+                'name': _contactNameController.text,
+                'phone': _whatsappController.text,
+              },
+            ),
+            style: AppTypography.bodySmall,
           ),
         ],
       ),
@@ -706,58 +967,34 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Widget _buildSubmitStep() {
+    final locale = ref.watch(userLanguageProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-          ),
-          child: const Row(
+        GlassContainer(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          borderRadius: AppSpacing.radiusSm,
+          glowColor: AppColors.warning,
+          glowIntensity: 0.12,
+          child: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.amber),
-              SizedBox(width: 12),
+              Icon(Icons.info_outline, color: AppColors.warning),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  'Your listing will show as "Pending" until approved by our admin team.',
-                  style: TextStyle(color: Colors.amber, fontSize: 13),
+                  HousingStrings.t('submit_pending_notice', locale),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.warning,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        SwitchListTile(
-          value: _isPremiumUser,
-          onChanged: (v) => setState(() {
-            _isPremiumUser = v;
-            if (!v) _featured = false;
-          }),
-          title: const Text('Premium user', style: TextStyle(color: Colors.white)),
-          subtitle: const Text(
-            'Enable to mark listing as Featured (paid)',
-            style: TextStyle(color: _subtitleColor, fontSize: 12),
-          ),
-          activeThumbColor: _cyanColor,
-        ),
-        if (_isPremiumUser)
-          SwitchListTile(
-            value: _featured,
-            onChanged: (v) => setState(() => _featured = v),
-            title: const Text('Featured listing', style: TextStyle(color: Colors.white)),
-            subtitle: const Text(
-              'Boost visibility at top of search results',
-              style: TextStyle(color: _subtitleColor, fontSize: 12),
-            ),
-            activeThumbColor: _cyanColor,
-          ),
-        const SizedBox(height: 12),
-        const Text(
-          'By submitting, you agree to Raabta\'s housing guidelines and moderation policy.',
-          style: TextStyle(color: _subtitleColor, fontSize: 12),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          HousingStrings.t('submit_agreement', locale),
+          style: AppTypography.caption,
         ),
       ],
     );

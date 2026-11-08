@@ -1,356 +1,173 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
-import 'package:raabta/core/widgets/section_header.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/core/constants/strings/business_strings.dart';
+import 'package:raabta/core/constants/strings/common_strings.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/animated_background.dart';
+import 'package:raabta/core/widgets/classifieds_host_notice.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/glass_primary_button.dart';
+import 'package:raabta/features/post_engine/domain/post_engine.dart';
+import 'package:raabta/data/categories/business_categories.dart';
+import 'package:raabta/data/models/business_listing.dart';
+import 'package:raabta/core/widgets/qr_share_sheet.dart';
+import 'package:raabta/services/qr/listing_deep_links.dart';
+import 'package:raabta/features/home/widgets/status_badge.dart';
+import 'package:raabta/core/utils/profile_display_helper.dart';
+import 'package:raabta/features/business/domain/business_structured_contact_eligibility.dart';
+import 'package:raabta/providers/business_providers.dart';
+import 'package:raabta/providers/compliance_flags_provider.dart';
+import 'package:raabta/models/admin_report_model.dart';
+import 'package:raabta/services/ai/business_recommendation_service.dart';
+import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/services/report_service.dart';
+import 'package:raabta/features/global_search/domain/search_route_parameters.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_criteria.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_vertical.dart';
+import 'package:raabta/features/saved_search/presentation/widgets/save_search_button.dart';
+import 'package:raabta/screens/businesses/l10n/businesses_strings.dart';
+import 'package:raabta/screens/businesses/widgets/business_listing_trust_section.dart';
+import 'package:raabta/config/compliance_flags_gate.dart';
 import 'package:raabta/screens/monetization/business_advertise_screen.dart';
-import 'package:raabta/widgets/ai/business_recommendation_tag.dart';
+import 'package:raabta/features/business/domain/business_contact_mode.dart';
+import 'package:raabta/features/business/presentation/widgets/business_structured_owner_panel.dart';
+import 'package:raabta/providers/auth_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:raabta/features/link_safety/link_safety_models.dart';
+import 'package:raabta/features/link_safety/presentation/user_generated_text_with_link_safety.dart';
+import 'package:raabta/core/widgets/hub/hub_advanced_filter_toggle.dart';
+import 'package:raabta/core/widgets/hub/hub_business_card.dart';
+import 'package:raabta/core/widgets/hub/hub_zero_result_recovery_strip.dart';
+import 'package:raabta/screens/businesses/widgets/business_hub_picker_sheets.dart';
+import 'package:raabta/screens/businesses/widgets/business_listing_detail_sheet_scaffold.dart';
+import 'package:raabta/core/widgets/hub/hub_feed_footer_notice.dart';
+import 'package:raabta/core/widgets/hub/hub_filter_chip.dart';
+import 'package:raabta/core/widgets/hub/hub_landing_header.dart';
+import 'package:raabta/core/widgets/hub/hub_layout_tokens.dart';
+import 'package:raabta/core/widgets/hub/hub_loading_placeholder.dart';
+import 'package:raabta/core/widgets/hub/hub_quick_action_tile.dart';
+import 'package:raabta/core/widgets/hub/hub_search_decoration.dart';
+import 'package:raabta/core/widgets/hub/hub_summary_strip_card.dart';
+import 'package:raabta/features/saved_search/l10n/saved_search_strings.dart';
+import 'package:raabta/features/saved_search/providers/saved_search_providers.dart';
+import 'package:raabta/screens/businesses/business_hub_completeness.dart';
 
-Map<String, dynamic> businessListingToMatchData(BusinessListing business) {
-  return {
-    'id': business.id,
-    'name': business.name,
-    'category': business.category,
-    'cuisine': business.cuisine ?? business.speciality,
-    'location': business.location,
-    'area': business.location,
-    'rating': business.rating,
-    'languages': business.languages,
-    'weeklyViews': business.weeklyViews,
-    'viewCount': business.weeklyViews,
-  };
-}
-
-enum BusinessVerificationLevel { raabtaVerified, communityVerified, listed }
-
-class TrustScoreBreakdown {
-  const TrustScoreBreakdown({
-    required this.total,
-    required this.reviewsScore,
-    required this.ratingScore,
-    required this.activityScore,
-    required this.level,
+class BusinessesScreen extends ConsumerStatefulWidget {
+  const BusinessesScreen({
+    super.key,
+    this.initialTagFilter,
+    this.routeParameters,
+    this.initialListingId,
   });
 
-  final int total;
-  final int reviewsScore;
-  final int ratingScore;
-  final int activityScore;
-  final BusinessVerificationLevel level;
-}
+  /// When set (e.g. `ramadan_iftar`), opens with that tag filter active.
+  final String? initialTagFilter;
 
-class BusinessListing {
-  const BusinessListing({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.emoji,
-    required this.rating,
-    required this.reviewCount,
-    required this.location,
-    required this.speciality,
-    required this.trustScore,
-    required this.phone,
-    this.cuisine,
-    this.openNow = true,
-    this.closingTime,
-    this.languages = const [],
-    this.whatsapp,
-    this.yearsActive = 1,
-    this.hasReports = false,
-    this.description,
-    this.photoCount = 0,
-    this.weeklyViews = 0,
-    this.latestReview,
-    this.isFeatured = false,
-  });
+  /// S4 structured search route parameters.
+  final SearchRouteParameters? routeParameters;
 
-  final String id;
-  final String name;
-  final String category;
-  final String emoji;
-  final double rating;
-  final int reviewCount;
-  final String location;
-  final String speciality;
-  final int trustScore;
-  final String phone;
-  final String? cuisine;
-  final bool openNow;
-  final String? closingTime;
-  final List<String> languages;
-  final String? whatsapp;
-  final int yearsActive;
-  final bool hasReports;
-  final String? description;
-  final int photoCount;
-  final int weeklyViews;
-  final String? latestReview;
-  final bool isFeatured;
-
-  bool get hasWhatsApp => whatsapp != null && whatsapp!.trim().isNotEmpty;
-
-  String get searchableText =>
-      '$name $category ${cuisine ?? ''} $location $speciality ${languages.join(' ')}'
-          .toLowerCase();
-
-  bool get isInAlKhor => location.toLowerCase().contains('al khor');
-}
-
-TrustScoreBreakdown getTrustScore(BusinessListing business) {
-  final reviewsScore = (business.reviewCount / 3).clamp(0, 35).round();
-  final ratingScore = ((business.rating / 5) * 35).round();
-  final activityScore = (business.yearsActive * 6).clamp(0, 30).round();
-  final computedTotal = (reviewsScore + ratingScore + activityScore).clamp(0, 100);
-
-  BusinessVerificationLevel level;
-  if (business.reviewCount > 50 &&
-      business.rating >= 4.5 &&
-      business.yearsActive >= 2 &&
-      business.hasWhatsApp &&
-      !business.hasReports) {
-    level = BusinessVerificationLevel.raabtaVerified;
-  } else if (business.reviewCount > 20 &&
-      business.rating >= 4.0 &&
-      !business.hasReports) {
-    level = BusinessVerificationLevel.communityVerified;
-  } else {
-    level = BusinessVerificationLevel.listed;
-  }
-
-  return TrustScoreBreakdown(
-    total: business.trustScore > 0 ? business.trustScore : computedTotal,
-    reviewsScore: reviewsScore,
-    ratingScore: ratingScore,
-    activityScore: activityScore,
-    level: level,
-  );
-}
-
-class BusinessesScreen extends StatefulWidget {
-  const BusinessesScreen({super.key});
+  /// Deep link: `/businesses?listingId=...` opens this listing's detail sheet.
+  final String? initialListingId;
 
   @override
-  State<BusinessesScreen> createState() => _BusinessesScreenState();
+  ConsumerState<BusinessesScreen> createState() => _BusinessesScreenState();
 }
 
-class _BusinessesScreenState extends State<BusinessesScreen> {
+class _BusinessesScreenState extends ConsumerState<BusinessesScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _selectedCategory = 0;
+  String? _areaFilter;
+  bool _openNowOnly = false;
+  bool _handledInitialListingDeepLink = false;
+  String? _areaFilterBeforeRelax;
+  bool _showAreaRelaxRecovery = false;
 
-  static const List<({String label, String emoji, String? filter})> _categories =
-      [
-    (label: 'All', emoji: '🔍', filter: null),
-    (label: 'Restaurants', emoji: '🍛', filter: 'Restaurant'),
-    (label: 'Salons', emoji: '✂️', filter: 'Salon'),
-    (label: 'Gyms', emoji: '🏋️', filter: 'Gym'),
-    (label: 'Clinics', emoji: '🏥', filter: 'Clinic'),
-    (label: 'AC & Repair', emoji: '🔧', filter: 'AC & Repair'),
-    (label: 'Grocery', emoji: '🛒', filter: 'Grocery'),
-    (label: 'Travel', emoji: '✈️', filter: 'Travel'),
-    (label: 'PRO Services', emoji: '📋', filter: 'PRO Services'),
-  ];
-
-  static const List<BusinessListing> _allBusinesses = [
-    BusinessListing(
-      id: 'biz-1',
-      name: 'Karachi Darbar Restaurant',
-      category: 'Restaurant',
-      emoji: '🍛',
-      cuisine: 'Indian & Pakistani',
-      rating: 4.8,
-      reviewCount: 234,
-      location: 'Al Khor, Qatar',
-      openNow: true,
-      closingTime: '11:00 PM',
-      languages: ['Urdu', 'Hindi', 'Arabic'],
-      phone: '+974 4470 0000',
-      whatsapp: '+974 5500 0000',
-      yearsActive: 5,
-      speciality: 'Best Biryani in Al Khor',
-      trustScore: 96,
-      description:
-          'Family-friendly Indian & Pakistani restaurant serving authentic biryani, karahi, and BBQ.',
-      photoCount: 3,
-      weeklyViews: 1234,
-      isFeatured: true,
-      latestReview:
-          '"Great service and very friendly staff. Highly recommended!"',
-    ),
-    BusinessListing(
-      id: 'biz-2',
-      name: 'Malabar Kitchen',
-      category: 'Restaurant',
-      emoji: '🍲',
-      cuisine: 'South Indian & Kerala',
-      rating: 4.6,
-      reviewCount: 156,
-      location: 'Doha, Qatar',
-      openNow: true,
-      closingTime: '10:30 PM',
-      languages: ['Malayalam', 'English', 'Hindi'],
-      phone: '+974 4488 1122',
-      whatsapp: '+974 5511 2233',
-      yearsActive: 4,
-      speciality: 'Authentic Kerala meals & seafood',
-      trustScore: 91,
-      photoCount: 5,
-      weeklyViews: 890,
-      latestReview: '"Authentic Kerala meals — tastes like home."',
-    ),
-    BusinessListing(
-      id: 'biz-3',
-      name: 'Al Noor Gents Salon',
-      category: 'Salon',
-      emoji: '✂️',
-      rating: 4.5,
-      reviewCount: 89,
-      location: 'Al Khor, Qatar',
-      openNow: true,
-      closingTime: '9:00 PM',
-      languages: ['Urdu', 'Hindi', 'Arabic'],
-      phone: '+974 4471 3344',
-      whatsapp: '+974 5522 3344',
-      yearsActive: 3,
-      speciality: 'Indian & Arabic styles',
-      trustScore: 88,
-      photoCount: 2,
-      weeklyViews: 456,
-      latestReview: '"Clean salon with skilled barbers."',
-    ),
-    BusinessListing(
-      id: 'biz-4',
-      name: 'Qatar AC Repair Services',
-      category: 'AC & Repair',
-      emoji: '❄️',
-      rating: 4.7,
-      reviewCount: 67,
-      location: 'Al Khor & Doha',
-      openNow: true,
-      closingTime: '8:00 PM',
-      languages: ['Urdu', 'English', 'Arabic'],
-      phone: '+974 4472 5566',
-      whatsapp: '+974 5533 4455',
-      yearsActive: 6,
-      speciality: 'Fast AC repair, 50 QR call',
-      trustScore: 92,
-      photoCount: 4,
-      weeklyViews: 678,
-      isFeatured: true,
-      latestReview: '"Fixed my AC within 2 hours. Very professional."',
-    ),
-    BusinessListing(
-      id: 'biz-5',
-      name: 'Indian PRO Services Qatar',
-      category: 'PRO Services',
-      emoji: '📋',
-      rating: 4.9,
-      reviewCount: 312,
-      location: 'Doha, Qatar',
-      openNow: true,
-      closingTime: '6:00 PM',
-      languages: ['Hindi', 'Urdu', 'English'],
-      phone: '+974 4499 8877',
-      whatsapp: '+974 5544 6677',
-      yearsActive: 7,
-      speciality: 'Visa, QID, document assistance',
-      trustScore: 97,
-      photoCount: 3,
-      weeklyViews: 2100,
-      isFeatured: true,
-      latestReview: '"Helped with my QID renewal smoothly."',
-    ),
-    BusinessListing(
-      id: 'biz-6',
-      name: 'Al Meera Indian Groceries',
-      category: 'Grocery',
-      emoji: '🛒',
-      rating: 4.4,
-      reviewCount: 45,
-      location: 'Al Khor, Qatar',
-      openNow: true,
-      closingTime: '11:30 PM',
-      languages: ['Hindi', 'Urdu', 'English'],
-      phone: '+974 4473 7788',
-      whatsapp: '+974 5555 7788',
-      yearsActive: 2,
-      speciality: 'Indian spices & vegetables',
-      trustScore: 78,
-      photoCount: 2,
-      weeklyViews: 320,
-      latestReview: '"Good selection of Indian spices."',
-    ),
-    BusinessListing(
-      id: 'biz-7',
-      name: 'Aster Medical Center Al Khor',
-      category: 'Clinic',
-      emoji: '🏥',
-      rating: 4.8,
-      reviewCount: 178,
-      location: 'Al Khor, Qatar',
-      openNow: true,
-      closingTime: '9:00 PM',
-      languages: ['Hindi', 'Urdu', 'Malayalam', 'English'],
-      phone: '+974 4444 9999',
-      yearsActive: 8,
-      speciality: 'Doctors who speak your language',
-      trustScore: 94,
-      photoCount: 6,
-      weeklyViews: 1560,
-      latestReview: '"Doctors speak Hindi — very helpful for expats."',
-    ),
-    BusinessListing(
-      id: 'biz-8',
-      name: 'Qatar Travel House',
-      category: 'Travel',
-      emoji: '✈️',
-      rating: 4.2,
-      reviewCount: 18,
-      location: 'Doha, Qatar',
-      openNow: false,
-      closingTime: '7:00 PM',
-      languages: ['English', 'Urdu', 'Hindi'],
-      phone: '+974 4488 3344',
-      yearsActive: 1,
-      speciality: 'India & Pakistan flight bookings',
-      trustScore: 62,
-      photoCount: 1,
-      weeklyViews: 145,
-      latestReview: '"Good flight deals to India."',
-    ),
-  ];
-
-  List<BusinessListing> get _filteredBusinesses {
-    var list = _allBusinesses;
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      list = list.where((b) => b.searchableText.contains(query)).toList();
+  List<BusinessListing> _filteredBusinesses(List<BusinessListing> catalog) {
+    var businesses = _applyFilters(catalog);
+    final profile = ref.read(userAIProfileProvider);
+    if (profile != null) {
+      businesses = List<BusinessListing>.from(businesses)
+        ..sort((a, b) => _recommendationScore(b).compareTo(_recommendationScore(a)));
     }
-    final filter = _categories[_selectedCategory].filter;
-    if (filter != null) {
-      list = list.where((b) => b.category == filter).toList();
-    }
-    return list;
+    return businesses;
   }
 
-  List<BusinessListing> get _featuredBusinesses => _allBusinesses
-      .where((b) => b.isFeatured || getTrustScore(b).total >= 90)
-      .take(3)
-      .toList();
+  int _recommendationScore(BusinessListing business) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return 0;
+    return ref
+        .read(businessRecommendationServiceProvider)
+        .scoreBusiness(businessListingToMatchData(business), profile)
+        .round();
+  }
 
-  List<BusinessListing> get _nearbyBusinesses {
-    var list = _allBusinesses.where((b) => b.isInAlKhor).toList();
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      list = list.where((b) => b.searchableText.contains(query)).toList();
+  void _toggleSave(String businessId) {
+    unawaited(ref.read(userAIProfileProvider.notifier).trackSave('business', businessId));
+    PostEngine().analytics.trackSave(
+      listingId: businessId,
+      verticalId: 'business',
+    );
+    setState(() {});
+  }
+
+  bool get _isIftarFilter =>
+      kBusinessCategories[_selectedCategory].filter == 'ramadan_iftar';
+
+  bool get _browseFiltersActive =>
+      _searchController.text.trim().isNotEmpty ||
+      _selectedCategory != 0 ||
+      (_areaFilter?.trim().isNotEmpty ?? false) ||
+      _openNowOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTagFilter == 'ramadan_iftar') {
+      final index = kBusinessCategories.indexWhere(
+        (c) => c.filter == 'ramadan_iftar',
+      );
+      if (index >= 0) _selectedCategory = index;
     }
-    final filter = _categories[_selectedCategory].filter;
-    if (filter != null) {
-      list = list.where((b) => b.category == filter).toList();
+
+    final params = widget.routeParameters;
+    if (params != null && !params.isEmpty) {
+      if (params.businessQuery != null &&
+          params.businessQuery!.trim().isNotEmpty) {
+        _searchController.text = params.businessQuery!.trim();
+      }
+      if (params.area != null && params.area!.trim().isNotEmpty) {
+        _areaFilter = params.area!.trim();
+      }
     }
-    return list;
+  }
+
+  void _maybeOpenInitialListingDeepLink(List<BusinessListing> catalog) {
+    if (_handledInitialListingDeepLink) return;
+    final listingId = widget.initialListingId?.trim();
+    if (listingId == null || listingId.isEmpty) return;
+
+    BusinessListing? match;
+    for (final business in catalog) {
+      if (business.id == listingId) {
+        match = business;
+        break;
+      }
+    }
+    if (match == null) return;
+
+    _handledInitialListingDeepLink = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showBusinessDetail(match!);
+    });
   }
 
   @override
@@ -359,55 +176,36 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     super.dispose();
   }
 
-  Color _levelColor(BusinessVerificationLevel level) {
-    switch (level) {
-      case BusinessVerificationLevel.raabtaVerified:
-        return AppColors.gold;
-      case BusinessVerificationLevel.communityVerified:
+  Color _statusBadgeColor(BusinessListing business) {
+    switch (businessListingDisplayStatus(business)) {
+      case BusinessListingDisplayStatus.pendingReview:
+        return AppColors.warning;
+      case BusinessListingDisplayStatus.listingApproved:
         return AppColors.success;
-      case BusinessVerificationLevel.listed:
+      case BusinessListingDisplayStatus.directoryListing:
         return AppColors.info;
     }
   }
 
-  String _badgeLabel(BusinessVerificationLevel level) {
-    switch (level) {
-      case BusinessVerificationLevel.raabtaVerified:
-        return '🥇 RAABTA VERIFIED';
-      case BusinessVerificationLevel.communityVerified:
-        return '✓ COMMUNITY VERIFIED';
-      case BusinessVerificationLevel.listed:
-        return '📋 LISTED';
+  String _statusBadgeLabel(BusinessListing business, String locale) {
+    switch (businessListingDisplayStatus(business)) {
+      case BusinessListingDisplayStatus.pendingReview:
+        return BusinessesStrings.t('badge_pending_review', locale);
+      case BusinessListingDisplayStatus.listingApproved:
+        return BusinessesStrings.t('badge_listing_approved', locale);
+      case BusinessListingDisplayStatus.directoryListing:
+        return BusinessesStrings.t('badge_directory_listing', locale);
     }
   }
 
-  String _levelSubtitle(BusinessVerificationLevel level) {
-    switch (level) {
-      case BusinessVerificationLevel.raabtaVerified:
-        return 'Raabta Verified Business';
-      case BusinessVerificationLevel.communityVerified:
-        return 'Community Verified Business';
-      case BusinessVerificationLevel.listed:
-        return 'New Listing — Verification Pending';
-    }
-  }
-
-  String _languageFlag(String language) {
-    switch (language.toLowerCase()) {
-      case 'urdu':
-        return '🇵🇰';
-      case 'hindi':
-        return '🇮🇳';
-      case 'arabic':
-        return '🇶🇦';
-      case 'malayalam':
-        return '🇮🇳';
-      case 'english':
-        return '🇬🇧';
-      case 'filipino':
-        return '🇵🇭';
-      default:
-        return '🌐';
+  String _statusSubtitle(BusinessListing business, String locale) {
+    switch (businessListingDisplayStatus(business)) {
+      case BusinessListingDisplayStatus.pendingReview:
+        return BusinessesStrings.t('level_subtitle_pending_review', locale);
+      case BusinessListingDisplayStatus.listingApproved:
+        return BusinessesStrings.t('level_subtitle_listing_approved', locale);
+      case BusinessListingDisplayStatus.directoryListing:
+        return BusinessesStrings.t('level_subtitle_directory_listing', locale);
     }
   }
 
@@ -418,95 +216,147 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     }
   }
 
-  void _openDirections(BusinessListing business) {
-    _openUrl(
-      'https://maps.google.com/?q=${Uri.encodeComponent('${business.name} ${business.location}')}',
-    );
+  List<String> _listingReviews(BusinessListing business) {
+    if (!business.hasDisplayLatestReview) return const [];
+    return [business.latestReview!.trim()];
   }
 
-  List<String> _sampleReviews(BusinessListing business) {
+  List<String> _listingInfoLines(BusinessListing business, String locale) {
     return [
-      business.latestReview ??
-          '"Great service and very friendly staff. Highly recommended!" — Community member',
-      '"Been using ${business.name} for over a year. Always reliable." — Verified user',
-      '"Speaks ${business.languages.isNotEmpty ? business.languages.first : 'English'} — very helpful for expats." — Raabta user',
-    ];
-  }
-
-  List<String> _trustAnalysisLines(BusinessListing business, TrustScoreBreakdown trust) {
-    return [
-      '✓ Registered business in Qatar',
-      '✓ ${business.reviewCount} community reviews verified',
-      if (!business.hasReports) '✓ No fraud reports in 12 months',
-      if (business.yearsActive >= 2) '✓ Active ${business.yearsActive}+ years',
       if (business.languages.isNotEmpty)
-        '✓ Languages verified by community: ${business.languages.join(', ')}',
-      'Overall Trust: ${trust.total}/100 — ${_recommendation(trust.total)}',
+        BusinessesStrings.format(
+          'info_languages_listed',
+          locale,
+          params: {'languages': business.languages.join(', ')},
+        ),
+      if (business.hasWhatsApp)
+        BusinessesStrings.t('info_whatsapp_listed', locale),
+      if (business.website != null && business.website!.trim().isNotEmpty)
+        business.website!.trim(),
+      if (business.servicesOffered.isNotEmpty)
+        business.servicesOffered.join(' · '),
+      if (business.yearsActive >= 2)
+        BusinessesStrings.format(
+          'info_years_active',
+          locale,
+          params: {'years': '${business.yearsActive}'},
+        ),
+      if (business.hasDisplayRating)
+        BusinessesStrings.format(
+          'info_rating_on_record',
+          locale,
+          params: {
+            'rating': business.rating.toStringAsFixed(1),
+            'count': '${business.reviewCount}',
+          },
+        ),
+      BusinessesStrings.t('info_self_reported_notice', locale),
     ];
   }
 
-  String _recommendation(int score) {
-    if (score >= 90) return 'Highly Recommended';
-    if (score >= 75) return 'Recommended';
-    if (score >= 60) return 'Use with Caution';
-    return 'Needs More Reviews';
-  }
-
-  String _reviewSnippet(BusinessListing business) {
-    final review = business.latestReview ??
-        _sampleReviews(business).first.replaceAll('"', '');
-    final cleaned = review.replaceAll('"', '').trim();
-    if (cleaned.length <= 30) return '"$cleaned"';
-    return '"${cleaned.substring(0, 30)}…"';
-  }
-
-  int _weeklyViews(BusinessListing business) {
-    if (business.weeklyViews > 0) return business.weeklyViews;
-    return business.reviewCount * 5;
-  }
-
-  List<Widget> _buildBusinessListItems(List<BusinessListing> businesses) {
+  List<Widget> _buildFeedItems(
+    List<BusinessListing> businesses,
+    String locale,
+  ) {
     final items = <Widget>[];
     for (var i = 0; i < businesses.length; i++) {
-      items.add(_buildBusinessCard(businesses[i]));
-      if ((i + 1) % 5 == 0) {
-        items.add(_SponsoredBusinessWrapper(
-          child: _buildBusinessCard(businesses[i], isSponsored: true),
-        ));
+      items.add(_hubBusinessCard(businesses[i], locale));
+      if (ComplianceFlagsGate.effectiveBusinessAds && (i + 1) % 5 == 0) {
+        items.add(_AdPlaceholderCard(onPromote: _openBusinessAdvertise, locale: locale));
       }
     }
     return items;
   }
 
-  Widget _buildBusinessCard(BusinessListing business, {bool isSponsored = false}) {
-    final trust = getTrustScore(business);
-    final color = _levelColor(trust.level);
-
-    return _BusinessListingCard(
-      business: business,
-      trust: trust,
-      levelColor: color,
-      badgeLabel: _badgeLabel(trust.level),
-      levelSubtitle: _levelSubtitle(trust.level),
-      reviewSnippet: _reviewSnippet(business),
-      weeklyViews: _weeklyViews(business),
-      languageFlag: _languageFlag,
-      trustAnalysisLines: _trustAnalysisLines(business, trust),
-      showFeaturedBadge: business.isFeatured && !isSponsored,
+  Widget _hubBusinessCard(BusinessListing business, String locale) {
+    return HubBusinessCard(
+      key: Key('business_hub_card_${business.id}'),
+      name: business.name,
+      categoryLine: '${business.category} · ${business.location}',
+      openNow: business.openNow,
+      closingTime: business.closingTime,
+      services: business.servicesOffered,
+      logoUrl: business.logoUrl,
+      logoInitial: business.name,
       onTap: () => _showBusinessDetail(business),
-      onCall: () => _openUrl('tel:${business.phone}'),
-      onWhatsApp: business.hasWhatsApp
-          ? () => _openUrl(
-                'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
-              )
-          : null,
-      onDirections: () => _openDirections(business),
+    );
+  }
+
+  void _openBusinessMessage(BusinessListing business) {
+    if (business.hasWhatsApp) {
+      _openUrl(
+        'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
+      );
+      return;
+    }
+    _openUrl('tel:${business.phone}');
+  }
+
+  Future<void> _openBusinessFiltersSheet(String locale) async {
+    await showBusinessFiltersSheet(
+      context: context,
+      locale: locale,
+      selectedCategoryIndex: _selectedCategory,
+      openNowOnly: _openNowOnly,
+      areaFilter: _areaFilter,
+      onClearAll: _clearBrowseFilters,
+      onCategoryChanged: (index) => setState(() => _selectedCategory = index),
+      onOpenNowChanged: (value) => setState(() => _openNowOnly = value),
+      onAreaChanged: (area) => setState(() => _areaFilter = area),
+    );
+  }
+
+  void _maybeAutoRelaxAreaFilter(
+    List<BusinessListing> filtered,
+    List<BusinessListing> catalog,
+  ) {
+    if (filtered.isNotEmpty) {
+      if (_showAreaRelaxRecovery) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _showAreaRelaxRecovery = false;
+            _areaFilterBeforeRelax = null;
+          });
+        });
+      }
+      return;
+    }
+    if (_areaFilter == null ||
+        _areaFilterBeforeRelax != null ||
+        catalog.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _areaFilterBeforeRelax = _areaFilter;
+        _areaFilter = null;
+        _showAreaRelaxRecovery = true;
+      });
+    });
+  }
+
+  void _undoAreaFilterRelax() {
+    setState(() {
+      _areaFilter = _areaFilterBeforeRelax;
+      _areaFilterBeforeRelax = null;
+      _showAreaRelaxRecovery = false;
+    });
+  }
+
+  void _shareBusinessListing(BusinessListing business, String locale) {
+    showQrShareSheet(
+      context,
+      title: BusinessesStrings.t('listing_qr_title', locale),
+      subtitle: business.name,
+      caption: BusinessesStrings.t('listing_qr_caption', locale),
+      qrData: ListingDeepLinks.businessListing(business.id),
     );
   }
 
   void _showBusinessDetail(BusinessListing business) {
-    final trust = getTrustScore(business);
-    final color = _levelColor(trust.level);
+    final color = _statusBadgeColor(business);
 
     showModalBottomSheet<void>(
       context: context,
@@ -522,250 +372,217 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
           minChildSize: 0.5,
           maxChildSize: 0.95,
           builder: (context, scrollController) {
-            return SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              child: Column(
+            return Consumer(
+              builder: (context, ref, _) {
+                final locale = ref.watch(userLanguageProvider);
+                final complianceFlags = ref.watch(complianceFlagsProvider);
+                final isSaved =
+                    ref.watch(userAIProfileProvider)?.savedBusinessIds.contains(business.id) ??
+                        false;
+                final viewerUid = ref.watch(currentUserProvider)?.uid;
+                final isOwner = viewerUid != null &&
+                    business.ownerUserId != null &&
+                    business.ownerUserId!.isNotEmpty &&
+                    viewerUid == business.ownerUserId;
+                final showStructuredCta = business.showsStructuredContactAction &&
+                    !isOwner &&
+                    businessStructuredContactCtaVisible(
+                      contactMode: business.contactMode,
+                      flags: complianceFlags,
+                    );
+
+                final detailBody = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2),
+                  ClassifiedsHostNotice(locale: locale),
+                  const SizedBox(height: 12),
+                  if (business.coverUrl != null &&
+                      business.coverUrl!.trim().isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        business.coverUrl!,
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                  if (business.coverUrl != null &&
+                      business.coverUrl!.trim().isNotEmpty)
+                    const SizedBox(height: 16),
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 28,
                         backgroundColor: color.withValues(alpha: 0.15),
-                        child: Text(business.emoji, style: const TextStyle(fontSize: 28)),
+                        backgroundImage: business.logoUrl != null &&
+                                business.logoUrl!.trim().isNotEmpty
+                            ? NetworkImage(business.logoUrl!)
+                            : null,
+                        child: business.logoUrl != null &&
+                                business.logoUrl!.trim().isNotEmpty
+                            ? null
+                            : Text(
+                                business.emoji,
+                                style: const TextStyle(fontSize: 28),
+                              ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(business.name, style: AppTextStyles.h2),
-                            Text(business.category, style: AppTextStyles.bodyMedium),
+                            Text(business.name, style: AppTypography.headline2),
+                            Text(business.category, style: AppTypography.body),
                           ],
                         ),
                       ),
-                      _VerificationBadge(label: _badgeLabel(trust.level), color: color),
+                      StatusBadge(
+                        label: _statusBadgeLabel(business, locale),
+                        color: color,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   if (business.description != null)
-                    Text(
-                      business.description!,
-                      style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
+                    UserGeneratedTextWithLinkSafety(
+                      text: business.description!,
+                      locale: locale,
+                      surface: LinkSafetySurface.businessListing,
+                      style: AppTypography.body.copyWith(height: 1.5),
                     ),
                   const SizedBox(height: 16),
-                  _AiTrustAnalysisBox(
-                    title: '🤖 Raabta AI Trust Analysis',
-                    lines: _trustAnalysisLines(business, trust),
-                    trust: trust,
+                  _ListingInfoBox(
+                    title: BusinessesStrings.t('listing_info_title', locale),
+                    lines: _listingInfoLines(business, locale),
                     color: color,
-                    levelSubtitle: _levelSubtitle(trust.level),
+                    statusSubtitle: _statusSubtitle(business, locale),
                   ),
                   const SizedBox(height: 20),
-                  Text('Community Reviews', style: AppTextStyles.h3),
-                  const SizedBox(height: 10),
-                  ..._sampleReviews(business).map(
-                    (review) => Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(review, style: AppTextStyles.bodyMedium),
+                  BusinessListingTrustSection(locale: locale),
+                  if (_listingReviews(business).isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      BusinessesStrings.t('stored_review_note', locale),
+                      style: AppTypography.title,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _openUrl('tel:${business.phone}'),
-                          icon: const Icon(Icons.phone, size: 18),
-                          label: const Text('Call'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                          ),
+                    const SizedBox(height: 10),
+                    ..._listingReviews(business).map(
+                      (review) => Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        child: Text(review, style: AppTypography.body),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: business.hasWhatsApp
-                              ? () => _openUrl(
-                                    'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
-                                  )
-                              : null,
-                          icon: const Icon(Icons.chat, size: 18),
-                          label: const Text('WhatsApp'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showAddBusinessSheet() {
-    final nameController = TextEditingController();
-    final locationController = TextEditingController(text: 'Qatar');
-    final phoneController = TextEditingController();
-    final whatsappController = TextEditingController();
-    final descriptionController = TextEditingController();
-    var selectedCategory = _categories[1].filter ?? 'Restaurant';
-    final languageOptions = ['English', 'Urdu', 'Hindi', 'Arabic', 'Malayalam'];
-    final selectedLanguages = <String>{'English'};
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Add Business', style: AppTextStyles.h1),
-                    const SizedBox(height: 16),
-                    _FormField(controller: nameController, hint: 'Business name'),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedCategory,
-                      dropdownColor: AppColors.background,
-                      style: TextStyle(color: AppColors.textPrimary),
-                      decoration: _fieldDecoration('Category'),
-                      items: _categories
-                          .where((c) => c.filter != null)
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.filter,
-                              child: Text('${c.emoji} ${c.label}'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setSheetState(() => selectedCategory = v);
-                      },
                     ),
-                    const SizedBox(height: 10),
-                    _FormField(controller: locationController, hint: 'Location'),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: phoneController,
-                      hint: 'Phone (+974...)',
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: whatsappController,
-                      hint: 'WhatsApp (+974...)',
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    Text('Languages spoken', style: AppTextStyles.bodyMedium),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: languageOptions.map((lang) {
-                        final selected = selectedLanguages.contains(lang);
-                        return FilterChip(
-                          label: Text('${_languageFlag(lang)} $lang'),
-                          selected: selected,
-                          onSelected: (v) {
-                            setSheetState(() {
-                              if (v) {
-                                selectedLanguages.add(lang);
-                              } else {
-                                selectedLanguages.remove(lang);
-                              }
-                            });
-                          },
-                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: descriptionController,
-                      hint: 'Brief description',
-                      maxLines: 3,
-                    ),
+                  ],
+                  if (isOwner) ...[
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
+                      child: OutlinedButton.icon(
                         onPressed: () {
-                          if (nameController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Enter business name')),
-                            );
-                            return;
-                          }
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Submitted for Raabta AI Verification. '
-                                'Verification takes 2-3 business days.',
-                              ),
-                              backgroundColor: AppColors.success,
-                            ),
+                          showQrShareSheet(
+                            context,
+                            title: BusinessesStrings.t('listing_qr_title', locale),
+                            subtitle: business.name,
+                            caption: BusinessesStrings.t('listing_qr_caption', locale),
+                            qrData: ListingDeepLinks.businessListing(business.id),
                           );
                         },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          'Submit for Raabta AI Verification',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        icon: const Icon(Icons.qr_code_2_outlined, size: 18),
+                        label: Text(BusinessesStrings.t('get_qr_listing', locale)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.accentGold,
+                          side: BorderSide(
+                            color: AppColors.accentGold.withValues(alpha: 0.5),
+                          ),
                         ),
                       ),
                     ),
                   ],
-                ),
-              ),
+                  if (isOwner) ...[
+                    const SizedBox(height: 16),
+                    BusinessStructuredOwnerPanel(
+                      business: business,
+                      locale: locale,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await ReportService().submitReport(
+                            type: AdminReportType.business,
+                            title: 'Business report: ${business.name}',
+                            description:
+                                'User reported business "${business.name}" (${business.category})',
+                            targetId: business.id,
+                            targetType: 'business',
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  BusinessesStrings.format(
+                                    'report_submitted',
+                                    locale,
+                                    params: {'name': business.name},
+                                  ),
+                                ),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  BusinessesStrings.t('report_failed', locale),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Text(
+                        BusinessesStrings.t('report_this_business', locale),
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+
+                return BusinessListingDetailSheetScaffold(
+                  scrollController: scrollController,
+                  body: detailBody,
+                  actionBar: BusinessListingDetailActionBar(
+                    business: business,
+                    locale: locale,
+                    isSaved: isSaved,
+                    isOwner: isOwner,
+                    showStructuredCta: showStructuredCta,
+                    onSave: () => _toggleSave(business.id),
+                    onShare: () => _shareBusinessListing(business, locale),
+                    onStructuredPrimary: () => _openStructuredContactAction(
+                      context,
+                      business,
+                      locale,
+                    ),
+                    onMessage: () => _openBusinessMessage(business),
+                  ),
+                );
+              },
             );
           },
         );
@@ -773,357 +590,565 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: AppTextStyles.bodyMedium,
-      filled: true,
-      fillColor: AppColors.background,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
+  Future<void> _openStructuredContactAction(
+    BuildContext context,
+    BusinessListing business,
+    String locale,
+  ) async {
+    if (ref.read(currentUserProvider) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(BusinessesStrings.t('sign_in_required_action', locale))),
+      );
+      context.push('/login');
+      return;
+    }
+
+    final flags = ComplianceFlagsGate.current;
+    final route = switch (business.contactMode) {
+      BusinessContactMode.appointment =>
+        flags.businessAppointmentsEnabled
+            ? '/businesses/request-appointment/${business.id}?name=${Uri.encodeComponent(business.name)}'
+            : null,
+      BusinessContactMode.quote =>
+        flags.businessQuotesEnabled
+            ? '/businesses/request-quote/${business.id}?name=${Uri.encodeComponent(business.name)}'
+            : null,
+      BusinessContactMode.messageOnly => null,
+    };
+    if (route == null) return;
+    await context.push(route);
+  }
+
+  List<BusinessListing> _applyFilters(List<BusinessListing> source) {
+    var list = filterBusinesses(
+      source: source,
+      query: _searchController.text.trim().toLowerCase(),
+      categoryFilter: kBusinessCategories[_selectedCategory].filter,
+    );
+    final area = _areaFilter?.trim();
+    if (area != null && area.isNotEmpty) {
+      list = list.where((b) => b.isInArea(area)).toList();
+    }
+    if (_openNowOnly) {
+      list = list.where((b) => b.openNow).toList();
+    }
+    return list;
+  }
+
+  void _openBusinessAdvertise() {
+    if (!ComplianceFlagsGate.effectiveBusinessAds) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const BusinessAdvertiseScreen(),
+      ),
+    );
+  }
+
+  void _showAddBusinessSheet() {
+    context.push('/businesses/post');
+  }
+
+  void _clearBrowseFilters() {
+    setState(() {
+      _searchController.clear();
+      _selectedCategory = 0;
+      _areaFilter = null;
+      _openNowOnly = false;
+      _areaFilterBeforeRelax = null;
+      _showAreaRelaxRecovery = false;
+    });
+  }
+
+  void _applyNearMeFilter() {
+    final area = ref.read(userAIProfileProvider)?.preferredArea.trim() ?? '';
+    setState(() {
+      _areaFilter = area.isEmpty ? null : area;
+    });
+  }
+
+  Future<void> _pickCategory(String locale) async {
+    final picked = await showBusinessCategoryPicker(
+      context: context,
+      locale: locale,
+      selectedIndex: _selectedCategory,
+    );
+    if (picked != null) setState(() => _selectedCategory = picked);
+  }
+
+  Future<void> _pickArea(String locale) async {
+    final picked = await showBusinessAreaPicker(
+      context: context,
+      locale: locale,
+      selectedArea: _areaFilter,
+    );
+    if (picked == null) return;
+    setState(() {
+      _areaFilter = picked.isEmpty ? null : picked;
+    });
+  }
+
+  Widget _buildHubLoadingBody(String locale) {
+    return AnimatedAuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: CustomScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            slivers: [
+              ..._hubChromeSlivers(locale),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < 3 ? AppSpacing.md : 0,
+                        ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return HubLoadingPlaceholder(
+                              key: index == 0
+                                  ? const Key('business_hub_loading_skeleton')
+                                  : null,
+                              width: constraints.maxWidth,
+                              height: 120,
+                              silhouette: HubLoadingSilhouette.businessCard,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    childCount: 4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _hubChromeSlivers(String locale) {
+    return [
+      SliverToBoxAdapter(child: _buildHubHeader(locale)),
+      SliverToBoxAdapter(child: _buildHubSearchSection(locale)),
+      SliverToBoxAdapter(child: _buildHubSummaryStrip(locale)),
+      SliverToBoxAdapter(child: _buildHubQuickActionRow(locale)),
+      SliverToBoxAdapter(child: _buildHubFilterChipRow(locale)),
+    ];
+  }
+
+  Widget _buildHubHeader(String locale) {
+    return HubLandingHeader(
+      key: const Key('business_hub_landing_header'),
+      title: BusinessesStrings.t('hub_title', locale),
+      subtitle: BusinessesStrings.t('hub_subtitle', locale),
+      onBack: () => Navigator.of(context).pop(),
+    );
+  }
+
+  Widget _buildHubSearchSection(String locale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: HubLayoutTokens.searchMinHeight,
+                  ),
+                  child: TextField(
+                    key: const Key('business_hub_search'),
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    style: AppTypography.subtitle,
+                    textInputAction: TextInputAction.search,
+                    decoration: hubSearchInputDecoration(
+                      hintText: BusinessesStrings.t('search_hint', locale),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              HubAdvancedFilterToggle(
+                key: const Key('business_hub_filter_toggle'),
+                expanded: false,
+                onToggle: () => unawaited(_openBusinessFiltersSheet(locale)),
+                semanticsLabel:
+                    BusinessesStrings.t('hub_filters_semantics', locale),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: SaveSearchButton(
+              vertical: SavedSearchVertical.business,
+              accent: SaveSearchButtonAccent.hubBrand,
+              criteria: SavedSearchCriteria.fromBusinessBrowse(
+                query: _searchController.text,
+                selectedCategoryIndex: _selectedCategory,
+                areaFilter: _areaFilter,
+                routeFilters: widget.routeParameters,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHubSummaryStrip(String locale) {
+    final uid = ref.watch(currentUserProvider)?.uid ?? '';
+    final cards = <Widget>[];
+
+    if (uid.isNotEmpty) {
+      final owned = ref.watch(userOwnedBusinessesProvider).valueOrNull;
+      if (owned != null && owned.isNotEmpty) {
+        final primary = owned.first;
+        final percent = businessListingCompletenessPercent(primary);
+        cards.add(
+          Expanded(
+            child: HubSummaryStripCard(
+              value: BusinessesStrings.format(
+                'strip_profile_complete',
+                locale,
+                params: {'percent': '$percent'},
+              ),
+              label: BusinessesStrings.t('strip_my_business', locale),
+              icon: Icons.storefront_outlined,
+              onTap: () => _showBusinessDetail(primary),
+            ),
+          ),
+        );
+      }
+    }
+
+    final savedAsync =
+        ref.watch(userSavedSearchesForVerticalProvider(SavedSearchVertical.business));
+    final savedCount = savedAsync.maybeWhen(
+      data: (searches) => searches.where((s) => s.active).length,
+      orElse: () => null,
+    );
+    if (savedCount != null && savedCount > 0) {
+      if (cards.isNotEmpty) cards.add(const SizedBox(width: AppSpacing.sm));
+      cards.add(
+        Expanded(
+          child: HubSummaryStripCard(
+            value: ProfileDisplayHelper.formatCount(savedCount),
+            label: SavedSearchStrings.t('saved_searches_title', locale),
+            icon: Icons.search,
+            onTap: () => context.push('/profile/saved-searches'),
+          ),
+        ),
+      );
+    }
+
+    if (cards.isEmpty) return const SizedBox.shrink();
+
+    return HubSummaryStripPadding(child: Row(children: cards));
+  }
+
+  Widget _buildHubQuickActionRow(String locale) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.add,
+              label: BusinessesStrings.t('add_business', locale),
+              onTap: _showAddBusinessSheet,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.bookmark_border,
+              label: BusinessesStrings.t('quick_saved', locale),
+              onTap: () => context.push('/profile/saved-searches'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.schedule,
+              label: BusinessesStrings.t('quick_open_now', locale),
+              onTap: () => setState(() => _openNowOnly = !_openNowOnly),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: HubQuickActionTile(
+              icon: Icons.near_me_outlined,
+              label: BusinessesStrings.t('quick_near_me', locale),
+              onTap: _applyNearMeFilter,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHubFilterChipRow(String locale) {
+    final categoryLabel = kBusinessCategories[_selectedCategory].label;
+    final areaLabel = _areaFilter?.trim().isNotEmpty == true
+        ? _areaFilter!
+        : BusinessesStrings.t('filter_area', locale);
+    final categoryChipLabel = _selectedCategory == 0
+        ? BusinessesStrings.t('filter_category', locale)
+        : categoryLabel;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: SizedBox(
+        height: HubLayoutTokens.filterChipHeight,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          children: [
+            buildHubFilterChip(
+              label: Text(categoryChipLabel),
+              selected: _selectedCategory != 0,
+              onSelected: (_) => unawaited(_pickCategory(locale)),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            KeyedSubtree(
+              key: const Key('business_hub_filter_open_now'),
+              child: buildHubFilterChip(
+                label: Text(BusinessesStrings.t('filter_open_now', locale)),
+                selected: _openNowOnly,
+                onSelected: (value) => setState(() => _openNowOnly = value),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            buildHubFilterChip(
+              label: Text(areaLabel),
+              selected: _areaFilter?.trim().isNotEmpty == true,
+              onSelected: (_) => unawaited(_pickArea(locale)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final businesses = _filteredBusinesses;
-    final featured = _featuredBusinesses;
-    final nearby = _nearbyBusinesses;
-    final listItems = _buildBusinessListItems(businesses);
+    final locale = ref.watch(userLanguageProvider);
+    final catalogAsync = ref.watch(businessCatalogProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBusinessSheet,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.black,
-        child: const Icon(Icons.add),
-      ),
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
+    return catalogAsync.when(
+      loading: () => _buildHubLoadingBody(locale),
+      error: (e, _) => AnimatedAuroraBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Center(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _showAddBusinessSheet,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Business'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        backgroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: GlassEmptyState(
+                  key: const Key('business_hub_error_state'),
+                  icon: Icons.error_outline,
+                  title: BusinessesStrings.t('hub_load_error_title', locale),
+                  description: BusinessesStrings.format(
+                    'load_error',
+                    locale,
+                    params: {'error': '$e'},
+                  ),
+                  actionLabel: CommonActionStrings.t('action_retry', locale),
+                  onAction: () => ref.invalidate(businessCatalogProvider),
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: _buildHeroSection()),
-            SliverToBoxAdapter(child: _buildSearchBar()),
-            SliverToBoxAdapter(child: _buildCategoryTabs()),
-            if (featured.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl,
-                    AppSpacing.xxl,
-                    AppSpacing.xl,
-                    AppSpacing.md,
-                  ),
-                  child: SectionHeader(
-                    title: '⭐ Featured Businesses',
-                    onSeeAll: () {},
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 430,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                    itemCount: featured.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-                    itemBuilder: (context, index) {
-                      final business = featured[index];
-                      final trust = getTrustScore(business);
-                      return _FeaturedBusinessCard(
-                        business: business,
-                        trust: trust,
-                        levelColor: _levelColor(trust.level),
-                        badgeLabel: _badgeLabel(trust.level),
-                        languageFlag: _languageFlag,
-                        onTap: () => _showBusinessDetail(business),
-                        onCall: () => _openUrl('tel:${business.phone}'),
-                        onWhatsApp: business.hasWhatsApp
-                            ? () => _openUrl(
-                                  'https://wa.me/${business.whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}',
-                                )
-                            : null,
-                        onDirections: () => _openDirections(business),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-            SliverToBoxAdapter(child: _buildAdsBanner()),
-            if (nearby.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl,
-                    AppSpacing.xxl,
-                    AppSpacing.xl,
-                    AppSpacing.md,
-                  ),
-                  child: SectionHeader(
-                    title: '📍 Near You in Al Khor',
-                    onSeeAll: () {},
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: index < nearby.length - 1 ? AppSpacing.md : 0,
-                      ),
-                      child: _buildBusinessCard(nearby[index]),
-                    ),
-                    childCount: nearby.length,
-                  ),
-                ),
-              ),
-            ],
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.xxl,
-                  AppSpacing.xl,
-                  AppSpacing.md,
-                ),
-                child: SectionHeader(
-                  title: '🔥 Popular This Week',
-                  onSeeAll: () {},
-                ),
-              ),
-            ),
-            if (businesses.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.store_outlined,
-                        color: AppColors.textSecondary,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text('No businesses found', style: AppTextStyles.bodyLarge),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _selectedCategory = 0;
-                          });
-                        },
-                        child: Text('Clear filters', style: AppTextStyles.labelLarge),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  0,
-                  AppSpacing.xl,
-                  100,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: index < listItems.length - 1 ? AppSpacing.md : 0,
-                      ),
-                      child: listItems[index],
-                    ),
-                    childCount: listItems.length,
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
+      data: (allBusinesses) =>
+          _buildBusinessesContent(context, locale, allBusinesses),
     );
   }
 
-  Widget _buildHeroSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surfaceElevated, AppColors.surface],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.borderPrimary),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('🏪 Qatar Businesses', style: AppTextStyles.h1),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Verified · Trusted · Expat-Friendly',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeroStat(
-                    value: '234 Verified',
-                    label: 'Businesses',
+  Widget _buildBusinessesContent(
+    BuildContext context,
+    String locale,
+    List<BusinessListing> allBusinesses,
+  ) {
+    _maybeOpenInitialListingDeepLink(allBusinesses);
+    var businesses = _filteredBusinesses(allBusinesses);
+    _maybeAutoRelaxAreaFilter(businesses, allBusinesses);
+    businesses = _filteredBusinesses(allBusinesses);
+    final feedItems = _buildFeedItems(businesses, locale);
+    final catalogEmpty = allBusinesses.isEmpty;
+    final zeroFromFilters =
+        businesses.isEmpty && (!catalogEmpty || _browseFiltersActive);
+
+    return AnimatedAuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: RefreshIndicator(
+            color: AppColors.brandFamilyMain,
+            onRefresh: () async {
+              ref.invalidate(businessCatalogProvider);
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                ..._hubChromeSlivers(locale),
+                if (ComplianceFlagsGate.effectiveBusinessAds)
+                  SliverToBoxAdapter(child: _buildAdsBanner()),
+                if (_showAreaRelaxRecovery)
+                  SliverToBoxAdapter(
+                    child: HubZeroResultRecoveryStrip(
+                      message: BusinessesStrings.t(
+                        'hub_zero_result_recovery',
+                        locale,
+                      ),
+                      undoLabel: BusinessesStrings.t(
+                        'hub_zero_result_undo',
+                        locale,
+                      ),
+                      onUndo: _undoAreaFilterRelax,
+                    ),
                   ),
-                ),
-                Container(width: 1, height: 32, color: AppColors.border),
-                Expanded(
-                  child: _HeroStat(
-                    value: '8',
-                    label: 'Categories',
+                if (businesses.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.xl,
+                        AppSpacing.lg,
+                        AppSpacing.xl,
+                        AppSpacing.md,
+                      ),
+                      child: GlassEmptyState(
+                        key: Key(
+                          zeroFromFilters
+                              ? 'business_hub_zero_result_state'
+                              : 'business_hub_empty_state',
+                        ),
+                        accent: GlassEmptyStateAccent.brand,
+                        icon: Icons.storefront_outlined,
+                        title: zeroFromFilters
+                            ? BusinessesStrings.t(
+                                'hub_empty_filtered_title',
+                                locale,
+                              )
+                            : BusinessesStrings.t(
+                                'hub_empty_catalog_title',
+                                locale,
+                              ),
+                        description: zeroFromFilters
+                            ? BusinessesStrings.t(
+                                'hub_empty_filtered_description',
+                                locale,
+                              )
+                            : BusinessesStrings.t(
+                                'hub_empty_catalog_description',
+                                locale,
+                              ),
+                        actionLabel: zeroFromFilters
+                            ? CommonStrings.clearFilters
+                            : BusinessesStrings.t('add_business', locale),
+                        onAction: zeroFromFilters
+                            ? _clearBrowseFilters
+                            : _showAddBusinessSheet,
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      0,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index < feedItems.length - 1
+                                ? AppSpacing.md
+                                : 0,
+                          ),
+                          child: feedItems[index],
+                        ),
+                        childCount: feedItems.length,
+                      ),
+                    ),
                   ),
-                ),
-                Container(width: 1, height: 32, color: AppColors.border),
-                Expanded(
-                  child: _HeroStat(value: 'Al Khor + Doha', label: 'Coverage'),
-                ),
+                SliverToBoxAdapter(child: HubFeedFooterNotice(locale: locale)),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (_) => setState(() {}),
-        style: AppTextStyles.bodyLarge,
-        decoration: InputDecoration(
-          hintText: 'Search restaurants, salons, shops...',
-          hintStyle: AppTextStyles.bodyMedium,
-          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            borderSide: BorderSide.none,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryTabs() {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: SizedBox(
-        height: 44,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          itemCount: _categories.length,
-          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-          itemBuilder: (context, index) {
-            final cat = _categories[index];
-            final selected = _selectedCategory == index;
-            return FilterChip(
-              label: Text('${cat.emoji} ${cat.label}'),
-              selected: selected,
-              onSelected: (_) => setState(() => _selectedCategory = index),
-              backgroundColor: AppColors.surface,
-              selectedColor: AppColors.primary.withValues(alpha: 0.2),
-              labelStyle: TextStyle(
-                color: selected ? AppColors.primary : AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              showCheckmark: false,
-              side: BorderSide(
-                color: selected ? AppColors.primary : Colors.transparent,
-              ),
-            );
-          },
         ),
       ),
     );
   }
 
   Widget _buildAdsBanner() {
+    final isIftar = _isIftarFilter;
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, 0),
-      child: Container(
-        width: double.infinity,
+      child: GlassCard(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.warning.withValues(alpha: 0.2),
-              AppColors.surfaceElevated,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
-        ),
+        borderRadius: AppSpacing.radiusLg,
+        glowColor: AppColors.warning,
+        glowIntensity: 0.12,
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('📢 Advertise Your Business', style: AppTextStyles.h3),
+                  Text(
+                    isIftar
+                        ? BusinessStrings.iftarPromoteTitle
+                        : BusinessStrings.advertiseTitle,
+                    style: AppTypography.title,
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Reach 50,000+ Qatar expats',
-                    style: AppTextStyles.bodyMedium.copyWith(
+                    isIftar
+                        ? BusinessStrings.iftarPromoteSubtitle
+                        : BusinessStrings.advertiseSubtitle,
+                    style: AppTypography.body.copyWith(
                       color: AppColors.warning,
                     ),
                   ),
                 ],
               ),
             ),
-            FilledButton(
+            GlassPrimaryButton(
+              label: BusinessStrings.getFeatured,
+              accentColor: AppColors.warning,
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -1132,11 +1157,6 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                   ),
                 );
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.warning,
-                foregroundColor: Colors.black,
-              ),
-              child: const Text('Get Featured →'),
             ),
           ],
         ),
@@ -1145,539 +1165,79 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.value, required this.label});
 
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.bodyLarge.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 12,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-        ),
-        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
-      ],
-    );
-  }
-}
-
-class _FeaturedBusinessCard extends StatelessWidget {
-  const _FeaturedBusinessCard({
-    required this.business,
-    required this.trust,
-    required this.levelColor,
-    required this.badgeLabel,
-    required this.languageFlag,
-    required this.onTap,
-    required this.onCall,
-    required this.onWhatsApp,
-    required this.onDirections,
+class _AdPlaceholderCard extends StatelessWidget {
+  const _AdPlaceholderCard({
+    required this.onPromote,
+    required this.locale,
   });
 
-  final BusinessListing business;
-  final TrustScoreBreakdown trust;
-  final Color levelColor;
-  final String badgeLabel;
-  final String Function(String) languageFlag;
-  final VoidCallback onTap;
-  final VoidCallback onCall;
-  final VoidCallback? onWhatsApp;
-  final VoidCallback onDirections;
+  final VoidCallback onPromote;
+  final String locale;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 280,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surfaceElevated, AppColors.surface],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      borderRadius: AppSpacing.radiusSm,
+      glowColor: AppColors.warning,
+      glowIntensity: 0.1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+            ),
+            child: Text(
+              BusinessesStrings.t('ad_placeholder', locale),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.warning,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.5), width: 1.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.background,
-                  child: Text(business.emoji, style: const TextStyle(fontSize: 24)),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: const Text(
-                    '⭐ FEATURED',
-                    style: TextStyle(
-                      color: AppColors.gold,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            BusinessesStrings.t('ad_placeholder_body', locale),
+            style: AppTypography.body,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            BusinessesStrings.t('ad_placeholder_note', locale),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              business.name,
-              style: AppTextStyles.h3,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onPromote,
+              child: Text(BusinessesStrings.t('promote_business_link', locale)),
             ),
-            Row(
-              children: [
-                Text(business.category, style: AppTextStyles.bodySmall),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '★ ${business.rating.toStringAsFixed(1)}',
-                  style: const TextStyle(
-                    color: AppColors.gold,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  ' (${business.reviewCount} reviews)',
-                  style: AppTextStyles.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text('📍 ${business.location}', style: AppTextStyles.bodySmall),
-            const SizedBox(height: AppSpacing.xs),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: business.openNow
-                    ? AppColors.success.withValues(alpha: 0.15)
-                    : AppColors.textMuted.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                business.openNow
-                    ? 'Open · Closes ${business.closingTime ?? 'late'}'
-                    : 'Closed',
-                style: TextStyle(
-                  color: business.openNow ? AppColors.success : AppColors.textMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (business.languages.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: business.languages.take(3).map((lang) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: Text(
-                      '${languageFlag(lang)} $lang',
-                      style: AppTextStyles.bodySmall.copyWith(fontSize: 9),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '🤖 Trust Score: ${trust.total}/100',
-              style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 11),
-            ),
-            const SizedBox(height: 4),
-            _TrustScoreBar(score: trust.total, color: AppColors.gold),
-            BusinessRecommendationTag(
-              businessData: businessListingToMatchData(business),
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onCall,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: const Text('📞 Call', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onWhatsApp,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: const Text('💬 WhatsApp', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onDirections,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: const Text('📍 Map', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Center(
-              child: _VerificationBadge(label: badgeLabel, color: levelColor),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _BusinessListingCard extends StatelessWidget {
-  const _BusinessListingCard({
-    required this.business,
-    required this.trust,
-    required this.levelColor,
-    required this.badgeLabel,
-    required this.levelSubtitle,
-    required this.reviewSnippet,
-    required this.weeklyViews,
-    required this.languageFlag,
-    required this.trustAnalysisLines,
-    required this.showFeaturedBadge,
-    required this.onTap,
-    required this.onCall,
-    required this.onWhatsApp,
-    required this.onDirections,
-  });
-
-  final BusinessListing business;
-  final TrustScoreBreakdown trust;
-  final Color levelColor;
-  final String badgeLabel;
-  final String levelSubtitle;
-  final String reviewSnippet;
-  final int weeklyViews;
-  final String Function(String) languageFlag;
-  final List<String> trustAnalysisLines;
-  final bool showFeaturedBadge;
-  final VoidCallback onTap;
-  final VoidCallback onCall;
-  final VoidCallback? onWhatsApp;
-  final VoidCallback onDirections;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1A2535), Color(0xFF0D1520)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(business.emoji, style: const TextStyle(fontSize: 40)),
-                  ),
-                ),
-                if (showFeaturedBadge)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.gold.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: const Text(
-                        '⭐ FEATURED',
-                        style: TextStyle(
-                          color: AppColors.gold,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (business.photoCount > 0)
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        '📸 ${business.photoCount} photos',
-                        style: const TextStyle(color: Colors.white, fontSize: 10),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: _VerificationBadge(label: badgeLabel, color: levelColor),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(business.name, style: AppTextStyles.h3),
-                  Text(business.category, style: AppTextStyles.bodySmall),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      Text(
-                        '★ ${business.rating.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          color: AppColors.gold,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        '${business.reviewCount} reviews',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '👁️ $weeklyViews this week',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      Text('📍 ${business.location}', style: AppTextStyles.bodySmall),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: business.openNow
-                              ? AppColors.success.withValues(alpha: 0.15)
-                              : AppColors.textMuted.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          business.openNow ? 'Open' : 'Closed',
-                          style: TextStyle(
-                            color: business.openNow ? AppColors.success : AppColors.textMuted,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (business.languages.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: business.languages.map((lang) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                            border: Border.all(color: AppColors.surfaceElevated),
-                          ),
-                          child: Text(
-                            '${languageFlag(lang)} $lang',
-                            style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    reviewSnippet,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontStyle: FontStyle.italic,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    business.speciality,
-                    style: AppTextStyles.bodySmall.copyWith(fontStyle: FontStyle.italic),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _AiTrustAnalysisBox(
-                    title: '🤖 Trust Score: ${trust.total}/100',
-                    lines: trustAnalysisLines,
-                    trust: trust,
-                    color: levelColor,
-                    levelSubtitle: levelSubtitle,
-                    compact: true,
-                  ),
-                  BusinessRecommendationTag(
-                    businessData: businessListingToMatchData(business),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onCall,
-                          icon: const Icon(Icons.phone, size: 16),
-                          label: const Text('Call'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onWhatsApp,
-                          icon: const Icon(Icons.chat, size: 16),
-                          label: const Text('WhatsApp'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onDirections,
-                          icon: const Icon(Icons.directions, size: 16),
-                          label: const Text('Map'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SponsoredBusinessWrapper extends StatelessWidget {
-  const _SponsoredBusinessWrapper({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Text(
-            '📢 SPONSORED',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.warning,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        child,
-      ],
-    );
-  }
-}
-
-class _AiTrustAnalysisBox extends StatelessWidget {
-  const _AiTrustAnalysisBox({
+class _ListingInfoBox extends StatelessWidget {
+  const _ListingInfoBox({
     required this.title,
     required this.lines,
-    required this.trust,
     required this.color,
-    required this.levelSubtitle,
+    required this.statusSubtitle,
     this.compact = false,
   });
 
   final String title;
   final List<String> lines;
-  final TrustScoreBreakdown trust;
   final Color color;
-  final String levelSubtitle;
+  final String statusSubtitle;
   final bool compact;
 
   @override
@@ -1697,111 +1257,25 @@ class _AiTrustAnalysisBox extends StatelessWidget {
             title,
             style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
           ),
+          const SizedBox(height: 6),
+          Text(statusSubtitle, style: TextStyle(color: color, fontSize: 11)),
           if (!compact) ...[
             const SizedBox(height: 8),
             ...lines.map(
               (line) => Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text(line, style: TextStyle(color: color, height: 1.4, fontSize: 12)),
+                child: Text(
+                  line,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          _TrustScoreBar(score: trust.total, color: color),
-          const SizedBox(height: 6),
-          Text(levelSubtitle, style: TextStyle(color: color, fontSize: 11)),
-          if (!compact) ...[
-            Text(
-              'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
-              style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
-            ),
-          ] else
-            Text(
-              'Reviews ${trust.reviewsScore} + Rating ${trust.ratingScore} + Activity ${trust.activityScore}',
-              style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
-            ),
         ],
-      ),
-    );
-  }
-}
-
-class _VerificationBadge extends StatelessWidget {
-  const _VerificationBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 8,
-          fontWeight: FontWeight.bold,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-}
-
-class _TrustScoreBar extends StatelessWidget {
-  const _TrustScoreBar({required this.score, required this.color});
-
-  final int score;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: score / 100,
-        minHeight: 6,
-        backgroundColor: Colors.white.withValues(alpha: 0.08),
-        color: color,
-      ),
-    );
-  }
-}
-
-class _FormField extends StatelessWidget {
-  const _FormField({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-    this.keyboardType,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      style: TextStyle(color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppTextStyles.bodyMedium,
-        filled: true,
-        fillColor: AppColors.background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
       ),
     );
   }

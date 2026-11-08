@@ -1,0 +1,32 @@
+{
+  "channels": [
+    {
+      "id": "moi_ecccd",
+      "nameKey": "ss_rp_ch_moi",
+      "bodyKey": "ss_rp_ch_moi_body",
+      "verified": false,
+      "lastVerified": "2026-10-18",
+      "sourceLabel": "MOI Economic & Cyber Crimes — confirm hotline, phone, email, and in-app route on moi.gov.qa (not Metrash2)",
+      "callNumber": "66815757",
+      "secondaryCallNumber": "2347444",
+      "email": "cccc@moi.gov.qa",
+      "verifyUrl": "https://www.moi.gov.qa/",
+      "openAppUrl": null,
+      "appRouteNoteKey": "ss_rp_moi_app_route_unverified"
+    },
+    {
+      "id": "ncsa_qcert",
+      "nameKey": "ss_rp_ch_ncsa",
+      "bodyKey": "ss_rp_ch_ncsa_body",
+      "verified": false,
+      "lastVerified": "2026-10-18",
+      "sourceLabel": "NCSA / Q-CERT — confirm official contact route before enabling",
+      "callNumber": null,
+      "secondaryCallNumber": null,
+      "email": null,
+      "verifyUrl": "https://www.ncsa.gov.qa/",
+      "openAppUrl": null,
+      "appRouteNoteKey": null
+    }
+  ]
+}

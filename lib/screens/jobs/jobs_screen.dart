@@ -1,431 +1,223 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
-import 'package:raabta/core/widgets/section_header.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/animated_background.dart';
+import 'package:raabta/core/widgets/qr_share_sheet.dart';
+import 'package:raabta/core/icons/raabta_icons.dart';
+import 'package:raabta/core/icons/service_screen_icons.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/features/profile/advanced/widgets/advanced_profile_card.dart';
+import 'package:raabta/data/categories/job_categories.dart';
+import 'package:raabta/data/models/business_listing.dart';
+import 'package:raabta/data/models/job_listing.dart';
+import 'package:raabta/data/repositories/jobs_repository.dart';
+import 'package:raabta/core/widgets/hub/hub_filter_chip.dart';
+import 'package:raabta/core/widgets/hub/hub_landing_header.dart';
+import 'package:raabta/core/widgets/hub/hub_layout_tokens.dart';
+import 'package:raabta/core/widgets/hub/hub_quick_action_tile.dart';
+import 'package:raabta/core/widgets/hub/hub_search_decoration.dart';
+import 'package:raabta/core/widgets/hub/hub_loading_placeholder.dart';
+import 'package:raabta/core/widgets/hub/hub_summary_strip_card.dart';
+import 'package:raabta/screens/jobs/widgets/jobs_hub_feed_footer_notice.dart';
+import 'package:raabta/screens/jobs/widgets/jobs_hub_employer_source_tier.dart';
+import 'package:raabta/screens/jobs/widgets/jobs_hub_main_listing_card.dart';
+import 'package:raabta/features/eosb/presentation/screens/agency_verification_screen.dart';
+import 'package:raabta/features/eosb/presentation/screens/employer_track_record_lookup_screen.dart';
+import 'package:raabta/features/home/widgets/home_section_header.dart';
+import 'package:raabta/features/home/widgets/status_badge.dart';
+import 'package:raabta/features/post_engine/domain/post_engine.dart';
+import 'package:raabta/data/models/job_application.dart';
+import 'package:raabta/providers/auth_providers.dart';
+import 'package:raabta/providers/jobs_providers.dart';
+import 'package:raabta/core/utils/profile_display_helper.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
-import 'package:raabta/widgets/ai/job_match_badge.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:raabta/services/ai/job_match_service.dart';
+import 'package:raabta/services/qr/listing_deep_links.dart';
+import 'package:raabta/screens/jobs/l10n/jobs_application_strings.dart';
+import 'package:raabta/screens/jobs/widgets/job_aggregated_external_apply_compliance.dart';
+import 'package:raabta/screens/jobs/widgets/job_detail_contact_section.dart';
+import 'package:raabta/screens/jobs/widgets/job_detail_action_bar.dart';
+import 'package:raabta/screens/jobs/widgets/job_listing_detail_body.dart';
+import 'package:raabta/screens/jobs/widgets/job_listing_detail_sheet_shell.dart';
+import 'package:raabta/screens/jobs/l10n/jobs_strings.dart';
+import 'package:raabta/features/jobs/offer_calculator/presentation/screens/job_offer_calculator_screen.dart';
+import 'package:raabta/features/global_search/domain/search_route_parameters.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_criteria.dart';
+import 'package:raabta/features/saved_search/domain/saved_search_vertical.dart';
+import 'package:raabta/features/saved_search/presentation/widgets/save_search_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum JobVerificationStatus { verified, warning, scam }
+String _jobsHubPrimaryCtaKey(JobListing job) =>
+    job.supportsApplicationTracking ? 'jobs_apply' : 'jobs_view_listing';
 
-class JobVerificationResult {
-  const JobVerificationResult({
-    required this.status,
-    required this.analysisText,
-  });
+@visibleForTesting
+Widget jobsAggregatedApplyComplianceForTest(String locale) =>
+    JobAggregatedExternalApplyCompliance(locale: locale);
 
-  final JobVerificationStatus status;
-  final String analysisText;
-}
-
-class JobListing {
-  const JobListing({
-    required this.id,
-    required this.title,
-    required this.company,
-    required this.location,
-    required this.salary,
-    required this.benefits,
-    required this.posted,
-    required this.applicants,
-    required this.type,
-    required this.experience,
-    required this.description,
-    required this.contact,
-    required this.category,
-    this.requirements = const [],
-    this.email,
-    this.note,
-    this.whatsappOnly = false,
-    this.isNewUnknownCompany = false,
-    this.industry = 'General',
-  });
-
-  final String id;
-  final String title;
-  final String company;
-  final String location;
-  final String salary;
-  final List<String> benefits;
-  final String posted;
-  final int applicants;
-  final String type;
-  final String experience;
-  final String description;
-  final String contact;
-  final String category;
-  final List<String> requirements;
-  final String? email;
-  final String? note;
-  final bool whatsappOnly;
-  final bool isNewUnknownCompany;
-  final String industry;
-
-  String get searchableText =>
-      '$title $company $location $salary $description ${benefits.join(' ')}'
-          .toLowerCase();
-
-  String get companyInitial =>
-      company.isNotEmpty ? company.trim()[0].toUpperCase() : '?';
-}
-
-Map<String, dynamic> jobListingToMatchData(JobListing job) => {
-      'id': job.id,
-      'title': job.title,
-      'company': job.company,
-      'location': job.location,
-      'area': job.location,
-      'salary': job.salary,
-      'requirements': job.requirements,
-      'experience': job.experience,
-      'category': job.category,
-      'skills': job.requirements,
-    };
-
-JobVerificationResult getJobVerification(JobListing job) {
-  final combined = '${job.title} ${job.company} ${job.location} ${job.salary} '
-          '${job.description} ${job.note ?? ''} ${job.contact}'
-      .toLowerCase();
-
-  bool containsAny(List<String> phrases) =>
-      phrases.any((phrase) => combined.contains(phrase.toLowerCase()));
-
-  bool hasSalaryAmount() {
-    if (job.salary.toLowerCase().contains('contact for salary')) return false;
-    return RegExp(r'\d').hasMatch(job.salary);
-  }
-
-  bool hasCompanyName() => job.company.trim().isNotEmpty;
-
-  bool hasQatarLocation() {
-    const qatarMarkers = [
-      'qatar',
-      'doha',
-      'lusail',
-      'al khor',
-      'ras laffan',
-      'al wakrah',
-      'al rayyan',
-      'mesaieed',
-      'west bay',
-    ];
-    return qatarMarkers.any(
-      (marker) => job.location.toLowerCase().contains(marker),
+@visibleForTesting
+Widget jobsDetailContactSectionForTest({
+  required JobListing job,
+  required String locale,
+}) =>
+    JobDetailContactSection(
+      job: job,
+      locale: locale,
+      onOpenUrl: (_) async {},
+      whatsappMessage: 'test',
     );
-  }
 
-  bool hasBenefits() => job.benefits.isNotEmpty;
+class JobsScreen extends ConsumerStatefulWidget {
+  const JobsScreen({super.key, this.routeParameters});
 
-  bool hasValidQatarPhone() {
-    final normalized = job.contact.replaceAll(' ', '');
-    return normalized.startsWith('+974');
-  }
-
-  int? maxSalaryValue() {
-    final matches = RegExp(r'([\d,]+)').allMatches(job.salary);
-    if (matches.isEmpty) return null;
-    final values = matches
-        .map((m) => int.tryParse(m.group(1)!.replaceAll(',', '')))
-        .whereType<int>()
-        .toList();
-    if (values.isEmpty) return null;
-    return values.reduce((a, b) => a > b ? a : b);
-  }
-
-  const suspiciousKeywords = [
-    'send cv on whatsapp only',
-    'whatsapp only',
-  ];
-
-  const scamKeywords = [
-    'pay deposit',
-    'send money first',
-    'registration fee',
-    'send money',
-    'processing fee',
-  ];
-
-  final maxSalary = maxSalaryValue();
-
-  if (containsAny(scamKeywords) ||
-      combined.contains('guaranteed job') ||
-      (combined.contains('guaranteed') && combined.contains('50000')) ||
-      !hasQatarLocation() ||
-      !hasValidQatarPhone() ||
-      (maxSalary != null && maxSalary >= 50000)) {
-    return const JobVerificationResult(
-      status: JobVerificationStatus.scam,
-      analysisText:
-          '🚫 High risk detected. Multiple fraud signals found. '
-          'Do NOT send money or personal documents.',
-    );
-  }
-
-  if (!hasSalaryAmount() ||
-      !hasCompanyName() ||
-      job.whatsappOnly ||
-      !hasBenefits() ||
-      job.isNewUnknownCompany) {
-    return const JobVerificationResult(
-      status: JobVerificationStatus.warning,
-      analysisText:
-          '⚠ Review carefully. Some details unconfirmed. '
-          'Ask for written contract before proceeding.',
-    );
-  }
-
-  if (hasSalaryAmount() &&
-      hasCompanyName() &&
-      hasQatarLocation() &&
-      hasBenefits() &&
-      !containsAny(suspiciousKeywords)) {
-    return const JobVerificationResult(
-      status: JobVerificationStatus.verified,
-      analysisText:
-          '✓ Verified listing. Company registered in Qatar. '
-          'Salary within market range. Benefits confirmed.',
-    );
-  }
-
-  return const JobVerificationResult(
-    status: JobVerificationStatus.warning,
-    analysisText:
-        '⚠ Review carefully. Some details unconfirmed. '
-        'Ask for written contract before proceeding.',
-  );
-}
-
-int aiMatchScore(JobListing job) {
-  final verification = getJobVerification(job);
-  final seed = job.id.hashCode.abs() % 35 + 58;
-  switch (verification.status) {
-    case JobVerificationStatus.verified:
-      return seed.clamp(72, 98);
-    case JobVerificationStatus.warning:
-      return seed.clamp(50, 71);
-    case JobVerificationStatus.scam:
-      return seed.clamp(18, 49);
-  }
-}
-
-Color aiMatchColor(int score) {
-  if (score >= 72) return AppColors.success;
-  if (score >= 50) return AppColors.warning;
-  return AppColors.textMuted;
-}
-
-enum PremiumJobBadge { featured, urgent, spotlight }
-
-class JobsScreen extends StatefulWidget {
-  const JobsScreen({super.key});
+  final SearchRouteParameters? routeParameters;
 
   @override
-  State<JobsScreen> createState() => _JobsScreenState();
+  ConsumerState<JobsScreen> createState() => _JobsScreenState();
 }
 
-class _JobsScreenState extends State<JobsScreen> {
+class _JobsScreenState extends ConsumerState<JobsScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _selectedFilter = 0;
-  final Set<String> _savedJobIds = {};
+  JobsHubEmployerSegment _employerSegment = JobsHubEmployerSegment.all;
+  SearchRouteParameters? _routeFilters;
+  final Set<String> _pendingSaveJobIds = {};
 
-  static const List<String> _filters = [
-    'All',
-    'HSE/Safety',
-    'Construction',
-    'IT',
-    'Healthcare',
-    'Hospitality',
-    'Driving',
-    'Security',
-    'Cleaning',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _routeFilters = widget.routeParameters;
+    _applyRouteParameters(_routeFilters);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_ensureOwnedProfileForJobs());
+    });
+  }
 
-  static const List<JobListing> _allJobs = [
-    JobListing(
-      id: 'job-1',
-      title: 'HSE Officer',
-      company: 'QatarEnergy LNG',
-      location: 'Ras Laffan, Qatar',
-      salary: '8,000 — 12,000 QR/month',
-      benefits: ['Flight Ticket', 'Housing', 'Medical'],
-      posted: '2 hours ago',
-      applicants: 45,
-      type: 'Full Time',
-      experience: '5+ years',
-      description:
-          'Responsible for HSE compliance at LNG facility. NEBOSH certificate required.',
-      contact: '+974 4400 0000',
-      category: 'HSE/Safety',
-      industry: 'Oil & Gas',
-      requirements: [
-        'NEBOSH IGC or equivalent',
-        '5+ years HSE experience in oil & gas',
-        'Valid Qatar driving license preferred',
-      ],
-      email: 'careers@qa.energy',
-    ),
-    JobListing(
-      id: 'job-2',
-      title: 'HSE Engineer',
-      company: 'EMCO Qatar',
-      location: 'Doha, Qatar',
-      salary: '8,000 — 10,000 QR/month',
-      benefits: ['Housing Allowance', 'Medical'],
-      posted: '5 hours ago',
-      applicants: 23,
-      type: 'Full Time',
-      experience: '3+ years',
-      description:
-          'Support HSE programs across construction projects in Doha. Conduct site audits and training.',
-      contact: '+974 4411 2233',
-      category: 'HSE/Safety',
-      industry: 'Construction',
-      requirements: [
-        'Bachelor in Engineering or HSE',
-        '3+ years Qatar/GCC experience',
-        'IOSH or NEBOSH certification',
-      ],
-      email: 'hr@emco.qa',
-    ),
-    JobListing(
-      id: 'job-3',
-      title: 'IT Support Specialist',
-      company: 'Qatar Airways',
-      location: 'Doha, Qatar',
-      salary: '5,500 — 7,500 QR/month',
-      benefits: ['Flight Discount', 'Housing', 'Medical'],
-      posted: '1 day ago',
-      applicants: 67,
-      type: 'Full Time',
-      experience: '2+ years',
-      description:
-          'Provide L1/L2 IT support for corporate staff. Manage tickets, hardware, and onboarding.',
-      contact: '+974 4022 0000',
-      category: 'IT',
-      industry: 'Aviation',
-      requirements: [
-        'CompTIA A+ or equivalent',
-        'Experience with Active Directory',
-        'Strong English communication',
-      ],
-      email: 'jobs@qatarairways.qa',
-    ),
-    JobListing(
-      id: 'job-4',
-      title: 'Staff Nurse',
-      company: 'Hamad Medical Corporation',
-      location: 'Doha, Qatar',
-      salary: '7,000 — 9,000 QR/month',
-      benefits: ['Housing', 'Medical', 'Annual Leave'],
-      posted: '3 hours ago',
-      applicants: 89,
-      type: 'Full Time',
-      experience: '3+ years',
-      description:
-          'Deliver patient care in a busy hospital ward. QCHP license required.',
-      contact: '+974 4439 5777',
-      category: 'Healthcare',
-      industry: 'Healthcare',
-      requirements: [
-        'Valid QCHP license',
-        'BSN or equivalent nursing degree',
-        '3+ years clinical experience',
-      ],
-      email: 'recruitment@hamad.qa',
-    ),
-    JobListing(
-      id: 'job-5',
-      title: 'Construction Worker',
-      company: 'Al Baraka Trading',
-      location: 'Qatar',
-      salary: 'Contact for salary',
-      benefits: [],
-      posted: '1 day ago',
-      applicants: 12,
-      type: 'Full Time',
-      experience: '1+ years',
-      description:
-          'General construction labour needed for site work. Accommodation may be discussed.',
-      contact: '+974 3344 5566',
-      category: 'Construction',
-      industry: 'Construction',
-      requirements: ['Previous construction experience'],
-      note: 'No salary and no benefits mentioned',
-      isNewUnknownCompany: true,
-    ),
-    JobListing(
-      id: 'job-6',
-      title: 'Driver Needed',
-      company: 'Private Family',
-      location: 'Doha',
-      salary: '2,000 QR/month',
-      benefits: [],
-      posted: '6 hours ago',
-      applicants: 12,
-      type: 'Full Time',
-      experience: '2+ years',
-      description:
-          'Family driver required in Doha. Must have valid Qatar license. Send CV on WhatsApp only.',
-      contact: '+974 5566 7788',
-      category: 'Driving',
-      industry: 'Private',
-      requirements: ['Valid Qatar light vehicle license', 'Clean driving record'],
-      note: 'No written contract mentioned',
-      whatsappOnly: true,
-      isNewUnknownCompany: true,
-    ),
-    JobListing(
-      id: 'job-7',
-      title: 'Easy Work High Pay',
-      company: 'Global Opportunities',
-      location: 'International',
-      salary: '50,000 QR/month guaranteed',
-      benefits: ['Everything provided'],
-      posted: '30 minutes ago',
-      applicants: 234,
-      type: 'Full Time',
-      experience: 'None required',
-      description:
-          'Guaranteed job with easy work and high pay. Send CV and 500 QR registration fee to secure placement.',
-      contact: '+971 50 123 4567',
-      category: 'All',
-      industry: 'Recruitment',
-      requirements: [],
-      note: 'Send CV and 500 QR registration fee',
-    ),
-  ];
+  Future<void> _ensureOwnedProfileForJobs() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    final profile = ref.read(userAIProfileProvider);
+    if (!UserProfileOwnership.needsInit(profile, user.uid)) return;
+    await ref.read(userAIProfileProvider.notifier).initProfile(user.uid);
+  }
 
-  List<JobListing> get _filteredJobs {
-    var jobs = _allJobs;
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      jobs = jobs.where((j) => j.searchableText.contains(query)).toList();
+  void _applyRouteParameters(SearchRouteParameters? params) {
+    if (params == null || params.isEmpty) return;
+
+    if (params.jobQuery != null && params.jobQuery!.trim().isNotEmpty) {
+      _searchController.text = params.jobQuery!.trim();
+    } else if (params.jobCategory != null &&
+        params.jobCategory!.trim().isNotEmpty) {
+      _searchController.text = params.jobCategory!.trim();
     }
-    if (_selectedFilter > 0) {
-      final filter = _filters[_selectedFilter];
-      jobs = jobs.where((j) => j.category == filter).toList();
+
+    if (params.jobCategory != null && params.jobCategory!.trim().isNotEmpty) {
+      final index = kJobCategories.indexWhere(
+        (c) => c.toLowerCase() == params.jobCategory!.trim().toLowerCase(),
+      );
+      if (index >= 0) _selectedFilter = index;
+    }
+  }
+
+  List<JobListing> _filteredJobs(
+    List<JobListing> allJobs,
+    Map<String, BusinessListing> linkedBusinessesById,
+  ) {
+    var jobs = filterJobs(
+      source: allJobs,
+      query: _searchController.text.trim().toLowerCase(),
+      categoryFilter: kJobCategories[_selectedFilter],
+      area: _routeFilters?.area,
+      minSalary: _routeFilters?.minSalary,
+      maxSalary: _routeFilters?.maxSalary,
+      jobCategory: _routeFilters?.jobCategory,
+      jobQuery: _routeFilters?.jobQuery,
+    );
+    final profile = ref.read(userAIProfileProvider);
+    if (profile != null) {
+      jobs = List<JobListing>.from(jobs)
+        ..sort((a, b) => _matchScore(b).compareTo(_matchScore(a)));
+    }
+    if (_employerSegment != JobsHubEmployerSegment.all) {
+      jobs = jobs
+          .where(
+            (job) => jobsHubMatchesEmployerSegment(
+              job,
+              _employerSegment,
+              linkedBusinessesById,
+            ),
+          )
+          .toList();
     }
     return jobs;
   }
 
-  List<JobListing> get _featuredJobs => _allJobs
-      .where((j) => getJobVerification(j).status == JobVerificationStatus.verified)
-      .take(3)
-      .toList();
+  List<JobListing> _featuredJobs(List<JobListing> allJobs, String locale) =>
+      allJobs
+          .where(
+            (j) =>
+                getJobVerification(j, locale).status ==
+                JobVerificationStatus.verified,
+          )
+          .take(3)
+          .toList();
 
-  List<JobListing> get _urgentJobs => _allJobs
-      .where((j) => j.posted.contains('hour') || j.posted.contains('minutes'))
-      .take(2)
-      .toList();
+  List<JobListing> _urgentJobs(List<JobListing> allJobs) =>
+      allJobs.where((j) => j.isRecentlyPosted).take(3).toList();
 
-  int get _matchedJobCount => _allJobs
-      .where((j) => aiMatchScore(j) >= 72)
-      .length;
+  int _matchedJobCount(List<JobListing> allJobs) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return 0;
+    final matcher = ref.read(jobMatchServiceProvider);
+    return allJobs
+        .where(
+          (j) =>
+              matcher.evaluateMatch(jobListingToMatchData(j), profile).matchScore >=
+              72,
+        )
+        .length;
+  }
+
+  // Kept for hub match analytics parity; not shown on Jobs Hub after R3.
+  // ignore: unused_element
+  int? _averageMatchRate(List<JobListing> allJobs) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null || allJobs.isEmpty) return null;
+    final matcher = ref.read(jobMatchServiceProvider);
+    final scores = allJobs
+        .map((j) => matcher.evaluateMatch(jobListingToMatchData(j), profile).matchScore)
+        .toList();
+    if (scores.isEmpty) return null;
+    return (scores.reduce((a, b) => a + b) / scores.length).round();
+  }
+
+  int _matchScore(JobListing job) {
+    final profile = ref.read(userAIProfileProvider);
+    if (profile == null) return 0;
+    return ref
+        .read(jobMatchServiceProvider)
+        .evaluateMatch(jobListingToMatchData(job), profile)
+        .matchScore;
+  }
+
+  ({String company, String industry, int count})? _spotlightCompany(
+    List<JobListing> allJobs,
+  ) {
+    if (allJobs.isEmpty) return null;
+    final counts = <String, int>{};
+    for (final job in allJobs) {
+      counts[job.company] = (counts[job.company] ?? 0) + 1;
+    }
+    final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    final sample = allJobs.firstWhere((j) => j.company == top.key);
+    return (company: top.key, industry: sample.industry, count: top.value);
+  }
 
   @override
   void dispose() {
@@ -433,10 +225,11 @@ class _JobsScreenState extends State<JobsScreen> {
     super.dispose();
   }
 
-  Color _statusColor(JobVerificationStatus status) {
+  /// Hub carousel badges: content-check signal, not employer identity (2A.4).
+  Color _contentCheckBadgeColor(JobVerificationStatus status) {
     switch (status) {
       case JobVerificationStatus.verified:
-        return AppColors.success;
+        return AppColors.info;
       case JobVerificationStatus.warning:
         return AppColors.warning;
       case JobVerificationStatus.scam:
@@ -444,25 +237,25 @@ class _JobsScreenState extends State<JobsScreen> {
     }
   }
 
-  String _badgeLabel(JobVerificationStatus status) {
+  String _badgeLabel(JobVerificationStatus status, String locale) {
     switch (status) {
       case JobVerificationStatus.verified:
-        return '✓ AI VERIFIED';
+        return JobsStrings.t('jobs_badge_verified', locale);
       case JobVerificationStatus.warning:
-        return '⚠ REVIEW CAREFULLY';
+        return JobsStrings.t('jobs_badge_warning', locale);
       case JobVerificationStatus.scam:
-        return '🚫 POSSIBLE SCAM';
+        return JobsStrings.t('jobs_badge_scam', locale);
     }
   }
 
-  String _miniAnalysisText(JobVerificationResult verification) {
+  String _miniAnalysisText(JobVerificationResult verification, String locale) {
     switch (verification.status) {
       case JobVerificationStatus.verified:
-        return '🤖 High match · Verified · Market salary';
+        return JobsStrings.t('jobs_mini_analysis_verified', locale);
       case JobVerificationStatus.warning:
-        return '🤖 Moderate match · Review details carefully';
+        return JobsStrings.t('jobs_mini_analysis_warning', locale);
       case JobVerificationStatus.scam:
-        return '🤖 Low match · High risk signals detected';
+        return JobsStrings.t('jobs_mini_analysis_scam', locale);
     }
   }
 
@@ -473,233 +266,151 @@ class _JobsScreenState extends State<JobsScreen> {
     }
   }
 
-  void _toggleSave(String jobId) {
-    setState(() {
-      if (_savedJobIds.contains(jobId)) {
-        _savedJobIds.remove(jobId);
-      } else {
-        _savedJobIds.add(jobId);
+  Future<void> _toggleSave(String jobId) async {
+    final locale = ref.read(userLanguageProvider);
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(JobsStrings.t('jobs_sign_in_to_save_job', locale)),
+        ),
+      );
+      context.push('/login');
+      return;
+    }
+
+    if (_pendingSaveJobIds.contains(jobId)) return;
+    _pendingSaveJobIds.add(jobId);
+
+    try {
+      if (UserProfileOwnership.needsInit(
+        ref.read(userAIProfileProvider),
+        user.uid,
+      )) {
+        await ref.read(userAIProfileProvider.notifier).initProfile(user.uid);
       }
-    });
+      if (!mounted) return;
+
+      final result =
+          await ref.read(userAIProfileProvider.notifier).toggleSavedJob(jobId);
+      if (!mounted) return;
+
+      if (!result.profileReady || !result.localUpdated) return;
+
+      if (result.remotePersisted &&
+          result.outcome == SavedJobToggleOutcome.saved) {
+        PostEngine().analytics.trackSave(
+          listingId: jobId,
+          verticalId: 'jobs',
+        );
+      }
+
+      if (!result.remotePersisted) {
+        final messageKey = result.outcome == SavedJobToggleOutcome.unsaved
+            ? 'jobs_unsave_sync_failed'
+            : 'jobs_save_sync_failed';
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(JobsStrings.t(messageKey, locale))),
+        );
+      }
+    } finally {
+      _pendingSaveJobIds.remove(jobId);
+    }
   }
 
-  Future<void> _shareJob(JobListing job) async {
-    final verification = getJobVerification(job);
-    await Share.share(
-      '${job.title} at ${job.company}\n'
-      '${job.location} · ${job.salary}\n'
-      'AI Status: ${_badgeLabel(verification.status)}\n'
-      'Posted via Raabta Jobs',
+  void _openJobQrShare(JobListing job, String locale) {
+    final verification = getJobVerification(job, locale);
+    showQrShareSheet(
+      context,
+      title: job.title,
+      subtitle: '${job.company} · ${job.location}',
+      caption: JobsStrings.format(
+        'jobs_qr_caption',
+        locale,
+        params: {'badge': _badgeLabel(verification.status, locale)},
+      ),
+      qrData: ListingDeepLinks.jobListing(job.id),
     );
   }
 
+  Future<void> _shareJob(JobListing job, String locale) async {
+    _openJobQrShare(job, locale);
+  }
+
   void _applyToJob(JobListing job, JobVerificationResult verification) {
+    final locale = ref.read(userLanguageProvider);
     if (verification.status == JobVerificationStatus.scam) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This listing flagged as high risk. Proceed with caution.',
-          ),
+        SnackBar(
+          content: Text(JobsStrings.t('jobs_scam_apply_blocked', locale)),
           backgroundColor: AppColors.error,
         ),
       );
-      return;
+    } else if (verification.status == JobVerificationStatus.warning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(JobsStrings.t('jobs_review_before_apply', locale)),
+          backgroundColor: AppColors.warning,
+        ),
+      );
     }
     _showJobDetailSheet(job);
   }
 
   void _showJobDetailSheet(JobListing job) {
-    final verification = getJobVerification(job);
-    final color = _statusColor(verification.status);
+    unawaited(
+      ref.read(userAIProfileProvider.notifier).trackJobView(
+            job.id,
+            {
+              'title': job.title,
+              'category': job.category,
+              'skills': job.requirements,
+              'certifications': job.requirements,
+            },
+          ),
+    );
+    PostEngine().analytics.trackView(
+      listingId: job.id,
+      verticalId: 'jobs',
+    );
 
-    showModalBottomSheet<void>(
+    final locale = ref.read(userLanguageProvider);
+
+    showJobListingDetailBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.88,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) {
-            return SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(job.title, style: AppTextStyles.h1),
-                      ),
-                      _VerificationBadge(
-                        label: _badgeLabel(verification.status),
-                        color: color,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('🏢 ${job.company}', style: AppTextStyles.bodyMedium),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Description',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    job.description,
-                    style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
-                  ),
-                  if (job.requirements.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Requirements',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...job.requirements.map(
-                      (req) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text('• $req', style: AppTextStyles.bodyMedium),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border(left: BorderSide(color: color, width: 3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.smart_toy_outlined,
-                              color: AppColors.primary,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '🤖 Full AI Analysis',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          verification.analysisText,
-                          style: TextStyle(color: color, height: 1.4),
-                        ),
-                        if (job.note != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            job.note!,
-                            style: AppTextStyles.bodySmall,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final phone =
-                                job.contact.replaceAll(' ', '').replaceAll('-', '');
-                            _openUrl(
-                              'https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent('Hi, I am interested in the ${job.title} position at ${job.company} listed on Raabta.')}',
-                            );
-                          },
-                          icon: const Icon(Icons.chat),
-                          label: const Text('WhatsApp'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: job.email == null
-                              ? null
-                              : () => _openUrl('mailto:${job.email}'),
-                          icon: const Icon(Icons.email_outlined),
-                          label: const Text('Email'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withValues(alpha: 0.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _openUrl('tel:${job.contact}'),
-                      icon: const Icon(Icons.phone),
-                      label: Text('Call ${job.contact}'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(color: AppColors.surfaceElevated),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Report submitted for "${job.title}"'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Report this job',
-                        style: TextStyle(color: AppColors.error),
-                      ),
-                    ),
-                  ),
-                ],
+      watchLocale: true,
+      localeWhenNotWatching: locale,
+      buildContent: (context, scrollController, locale) {
+        final applicationSectionKey = GlobalKey();
+        return Consumer(
+          builder: (context, ref, _) {
+            final linkedBusinessesById =
+                ref.read(jobsLinkedBusinessesProvider).valueOrNull ?? const {};
+            final savedJobIds =
+                ref.watch(userAIProfileProvider)?.savedJobIds ?? const [];
+            final isSaved = savedJobIds.contains(job.id);
+            return JobListingDetailSheetScaffold(
+              scrollController: scrollController,
+              job: job,
+              body: JobListingDetailBody(
+                job: job,
+                locale: locale,
+                linkedBusinessesById: linkedBusinessesById,
+                onOpenUrl: _openUrl,
+                onShareQr: () => _openJobQrShare(job, locale),
+                onDismissSheet: () => Navigator.pop(context),
+                applicationSectionKey: applicationSectionKey,
+              ),
+              actionBar: JobDetailActionBar(
+                job: job,
+                locale: locale,
+                isSaved: isSaved,
+                onSave: () => unawaited(_toggleSave(job.id)),
+                onShare: () => unawaited(_shareJob(job, locale)),
+                onNativeApplyPrimary: () =>
+                    scrollToJobDetailApplicationSection(applicationSectionKey),
               ),
             );
           },
@@ -709,197 +420,89 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 
   void _showPostJobSheet() {
-    final titleController = TextEditingController();
-    final companyController = TextEditingController();
-    final salaryController = TextEditingController();
-    final locationController = TextEditingController(text: 'Qatar');
-    final descriptionController = TextEditingController();
-    final whatsappController = TextEditingController();
-    var housing = false;
-    var flight = false;
-    var medical = false;
-    var other = false;
+    context.push('/jobs/post');
+  }
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+  @override
+  Widget build(BuildContext context) {
+    final locale = ref.watch(userLanguageProvider);
+    final jobsAsync = ref.watch(jobsCatalogProvider);
+    final savedJobIds =
+        ref.watch(userAIProfileProvider)?.savedJobIds ?? const [];
+
+    return jobsAsync.when(
+      loading: () => AnimatedAuroraBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: const SafeArea(
+            child: HubLoadingPlaceholder(),
+          ),
+        ),
       ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+      error: (e, _) => AnimatedAuroraBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Center(
+              child: Text(
+                '${JobsStrings.t('jobs_load_error', locale)}: $e',
+                style: AppTypography.body,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Post a Job', style: AppTextStyles.h1),
-                    const SizedBox(height: 16),
-                    _FormField(controller: titleController, hint: 'Job title'),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: companyController,
-                      hint: 'Company name',
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: salaryController,
-                      hint: 'Salary range (e.g. 4,000 — 6,000 QR/month)',
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: locationController,
-                      hint: 'Location',
-                    ),
-                    const SizedBox(height: 12),
-                    Text('Benefits', style: AppTextStyles.bodyMedium),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        FilterChip(
-                          label: const Text('Housing'),
-                          selected: housing,
-                          onSelected: (v) => setSheetState(() => housing = v),
-                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        ),
-                        FilterChip(
-                          label: const Text('Flight'),
-                          selected: flight,
-                          onSelected: (v) => setSheetState(() => flight = v),
-                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        ),
-                        FilterChip(
-                          label: const Text('Medical'),
-                          selected: medical,
-                          onSelected: (v) => setSheetState(() => medical = v),
-                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        ),
-                        FilterChip(
-                          label: const Text('Other'),
-                          selected: other,
-                          onSelected: (v) => setSheetState(() => other = v),
-                          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: descriptionController,
-                      hint: 'Job description',
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 10),
-                    _FormField(
-                      controller: whatsappController,
-                      hint: 'Contact WhatsApp (+974...)',
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {
-                          if (titleController.text.trim().isEmpty ||
-                              companyController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please fill required fields'),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Your job posted! AI verification within 2 hours.',
-                              ),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          'Post & Request AI Verification',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+            ),
+          ),
+        ),
+      ),
+      data: (allJobs) {
+        final linkedBusinessesById =
+            ref.watch(jobsLinkedBusinessesProvider).valueOrNull ?? const {};
+        return _buildJobsContent(
+          context,
+          locale,
+          allJobs,
+          savedJobIds,
+          linkedBusinessesById,
         );
       },
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final jobs = _filteredJobs;
-    final featured = _featuredJobs;
-    final urgent = _urgentJobs;
+  Widget _buildJobsContent(
+    BuildContext context,
+    String locale,
+    List<JobListing> allJobs,
+    List<String> savedJobIds,
+    Map<String, BusinessListing> linkedBusinessesById,
+  ) {
+    bool isJobSaved(String jobId) => savedJobIds.contains(jobId);
+    final jobs = _filteredJobs(allJobs, linkedBusinessesById);
+    final featured = _featuredJobs(allJobs, locale);
+    final urgent = _urgentJobs(allJobs);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return AnimatedAuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
         onPressed: _showPostJobSheet,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.brandFamilyMain,
+        foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(
+            SliverToBoxAdapter(child: _buildLandingChrome(context, locale)),
+            SliverToBoxAdapter(child: _buildHubSummaryStrip(locale)),
+            SliverToBoxAdapter(child: _buildQuickActionsRow(locale)),
+            SliverToBoxAdapter(child: _buildFilterChips()),
+            SliverToBoxAdapter(child: _buildEmployerSegmentChips(locale)),
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _showPostJobSheet,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Post Job'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        backgroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                child: AdvancedProfileNudgeBanner(),
               ),
             ),
-            SliverToBoxAdapter(child: _buildHeroSection()),
-            SliverToBoxAdapter(child: _buildSearchBar()),
-            SliverToBoxAdapter(child: _buildFilterChips()),
-            SliverToBoxAdapter(child: _buildAiMatchBanner()),
+            SliverToBoxAdapter(child: _buildAiMatchBanner(allJobs, locale)),
             if (featured.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -909,9 +512,10 @@ class _JobsScreenState extends State<JobsScreen> {
                     AppSpacing.xl,
                     AppSpacing.md,
                   ),
-                  child: SectionHeader(
-                    title: '⭐ Featured Jobs',
-                    onSeeAll: () {},
+                  child: HomeSectionHeader(
+                    overline: JobsStrings.t('jobs_featured_jobs', locale),
+                    title: JobsStrings.t('jobs_top_picks', locale),
+                    leadingIcon: Icons.star_outline_rounded,
                   ),
                 ),
               ),
@@ -929,29 +533,75 @@ class _JobsScreenState extends State<JobsScreen> {
                         PremiumJobBadge.urgent,
                         PremiumJobBadge.spotlight,
                       ];
+                      final featuredJob = featured[index];
+                      final featuredVerification =
+                          getJobVerification(featuredJob, locale);
                       return _PremiumJobCard(
-                        job: featured[index],
+                        job: featuredJob,
+                        locale: locale,
                         badge: badges[index % badges.length],
-                        isSaved: _savedJobIds.contains(featured[index].id),
+                        isSaved: isJobSaved(featuredJob.id),
                         onApply: () => _applyToJob(
-                          featured[index],
-                          getJobVerification(featured[index]),
+                          featuredJob,
+                          featuredVerification,
                         ),
-                        onSave: () => _toggleSave(featured[index].id),
-                        onShare: () => _shareJob(featured[index]),
-                        statusColor: _statusColor(
-                          getJobVerification(featured[index]).status,
+                        onSave: () => unawaited(_toggleSave(featuredJob.id)),
+                        onShare: () => _shareJob(featuredJob, locale),
+                        statusColor: _contentCheckBadgeColor(
+                          featuredVerification.status,
                         ),
-                        verification: getJobVerification(featured[index]),
-                        miniAnalysis: _miniAnalysisText(
-                          getJobVerification(featured[index]),
-                        ),
+                        verification: featuredVerification,
+                        miniAnalysis: _miniAnalysisText(featuredVerification, locale),
                       );
                     },
                   ),
                 ),
               ),
             ],
+            if (urgent.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xxl,
+                    AppSpacing.xl,
+                    AppSpacing.md,
+                  ),
+                  child: HomeSectionHeader(
+                    overline: JobsStrings.t('jobs_tab_urgent', locale),
+                    title: JobsStrings.t('jobs_hiring_now', locale),
+                    leadingIcon: Icons.local_fire_department_outlined,
+                  ),
+                ),
+              ),
+            if (urgent.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Column(
+                    children: urgent.map((job) {
+                      final verification = getJobVerification(job, locale);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _UrgentJobCard(
+                          job: job,
+                          locale: locale,
+                          verification: verification,
+                          isSaved: isJobSaved(job.id),
+                          onTap: () => _applyToJob(job, verification),
+                          onSave: () => unawaited(_toggleSave(job.id)),
+                          onShare: () => _shareJob(job, locale),
+                          statusColor:
+                              _contentCheckBadgeColor(verification.status),
+                          badgeLabel: _badgeLabel(verification.status, locale),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            if (_spotlightCompany(allJobs) != null)
+              SliverToBoxAdapter(child: _buildCompanySpotlight(allJobs, locale)),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -960,44 +610,11 @@ class _JobsScreenState extends State<JobsScreen> {
                   AppSpacing.xl,
                   AppSpacing.md,
                 ),
-                child: SectionHeader(
-                  title: '🔥 Urgent Hiring',
-                  onSeeAll: () {},
+                child: Text(
+                  JobsStrings.t('jobs_tab_jobs', locale),
+                  key: const Key('jobs_hub_tab_jobs_heading'),
+                  style: AppTypography.title,
                 ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: Column(
-                  children: urgent.map((job) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: _UrgentJobCard(
-                        job: job,
-                        verification: getJobVerification(job),
-                        isSaved: _savedJobIds.contains(job.id),
-                        onTap: () => _applyToJob(job, getJobVerification(job)),
-                        onSave: () => _toggleSave(job.id),
-                        onShare: () => _shareJob(job),
-                        statusColor: _statusColor(getJobVerification(job).status),
-                        badgeLabel: _badgeLabel(getJobVerification(job).status),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(child: _buildCompanySpotlight()),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.xxl,
-                  AppSpacing.xl,
-                  AppSpacing.md,
-                ),
-                child: Text('All Jobs', style: AppTextStyles.h2),
               ),
             ),
             SliverToBoxAdapter(
@@ -1018,20 +635,20 @@ class _JobsScreenState extends State<JobsScreen> {
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.07),
+                      color: AppColors.brandFamilyMain.withValues(alpha: 0.07),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2),
+                        color: AppColors.brandFamilyMain.withValues(alpha: 0.2),
                       ),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
                     ),
                     child: Row(
                       children: [
                         const Text('🤖', style: TextStyle(fontSize: 13)),
                         const SizedBox(width: 6),
                         Text(
-                          'Sorted by AI match for your profile',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.primary,
+                          JobsStrings.t('jobs_sorted_ai_match', locale),
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.brandFamilyMain,
                           ),
                         ),
                       ],
@@ -1040,66 +657,86 @@ class _JobsScreenState extends State<JobsScreen> {
                 },
               ),
             ),
-            if (jobs.isEmpty)
+            if (allJobs.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.work_off_outlined,
-                        color: AppColors.textSecondary,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No jobs match your search',
-                        style: AppTextStyles.bodyLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _selectedFilter = 0;
-                          });
-                        },
-                        child: Text(
-                          'Clear filters',
-                          style: AppTextStyles.labelLarge,
-                        ),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: GlassEmptyState(
+                      icon: Icons.work_off_outlined,
+                      title: JobsStrings.t('jobs_no_jobs_posted_title', locale),
+                      description: JobsStrings.t('jobs_no_jobs_posted_body', locale),
+                      actionLabel: JobsStrings.t('jobs_no_jobs_posted_action', locale),
+                      onAction: _showPostJobSheet,
+                      accent: GlassEmptyStateAccent.brand,
+                    ),
                   ),
                 ),
               )
-            else
+            else if (jobs.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GlassEmptyState(
+                          key: const Key('jobs_hub_empty_filter_state'),
+                          icon: Icons.work_off_outlined,
+                          title: JobsStrings.t(
+                            'jobs_hub_empty_filter_title',
+                            locale,
+                          ),
+                          description: JobsStrings.t(
+                            'jobs_hub_empty_filter_body',
+                            locale,
+                          ),
+                          accent: GlassEmptyStateAccent.brand,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SaveSearchButton(
+                          key: const Key('jobs_hub_empty_save_search'),
+                          vertical: SavedSearchVertical.jobs,
+                          accent: SaveSearchButtonAccent.hubBrand,
+                          criteria: SavedSearchCriteria.fromJobsBrowse(
+                            query: _searchController.text,
+                            selectedCategoryIndex: _selectedFilter,
+                            routeFilters: _routeFilters,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else ...[
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl,
                   0,
                   AppSpacing.xl,
-                  100,
+                  AppSpacing.md,
                 ),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final job = jobs[index];
+                      final verification = getJobVerification(job, locale);
                       return Padding(
                         padding: EdgeInsets.only(
                           bottom: index < jobs.length - 1 ? AppSpacing.md : 0,
                         ),
-                        child: _JobListingCard(
+                        child: JobsHubMainListingCard(
                           job: job,
-                          verification: getJobVerification(job),
-                          isSaved: _savedJobIds.contains(job.id),
-                          statusColor: _statusColor(getJobVerification(job).status),
-                          badgeLabel: _badgeLabel(getJobVerification(job).status),
-                          matchScore: aiMatchScore(job),
-                          onApply: () => _applyToJob(job, getJobVerification(job)),
-                          onSave: () => _toggleSave(job.id),
-                          onShare: () => _shareJob(job),
+                          locale: locale,
+                          linkedBusinessesById: linkedBusinessesById,
+                          isSaved: isJobSaved(job.id),
+                          onApply: () => _applyToJob(job, verification),
+                          onSave: () => unawaited(_toggleSave(job.id)),
+                          onShare: () => _shareJob(job, locale),
                         ),
                       );
                     },
@@ -1107,100 +744,338 @@ class _JobsScreenState extends State<JobsScreen> {
                   ),
                 ),
               ),
+              SliverToBoxAdapter(
+                child: JobsHubFeedFooterNotice(locale: locale),
+              ),
+            ],
           ],
         ),
+      ),
       ),
     );
   }
 
-  Widget _buildHeroSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surface, AppColors.surfaceElevated],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildJobsLandingHeaderActions(BuildContext context, String locale) {
+    final onBrand = Theme.of(context).colorScheme.onPrimary;
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: [
+        TextButton(
+          key: const Key('jobs_hub_view_applications'),
+          onPressed: () => context.push('/jobs/my-applications'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.brandFamilyMain,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: const Size(48, 48),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.borderPrimary),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('💼 Qatar Jobs Board', style: AppTextStyles.h1),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'AI-Verified · Updated Daily',
-              style: AppTextStyles.bodyMedium,
+          child: Text(
+            JobsApplicationStrings.t(
+              'jobs_app_view_applications',
+              locale,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
+          ),
+        ),
+        TextButton.icon(
+          key: const Key('jobs_hub_post_job_header'),
+          onPressed: _showPostJobSheet,
+          icon: const Icon(Icons.add, size: 18),
+          label: Text(JobsStrings.t('jobs_post_job', locale)),
+          style: TextButton.styleFrom(
+            foregroundColor: onBrand,
+            backgroundColor: AppColors.brandFamilyMain,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            minimumSize: const Size(48, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLandingChrome(BuildContext context, String locale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        HubLandingHeader(
+          key: const Key('jobs_hub_landing_header'),
+          title: JobsStrings.t('jobs_hub_title', locale),
+          subtitle: JobsStrings.t('jobs_hub_subtitle', locale),
+          onBack: () => Navigator.of(context).pop(),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.xl,
+            0,
+            AppSpacing.xl,
+            0,
+          ),
+          child: Column(
+            key: const Key('jobs_hub_landing_header_block'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: _buildJobsLandingHeaderActions(context, locale),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: HubLayoutTokens.searchMinHeight,
+                ),
+                child: TextField(
+                  key: const Key('jobs_hub_search'),
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  style: AppTypography.subtitle,
+                  textInputAction: TextInputAction.search,
+                  decoration: hubSearchInputDecoration(
+                    hintText: JobsStrings.t('jobs_search_hint', locale),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: SaveSearchButton(
+                  vertical: SavedSearchVertical.jobs,
+                  accent: SaveSearchButtonAccent.hubBrand,
+                  criteria: SavedSearchCriteria.fromJobsBrowse(
+                    query: _searchController.text,
+                    selectedCategoryIndex: _selectedFilter,
+                    routeFilters: _routeFilters,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static const double _kJobsQuickActionsFourColumnMinWidth = 400;
+
+  Widget _buildQuickActionsRow(String locale) {
+    final tiles = <({Key key, IconData icon, String label, VoidCallback onTap})>[
+      (
+        key: const Key('jobs_hub_qa_offer_calculator'),
+        icon: Icons.calculate_outlined,
+        label: JobsStrings.t('jobs_hub_qa_offer_calculator', locale),
+        onTap: () => context.push(JobOfferCalculatorScreen.route()),
+      ),
+      (
+        key: const Key('jobs_hub_qa_check_agency'),
+        icon: Icons.verified_user_outlined,
+        label: JobsStrings.t('jobs_hub_qa_check_agency', locale),
+        onTap: () => context.push(AgencyVerificationScreen.route()),
+      ),
+      (
+        key: const Key('jobs_hub_qa_employer_record'),
+        icon: Icons.balance_outlined,
+        label: JobsStrings.t('jobs_hub_qa_employer_record', locale),
+        onTap: () => context.push(EmployerTrackRecordLookupScreen.route()),
+      ),
+      (
+        key: const Key('jobs_hub_qa_my_cv'),
+        icon: Icons.description_outlined,
+        label: JobsStrings.t('jobs_hub_qa_my_cv', locale),
+        onTap: () => context.push('/jobs/cv-start'),
+      ),
+    ];
+
+    Widget tile(({Key key, IconData icon, String label, VoidCallback onTap}) spec) {
+      return KeyedSubtree(
+        key: spec.key,
+        child: HubQuickActionTile(
+          icon: spec.icon,
+          label: spec.label,
+          onTap: spec.onTap,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.sm,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final useFourColumns =
+              constraints.maxWidth >= _kJobsQuickActionsFourColumnMinWidth;
+          if (useFourColumns) {
+            return Row(
               children: [
-                Expanded(child: _HeroStat(value: '1,234', label: 'Jobs')),
-                Container(width: 1, height: 32, color: AppColors.border),
-                Expanded(child: _HeroStat(value: '47', label: 'Companies')),
-                Container(width: 1, height: 32, color: AppColors.border),
-                Expanded(child: _HeroStat(value: '23', label: 'Urgent')),
+                for (var i = 0; i < tiles.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: tile(tiles[i])),
+                ],
               ],
-            ),
-          ],
-        ),
+            );
+          }
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: tile(tiles[0])),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: tile(tiles[1])),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(child: tile(tiles[2])),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: tile(tiles[3])),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (_) => setState(() {}),
-        style: AppTextStyles.bodyLarge,
-        decoration: InputDecoration(
-          hintText: 'Search jobs, companies, skills...',
-          hintStyle: AppTextStyles.bodyMedium,
-          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            borderSide: BorderSide.none,
+  Widget _buildHubSummaryStrip(String locale) {
+    final uid = ref.watch(currentUserProvider)?.uid ?? '';
+    if (uid.isEmpty) return const SizedBox.shrink();
+
+    final appsAsync = ref.watch(userJobApplicationsProvider(uid));
+    final underReviewCount = appsAsync.maybeWhen(
+      data: (apps) => apps
+          .where((app) => app.status == JobApplicationStatus.underReview)
+          .length,
+      orElse: () => null,
+    );
+
+    final savedJobIds = ref.watch(
+      userAIProfileProvider.select((p) => p?.savedJobIds ?? const []),
+    );
+    final savedJobsCount =
+        JobsRepository.orderedUniqueSavedJobIds(savedJobIds).length;
+
+    final cards = <Widget>[];
+
+    if (underReviewCount != null && underReviewCount > 0) {
+      final value = JobsApplicationStrings.format(
+        'jobs_hub_summary_under_review_value',
+        locale,
+        params: {'count': ProfileDisplayHelper.formatCount(underReviewCount)},
+      );
+      final label =
+          JobsApplicationStrings.t('jobs_hub_summary_applications_label', locale);
+
+      cards.add(
+        Expanded(
+          child: HubSummaryStripCard(
+            key: const Key('jobs_hub_applications_summary'),
+            value: value,
+            label: label,
+            icon: Icons.description_outlined,
+            onTap: () => context.push('/jobs/my-applications'),
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    if (savedJobsCount > 0) {
+      if (cards.isNotEmpty) {
+        cards.add(const SizedBox(width: AppSpacing.sm));
+      }
+      final savedValue = JobsStrings.format(
+        'jobs_hub_summary_saved_jobs_value',
+        locale,
+        params: {'count': ProfileDisplayHelper.formatCount(savedJobsCount)},
+      );
+      final savedLabel =
+          JobsStrings.t('jobs_hub_summary_saved_jobs_label', locale);
+      final savedSemanticsLabel = '$savedValue. $savedLabel';
+
+      cards.add(
+        Expanded(
+          child: Semantics(
+            button: true,
+            label: savedSemanticsLabel,
+            child: ExcludeSemantics(
+              child: HubSummaryStripCard(
+                key: const Key('jobs_hub_saved_jobs_summary'),
+                value: savedValue,
+                label: savedLabel,
+                icon: Icons.favorite_outline,
+                onTap: () => context.push('/jobs/saved'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (cards.isEmpty) return const SizedBox.shrink();
+
+    return HubSummaryStripPadding(child: Row(children: cards));
   }
 
   Widget _buildFilterChips() {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: SizedBox(
-        height: 40,
+        height: 36,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          itemCount: _filters.length,
+          itemCount: kJobCategories.length,
           separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
           itemBuilder: (context, index) {
             final selected = _selectedFilter == index;
-            return FilterChip(
-              label: Text(_filters[index]),
+            return buildHubFilterChip(
+              label: Text(kJobCategories[index]),
               selected: selected,
               onSelected: (_) => setState(() => _selectedFilter = index),
-              backgroundColor: AppColors.surface,
-              selectedColor: AppColors.primary.withValues(alpha: 0.2),
-              labelStyle: TextStyle(
-                color: selected ? AppColors.primary : AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-              showCheckmark: false,
-              side: BorderSide(
-                color: selected ? AppColors.primary : Colors.transparent,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmployerSegmentChips(String locale) {
+    const segments = JobsHubEmployerSegment.values;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          itemCount: segments.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+          itemBuilder: (context, index) {
+            final segment = segments[index];
+            final selected = _employerSegment == segment;
+            final labelKey = switch (segment) {
+              JobsHubEmployerSegment.all => 'jobs_all_jobs',
+              JobsHubEmployerSegment.verifiedEmployers =>
+                'jobs_hub_segment_verified_employers',
+              JobsHubEmployerSegment.communityPosts =>
+                'jobs_hub_segment_community_posts',
+            };
+            return KeyedSubtree(
+              key: Key('jobs_hub_employer_segment_${segment.name}'),
+              child: buildHubFilterChip(
+                label: Text(JobsStrings.t(labelKey, locale)),
+                selected: selected,
+                onSelected: (_) => setState(() => _employerSegment = segment),
               ),
             );
           },
@@ -1209,81 +1084,92 @@ class _JobsScreenState extends State<JobsScreen> {
     );
   }
 
-  Widget _buildAiMatchBanner() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withValues(alpha: 0.15),
-              AppColors.secondary.withValues(alpha: 0.15),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildAiMatchBanner(List<JobListing> allJobs, String locale) {
+    final profile = ref.read(userAIProfileProvider);
+    final matched = _matchedJobCount(allJobs);
+
+    final value = profile == null
+        ? '—'
+        : ProfileDisplayHelper.formatCount(matched);
+    final label = profile == null
+        ? JobsStrings.t('jobs_complete_profile_matches', locale)
+        : JobsStrings.format(
+            'jobs_profile_match_today',
+            locale,
+            params: {'count': '$matched'},
+          );
+    final semanticsLabel =
+        '${JobsStrings.t('jobs_ai_match_score', locale)}. $label. '
+        '${JobsStrings.t('jobs_update_profile_cta', locale)}';
+
+    return HubSummaryStripPadding(
+      child: Semantics(
+        button: true,
+        label: semanticsLabel,
+        child: ExcludeSemantics(
+          child: HubSummaryStripCard(
+            key: const Key('jobs_hub_ai_match_summary'),
+            value: value,
+            label: label,
+            icon: Icons.auto_awesome_outlined,
+            onTap: () => context.push('/profile'),
           ),
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.borderPrimary),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('🤖 Your AI Match Score', style: AppTextStyles.h3),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Based on your profile, you match $_matchedJobCount jobs today',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '85% match rate',
-              style: AppTextStyles.displayMedium.copyWith(
-                color: AppColors.primary,
-                fontSize: 28,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: () => context.push('/profile'),
-              style: TextButton.styleFrom(padding: EdgeInsets.zero),
-              child: Text(
-                'Update Profile to improve →',
-                style: AppTextStyles.labelLarge,
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  Widget _buildCompanySpotlight() {
-    const spotlightCompany = 'QatarEnergy LNG';
-    const spotlightIndustry = 'Oil & Gas';
+  Widget _buildCompanySpotlight(List<JobListing> allJobs, String locale) {
+    final spotlight = _spotlightCompany(allJobs);
+    if (spotlight == null) return const SizedBox.shrink();
+    final initial =
+        spotlight.company.isNotEmpty ? spotlight.company[0].toUpperCase() : '?';
     final companyJobs =
-        _allJobs.where((j) => j.company == spotlightCompany).length;
+        allJobs.where((j) => j.company == spotlight.company).toList();
+    final benefits = companyJobs
+        .expand((j) => j.benefits)
+        .toSet()
+        .take(4)
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🏢 Company Spotlight', style: AppTextStyles.h2),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.surface, AppColors.surfaceElevated],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          Row(
+            key: const Key('jobs_hub_company_spotlight_heading'),
+            children: [
+              Icon(
+                RaabtaIcons.forRoute('/businesses'),
+                size: AppSpacing.iconMd,
+                color: AppColors.textPrimary,
               ),
-              borderRadius: BorderRadius.circular(AppRadius.xxl),
-              border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  JobsStrings.t('jobs_company_spotlight', locale),
+                  style: AppTypography.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            JobsStrings.t('jobs_company_spotlight_discovery', locale),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
             ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            key: const Key('jobs_hub_company_spotlight_card'),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            borderRadius: AppSpacing.radiusLg,
+            glowColor: AppColors.brandFamilyMain,
+            glowIntensity: 0.06,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1293,8 +1179,10 @@ class _JobsScreenState extends State<JobsScreen> {
                       radius: 22,
                       backgroundColor: AppColors.surfaceElevated,
                       child: Text(
-                        'Q',
-                        style: AppTextStyles.h2.copyWith(color: AppColors.gold),
+                        initial,
+                        style: AppTypography.headline2.copyWith(
+                          color: AppColors.brandFamilyMain,
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -1302,8 +1190,8 @@ class _JobsScreenState extends State<JobsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(spotlightCompany, style: AppTextStyles.h3),
-                          Text(spotlightIndustry, style: AppTextStyles.bodySmall),
+                          Text(spotlight.company, style: AppTypography.title),
+                          Text(spotlight.industry, style: AppTypography.bodySmall),
                         ],
                       ),
                     ),
@@ -1311,32 +1199,44 @@ class _JobsScreenState extends State<JobsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Hiring $companyJobs positions',
-                  style: AppTextStyles.bodyLarge.copyWith(
+                  JobsStrings.format(
+                    spotlight.count == 1
+                        ? 'jobs_hiring_open_role'
+                        : 'jobs_hiring_open_roles',
+                    locale,
+                    params: {'count': '${spotlight.count}'},
+                  ),
+                  style: AppTypography.subtitle.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  children: const [
-                    _BenefitChip(label: '✈️ Flight Ticket'),
-                    _BenefitChip(label: '🏠 Housing'),
-                    _BenefitChip(label: '🏥 Medical'),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
+                if (benefits.isNotEmpty)
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    children: benefits
+                        .map(
+                          (b) => _BenefitChip(
+                            icon: ServiceScreenIcons.jobBenefit(b),
+                            label: JobsStrings.benefitLabel(b, locale),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                if (benefits.isNotEmpty) const SizedBox(height: AppSpacing.md),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () {
-                      setState(() => _searchController.text = 'QatarEnergy');
+                      setState(() => _searchController.text = spotlight.company);
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.gold,
-                      side: BorderSide(color: AppColors.gold.withValues(alpha: 0.5)),
+                      foregroundColor: AppColors.brandFamilyMain,
+                      side: BorderSide(
+                        color: AppColors.brandFamilyMain.withValues(alpha: 0.45),
+                      ),
                     ),
-                    child: const Text('View All Jobs'),
+                    child: Text(JobsStrings.t('jobs_view_all_jobs', locale)),
                   ),
                 ),
               ],
@@ -1348,32 +1248,10 @@ class _JobsScreenState extends State<JobsScreen> {
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.bodyLarge.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
-        ),
-        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
-      ],
-    );
-  }
-}
-
 class _PremiumJobCard extends StatelessWidget {
   const _PremiumJobCard({
     required this.job,
+    required this.locale,
     required this.badge,
     required this.isSaved,
     required this.onApply,
@@ -1385,6 +1263,7 @@ class _PremiumJobCard extends StatelessWidget {
   });
 
   final JobListing job;
+  final String locale;
   final PremiumJobBadge badge;
   final bool isSaved;
   final VoidCallback onApply;
@@ -1396,20 +1275,10 @@ class _PremiumJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final match = aiMatchScore(job);
-
-    return Container(
+    return GlassCard(
       width: 260,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-              gradient: LinearGradient(
-          colors: [AppColors.surfaceElevated, AppColors.surface],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.border),
-      ),
+      borderRadius: AppSpacing.radiusMd,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1421,7 +1290,7 @@ class _PremiumJobCard extends StatelessWidget {
                 backgroundColor: AppColors.background,
                 child: Text(
                   job.companyInitial,
-                  style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+                  style: AppTypography.title.copyWith(color: AppColors.cyanGlow),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1431,52 +1300,42 @@ class _PremiumJobCard extends StatelessWidget {
                   children: [
                     Text(
                       job.company,
-                      style: AppTextStyles.bodyLarge.copyWith(fontSize: 13),
+                      style: AppTypography.subtitle.copyWith(fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(job.industry, style: AppTextStyles.bodySmall),
+                    Text(job.industry, style: AppTypography.bodySmall),
                   ],
                 ),
               ),
-              _MonetizationBadge(type: badge),
+              _MonetizationBadge(type: badge, locale: locale),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(job.title, style: AppTextStyles.h3.copyWith(fontSize: 16)),
+          Text(job.title, style: AppTypography.title.copyWith(fontSize: 16)),
           const SizedBox(height: AppSpacing.xs),
           Text(
             job.salary,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.primary,
+            style: AppTypography.subtitle.copyWith(
+              color: AppColors.cyanGlow,
               fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text('📍 ${job.location}', style: AppTextStyles.bodySmall),
+          Text('📍 ${job.location}', style: AppTypography.bodySmall),
           if (job.benefits.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            _BenefitRow(benefits: job.benefits),
+            _BenefitRow(benefits: job.benefits, locale: locale),
           ],
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${job.posted} · ${job.applicants} applicants',
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              _MatchIndicator(score: match),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                '🤖 $match% Match',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: aiMatchColor(match),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+            JobsStrings.format(
+              'jobs_posted_applicants',
+              locale,
+              params: {'posted': job.posted, 'count': '${job.applicants}'},
+            ),
+            style: AppTypography.bodySmall,
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -1485,18 +1344,21 @@ class _PremiumJobCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: onApply,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppColors.cyanGlow,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    JobsStrings.t(_jobsHubPrimaryCtaKey(job), locale),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               IconButton(
                 onPressed: onSave,
                 icon: Icon(
                   isSaved ? Icons.favorite : Icons.favorite_border,
-                  color: isSaved ? AppColors.primary : AppColors.textSecondary,
+                  color: isSaved ? AppColors.cyanGlow : AppColors.textSecondary,
                   size: 20,
                 ),
               ),
@@ -1507,10 +1369,6 @@ class _PremiumJobCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          JobMatchBadge(
-            jobData: jobListingToMatchData(job),
-            compact: true,
-          ),
           _AiMiniBox(text: miniAnalysis, borderColor: statusColor),
         ],
       ),
@@ -1521,6 +1379,7 @@ class _PremiumJobCard extends StatelessWidget {
 class _UrgentJobCard extends StatelessWidget {
   const _UrgentJobCard({
     required this.job,
+    required this.locale,
     required this.verification,
     required this.isSaved,
     required this.onTap,
@@ -1531,6 +1390,7 @@ class _UrgentJobCard extends StatelessWidget {
   });
 
   final JobListing job;
+  final String locale;
   final JobVerificationResult verification;
   final bool isSaved;
   final VoidCallback onTap;
@@ -1541,36 +1401,50 @@ class _UrgentJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final match = aiMatchScore(job);
-
-    return GestureDetector(
+    return GlassCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
-        ),
-        child: Column(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      borderRadius: AppSpacing.radiusSm,
+      glowColor: AppColors.error,
+      glowIntensity: 0.1,
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const _MonetizationBadge(type: PremiumJobBadge.urgent),
+                _MonetizationBadge(
+                  type: PremiumJobBadge.urgent,
+                  locale: locale,
+                ),
                 const Spacer(),
-                _VerificationBadge(label: badgeLabel, color: statusColor),
+                StatusBadge(label: badgeLabel, color: statusColor),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(job.title, style: AppTextStyles.h3),
-            _MatchBadge(score: match),
+            Text(
+              job.title,
+              style: AppTypography.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: AppSpacing.xs),
-            Text('🏢 ${job.company}', style: AppTextStyles.bodyMedium),
+            Text(
+              job.company,
+              style: AppTypography.body,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              job.location,
+              style: AppTypography.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               job.salary,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: AppColors.primary,
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.cyanGlow,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1579,15 +1453,19 @@ class _UrgentJobCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${job.posted} · ${job.applicants} applicants',
-                    style: AppTextStyles.bodySmall,
+                    JobsStrings.format(
+                      'jobs_posted_applicants',
+                      locale,
+                      params: {'posted': job.posted, 'count': '${job.applicants}'},
+                    ),
+                    style: AppTypography.bodySmall,
                   ),
                 ),
                 IconButton(
                   onPressed: onSave,
                   icon: Icon(
                     isSaved ? Icons.favorite : Icons.favorite_border,
-                    color: isSaved ? AppColors.primary : AppColors.textSecondary,
+                    color: isSaved ? AppColors.cyanGlow : AppColors.textSecondary,
                     size: 20,
                   ),
                 ),
@@ -1597,188 +1475,40 @@ class _UrgentJobCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            JobMatchBadge(
-              jobData: jobListingToMatchData(job),
-              compact: true,
-            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _JobListingCard extends StatelessWidget {
-  const _JobListingCard({
-    required this.job,
-    required this.verification,
-    required this.isSaved,
-    required this.statusColor,
-    required this.badgeLabel,
-    required this.matchScore,
-    required this.onApply,
-    required this.onSave,
-    required this.onShare,
-  });
-
-  final JobListing job;
-  final JobVerificationResult verification;
-  final bool isSaved;
-  final Color statusColor;
-  final String badgeLabel;
-  final int matchScore;
-  final VoidCallback onApply;
-  final VoidCallback onSave;
-  final VoidCallback onShare;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.surfaceElevated,
-                child: Text(
-                  job.companyInitial,
-                  style: AppTextStyles.labelLarge,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(job.title, style: AppTextStyles.h3),
-                    const SizedBox(height: AppSpacing.xs),
-                    _MatchBadge(score: matchScore),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text('🏢 ${job.company}', style: AppTextStyles.bodyMedium),
-                    Text('📍 ${job.location}', style: AppTextStyles.bodySmall),
-                  ],
-                ),
-              ),
-              _VerificationBadge(label: badgeLabel, color: statusColor),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            job.salary,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (job.benefits.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _BenefitRow(benefits: job.benefits),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${job.posted} · ${job.applicants} applicants · ${job.type}',
-            style: AppTextStyles.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: onApply,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onSave,
-                  icon: Icon(
-                    isSaved ? Icons.favorite : Icons.favorite_border,
-                    size: 18,
-                    color: isSaved ? AppColors.primary : AppColors.textSecondary,
-                  ),
-                  label: Text(
-                    isSaved ? 'Saved' : 'Save',
-                    style: TextStyle(
-                      color: isSaved ? AppColors.primary : AppColors.textSecondary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.surfaceElevated),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onShare,
-                  icon: Icon(
-                    Icons.share_outlined,
-                    size: 18,
-                    color: AppColors.textSecondary,
-                  ),
-                  label: Text(
-                    'Share',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.surfaceElevated),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          JobMatchBadge(
-            jobData: jobListingToMatchData(job),
-            compact: false,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _AiAnalysisBox(
-            analysisText: verification.analysisText,
-            borderColor: statusColor,
-          ),
-        ],
-      ),
     );
   }
 }
 
 class _MonetizationBadge extends StatelessWidget {
-  const _MonetizationBadge({required this.type});
+  const _MonetizationBadge({required this.type, required this.locale});
 
   final PremiumJobBadge type;
+  final String locale;
 
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (type) {
-      PremiumJobBadge.featured => ('⭐ FEATURED', AppColors.gold),
-      PremiumJobBadge.urgent => ('🔥 URGENT HIRING', AppColors.error),
-      PremiumJobBadge.spotlight => ('🏢 SPOTLIGHT', AppColors.secondary),
+      PremiumJobBadge.featured => (
+          JobsStrings.t('jobs_badge_featured', locale),
+          AppColors.amberGlow,
+        ),
+      PremiumJobBadge.urgent => (
+          JobsStrings.t('jobs_badge_urgent_label', locale),
+          AppColors.error,
+        ),
+      PremiumJobBadge.spotlight => (
+          JobsStrings.t('jobs_badge_spotlight', locale),
+          AppColors.purpleGlow,
+        ),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
       ),
       child: Text(
         label,
@@ -1792,66 +1522,11 @@ class _MonetizationBadge extends StatelessWidget {
   }
 }
 
-class _MatchBadge extends StatelessWidget {
-  const _MatchBadge({required this.score});
-
-  final int score;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = aiMatchColor(score);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Text(
-        '🤖 $score% Profile Match',
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchIndicator extends StatelessWidget {
-  const _MatchIndicator({required this.score});
-
-  final int score;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = aiMatchColor(score);
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: score / 100,
-            strokeWidth: 3,
-            backgroundColor: AppColors.surfaceElevated,
-            color: color,
-          ),
-          Text(
-            '$score',
-            style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({required this.benefits});
+  const _BenefitRow({required this.benefits, required this.locale});
 
   final List<String> benefits;
+  final String locale;
 
   @override
   Widget build(BuildContext context) {
@@ -1859,15 +1534,10 @@ class _BenefitRow extends StatelessWidget {
       spacing: 6,
       runSpacing: 4,
       children: benefits.map((benefit) {
-        final emoji = benefit.toLowerCase().contains('flight')
-            ? '✈️'
-            : benefit.toLowerCase().contains('housing') ||
-                    benefit.toLowerCase().contains('house')
-                ? '🏠'
-                : benefit.toLowerCase().contains('medical')
-                    ? '🏥'
-                    : '✨';
-        return _BenefitChip(label: '$emoji ${benefit.split(' ').first}');
+        return _BenefitChip(
+          icon: ServiceScreenIcons.jobBenefit(benefit),
+          label: JobsStrings.benefitLabel(benefit, locale),
+        );
       }).toList(),
     );
   }
@@ -1887,7 +1557,7 @@ class _AiMiniBox extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
         border: Border(left: BorderSide(color: borderColor, width: 3)),
       ),
       child: Text(
@@ -1902,35 +1572,10 @@ class _AiMiniBox extends StatelessWidget {
   }
 }
 
-class _VerificationBadge extends StatelessWidget {
-  const _VerificationBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
 class _BenefitChip extends StatelessWidget {
-  const _BenefitChip({required this.label});
+  const _BenefitChip({required this.icon, required this.label});
 
+  final IconData icon;
   final String label;
 
   @override
@@ -1942,86 +1587,16 @@ class _BenefitChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppColors.surfaceElevated),
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
-      ),
-    );
-  }
-}
-
-class _AiAnalysisBox extends StatelessWidget {
-  const _AiAnalysisBox({
-    required this.analysisText,
-    required this.borderColor,
-  });
-
-  final String analysisText;
-  final Color borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: borderColor, width: 3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.smart_toy_outlined, color: AppColors.primary, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                '🤖 Raabta AI Analysis:',
-                style: AppTextStyles.labelLarge.copyWith(fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+          Icon(icon, size: 12, color: AppColors.textOnGlassSecondary),
+          const SizedBox(width: 4),
           Text(
-            analysisText,
-            style: TextStyle(color: borderColor, fontSize: 12, height: 1.4),
+            label,
+            style: AppTypography.bodySmall.copyWith(fontSize: 11),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FormField extends StatelessWidget {
-  const _FormField({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-    this.keyboardType,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      style: TextStyle(color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AppTextStyles.bodyMedium,
-        filled: true,
-        fillColor: AppColors.background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
       ),
     );
   }

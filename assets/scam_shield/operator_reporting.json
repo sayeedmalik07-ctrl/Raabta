@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "id": "ooredoo_report_suspicious",
+      "nameKey": "ss_op_report_ooredoo",
+      "bodyKey": "ss_op_report_ooredoo_body",
+      "dialNumber": "111",
+      "verifyUrl": "https://www.ooredoo.qa/",
+      "sourceLabel": "Ooredoo Qatar — confirm on ooredoo.qa",
+      "verified": false
+    },
+    {
+      "id": "vodafone_report_spam",
+      "nameKey": "ss_op_report_vodafone",
+      "bodyKey": "ss_op_report_vodafone_body",
+      "dialNumber": "111",
+      "verifyUrl": "https://www.vodafone.qa/",
+      "sourceLabel": "Vodafone Qatar / CRA alert — confirm on vodafone.qa",
+      "verified": false
+    },
+    {
+      "id": "cra_consumer_complaint",
+      "nameKey": "ss_op_report_cra",
+      "bodyKey": "ss_op_report_cra_body",
+      "dialNumber": null,
+      "verifyUrl": "https://www.cra.gov.qa/",
+      "sourceLabel": "CRA — confirm complaint route on cra.gov.qa",
+      "verified": false
+    }
+  ]
+}

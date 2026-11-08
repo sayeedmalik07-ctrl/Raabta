@@ -1,0 +1,1 @@
+enum ScanErrorKind { notFound, analyzeFailed }

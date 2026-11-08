@@ -1,0 +1,24 @@
+{
+  "id": "fake_fine_toll",
+  "verified": false,
+  "localFlag": "ss_flag_fake_fine_toll",
+  "evidenceKind": "fakeFineToll",
+  "minGroups": 1,
+  "sourceLabel": "Pattern check",
+  "evidenceTextKey": "ss_evidence_fake_fine_toll",
+  "groups": [
+    {
+      "id": "fine_language",
+      "patterns": [
+        "unpaid traffic fine",
+        "pay your fine",
+        "toll fee unpaid",
+        "customs fee due",
+        "pay within 24 hours or",
+        "غرامة مرور",
+        "رسوم غير مدفوعة",
+        "ट्रैफिक जुर्माना"
+      ]
+    }
+  ]
+}

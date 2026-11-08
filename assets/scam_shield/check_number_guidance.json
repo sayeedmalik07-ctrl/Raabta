@@ -1,0 +1,28 @@
+{
+  "cards": [
+    {
+      "id": "cra_voip_no_whatsapp",
+      "verified": true,
+      "textKey": "ss_cn_guidance_cra_voip",
+      "sourceLabel": "CRA — Beware of Scam Calls from International Numbers & VoIP Apps",
+      "sourceUrl": "https://www.cra.gov.qa/en/press-releases/cra-beware-scam-calls-international-numbers-voip-apps",
+      "lastReviewed": "2026-10-18"
+    },
+    {
+      "id": "cnap_rollout",
+      "verified": false,
+      "textKey": "ss_cn_guidance_cnap",
+      "sourceLabel": "CRA — Caller Name Presentation initiative",
+      "sourceUrl": "https://www.cra.gov.qa/en/press-releases/cra-launches-caller-name-presentation-initiative-to-enhance-trust-and-protect-consumers",
+      "lastReviewed": "2026-10-18"
+    },
+    {
+      "id": "caller_id_can_be_faked",
+      "verified": true,
+      "textKey": "ss_cn_guidance_callerid",
+      "sourceLabel": "Pattern check",
+      "sourceUrl": null,
+      "lastReviewed": "2026-10-18"
+    }
+  ]
+}

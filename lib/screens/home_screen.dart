@@ -1,1 +1,1 @@
-export 'home/home_screen.dart';
+export 'package:raabta/features/home/screens/home_screen.dart';

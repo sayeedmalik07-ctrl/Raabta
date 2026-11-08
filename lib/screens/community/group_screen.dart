@@ -1,21 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/core/l10n/app_locale_notifier.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/hub/hub_loading_placeholder.dart';
+import 'package:raabta/core/widgets/hub/hub_subscreen_scaffold.dart';
+import 'package:raabta/features/community/presentation/community_moderation_block_presentation.dart';
+import 'package:raabta/features/community/presentation/l10n/community_strings.dart';
+import 'package:raabta/features/community/providers/community_providers.dart';
+import 'package:raabta/features/community/services/community_moderation_confirm_flow.dart';
+import 'package:raabta/features/community/widgets/community_widgets.dart';
+import 'package:raabta/features/community/widgets/group_feed_composer.dart';
+import 'package:raabta/features/community/widgets/group_post_card.dart';
+import 'package:raabta/features/community/widgets/community_cross_post_prompt.dart';
+import 'package:raabta/features/community/widgets/community_reactive_locale.dart';
+import 'package:raabta/services/drafts/draft_box_keys.dart';
+import 'package:raabta/services/drafts/draft_form_controller.dart';
+import 'package:raabta/services/drafts/draft_service.dart';
 
-enum PostType { text, poll, announcement }
-
-class PollOption {
-  const PollOption({required this.label, required this.votes});
-
-  final String label;
-  final int votes;
-}
-
-class GroupScreen extends StatefulWidget {
+class GroupScreen extends ConsumerStatefulWidget {
   const GroupScreen({
     super.key,
+    required this.groupId,
     required this.emoji,
     required this.name,
     required this.memberCount,
@@ -23,6 +32,7 @@ class GroupScreen extends StatefulWidget {
     required this.onJoinToggle,
   });
 
+  final int groupId;
   final String emoji;
   final String name;
   final int memberCount;
@@ -30,104 +40,58 @@ class GroupScreen extends StatefulWidget {
   final VoidCallback onJoinToggle;
 
   @override
-  State<GroupScreen> createState() => _GroupScreenState();
+  ConsumerState<GroupScreen> createState() => _GroupScreenState();
 }
 
-class _GroupScreenState extends State<GroupScreen> {
+class _GroupScreenState extends ConsumerState<GroupScreen> {
   final TextEditingController _postController = TextEditingController();
-  final Set<int> _expandedComments = {};
-  final Set<int> _expandedPosts = {};
-  final Set<int> _likedPosts = {};
-  final Set<int> _savedPosts = {};
-  final Map<int, int?> _pollVotes = {};
+  late DraftFormController _postDraft;
+  DraftRecord? _postDraftRecord;
+  bool _showPostDraftBanner = false;
+  bool _submitting = false;
+  CommunityUiError? _moderationError;
+  CommunityModerationBlockCopy? _moderationBlock;
+  int _rephraseAttempts = 0;
+  String? _currentUserId;
+  Set<String> _selectedGroupTags = {};
 
-  late List<_GroupPost> _posts;
+  String get _groupIdStr => '${widget.groupId}';
 
   @override
   void initState() {
     super.initState();
-    _posts = _initialPosts;
-    _posts.sort((a, b) {
-      if (a.type == PostType.announcement && b.type != PostType.announcement) {
-        return -1;
-      }
-      if (b.type == PostType.announcement && a.type != PostType.announcement) {
-        return 1;
-      }
-      return 0;
-    });
+    _selectedGroupTags = {_groupIdStr};
+    _postDraft = DraftFormController(
+      formId: DraftBoxKeys.groupPostComposer(widget.name),
+    );
+    _initPostDraft();
+    _loadUserId();
   }
 
-  static final List<_GroupPost> _initialPosts = [
-    const _GroupPost(
-      id: 100,
-      type: PostType.announcement,
-      author: 'Group Admin',
-      initials: 'GA',
-      flag: '📢',
-      text:
-          'Welcome! Please read community guidelines before posting. Be respectful and helpful to fellow expats.',
-      time: 'Pinned',
-      likes: 120,
-      comments: 4,
-      replies: ['Thanks admin!', 'Very helpful guidelines.'],
-      isPinned: true,
-    ),
-    const _GroupPost(
-      id: 0,
-      author: 'Rahul M.',
-      initials: 'RM',
-      flag: '🇮🇳',
-      text:
-          'Anyone know a good Indian restaurant in Al Khor that delivers? 🍛 We just moved here and looking for recommendations from the community.',
-      time: '2 hours ago',
-      likes: 12,
-      comments: 8,
-      replies: [
-        'Try Spice Garden on WhatsApp delivery!',
-        'Al Khor Fish Market area has good options too.',
-      ],
-    ),
-    _GroupPost(
-      id: 1,
-      type: PostType.poll,
-      author: 'Ahmed K.',
-      initials: 'AK',
-      flag: '🇵🇰',
-      text: 'Which area has the best expat community facilities?',
-      time: '5 hours ago',
-      likes: 45,
-      comments: 23,
-      replies: [
-        'Confirmed on Metrash2 yesterday.',
-        'My company said they will cover it.',
-      ],
-      pollOptions: const [
-        PollOption(label: 'Al Khor', votes: 89),
-        PollOption(label: 'Doha', votes: 156),
-        PollOption(label: 'Lusail', votes: 67),
-      ],
-    ),
-    const _GroupPost(
-      id: 2,
-      author: 'Sara P.',
-      initials: 'SP',
-      flag: '🇵🇭',
-      text:
-          'Looking for 1BHK flat near Industrial Area, budget 2000 QR. Any leads appreciated!',
-      time: '1 day ago',
-      likes: 5,
-      comments: 12,
-      replies: [
-        'Check Raabta Housing section!',
-        'I saw one in Al Wakrah for 1800 QR.',
-      ],
-      hasPhoto: true,
-    ),
-  ];
+  Future<void> _loadUserId() async {
+    final uid =
+        await ref.read(communityRepositoryProvider).currentUserId();
+    if (mounted) setState(() => _currentUserId = uid);
+  }
+
+  Future<void> _initPostDraft() async {
+    await _postDraft.init();
+    _postDraft.bindControllers(
+      [_postController],
+      () => {'text': _postController.text},
+    );
+    final draft = await _postDraft.loadRestorableDraft();
+    if (draft != null && mounted) {
+      setState(() {
+        _postDraftRecord = draft;
+        _showPostDraftBanner = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _postDraft.dispose();
     _postController.dispose();
     super.dispose();
   }
@@ -139,508 +103,384 @@ class _GroupScreenState extends State<GroupScreen> {
         );
   }
 
-  void _toggleComments(int postId) {
+  Future<void> _refreshFeed() async {
+    ref.invalidate(groupPostsProvider(_groupIdStr));
+    await ref.read(groupPostsProvider(_groupIdStr).future);
+  }
+
+  Future<void> _submitPost() async {
+    if (!widget.isJoined || _submitting) return;
+    final text = _postController.text.trim();
+    if (text.isEmpty) return;
+
     setState(() {
-      if (_expandedComments.contains(postId)) {
-        _expandedComments.remove(postId);
-      } else {
-        _expandedComments.add(postId);
-      }
+      _submitting = true;
+      _moderationError = null;
+      _moderationBlock = null;
+      _rephraseAttempts = 0;
     });
-  }
 
-  void _toggleExpandPost(int postId) {
-    setState(() {
-      if (_expandedPosts.contains(postId)) {
-        _expandedPosts.remove(postId);
-      } else {
-        _expandedPosts.add(postId);
+    final repo = ref.read(communityRepositoryProvider);
+    final moderation = ref.read(communityPostModerationServiceProvider);
+    final uid = _currentUserId ?? await repo.currentUserId();
+    // Snapshot for moderation — language model matches locale when user posted.
+    final locale = ref.read(appLocaleProvider);
+
+    var result = await moderation.moderatePost(
+      text: text,
+      language: locale,
+      userId: uid,
+      groupId: _groupIdStr,
+    );
+
+    result = await resolveCommunityModeration(
+      context: context,
+      locale: locale,
+      initialResult: result,
+      runModeration: ({
+        investmentWarningAcknowledged = false,
+        fundraisingWarningAcknowledged = false,
+      }) =>
+          moderation.moderatePost(
+        text: text,
+        language: locale,
+        userId: uid,
+        groupId: _groupIdStr,
+        investmentWarningAcknowledged: investmentWarningAcknowledged,
+        fundraisingWarningAcknowledged: fundraisingWarningAcknowledged,
+      ),
+      onCancelled: (warnResult) => moderation.logModerationWarningCancelled(
+        category: warnResult.category!,
+        text: text,
+        language: locale,
+        userId: uid,
+        contentType: 'group_post',
+        groupId: _groupIdStr,
+        layer: warnResult.layer,
+      ),
+    );
+
+    if (!result.allowed) {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          if (result.requiresConfirmation) {
+            _moderationBlock = null;
+            _moderationError = (
+              catalogKey: 'community_post_cancelled',
+              rawMessage: null,
+            );
+          } else {
+            _moderationError = null;
+            _moderationBlock =
+                CommunityModerationBlockPresentation.resolveCopy(
+              result: result,
+              locale: locale,
+            );
+          }
+        });
       }
-    });
-  }
+      return;
+    }
 
-  void _toggleLike(int postId) {
-    setState(() {
-      if (_likedPosts.contains(postId)) {
-        _likedPosts.remove(postId);
-      } else {
-        _likedPosts.add(postId);
+    try {
+      final joinedGroupIds =
+          ref.read(communityMembershipProvider).value ?? {widget.groupId};
+      final draftTags = _resolvePostGroupTags();
+      final finalTags = await CommunityCrossPostPrompt.resolveTags(
+        context: context,
+        selectedTags: draftTags,
+        joinedGroupIds: joinedGroupIds,
+        locale: ref.read(appLocaleProvider),
+      );
+      if (!mounted) return;
+
+      await repo.createGroupPost(
+        relevantGroupIds: finalTags,
+        text: text,
+      );
+      await _postDraft.clear();
+      _postController.clear();
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _moderationError = null;
+          _moderationBlock = null;
+          _showPostDraftBanner = false;
+          _postDraftRecord = null;
+        });
       }
-    });
-  }
-
-  void _toggleSave(int postId) {
-    setState(() {
-      if (_savedPosts.contains(postId)) {
-        _savedPosts.remove(postId);
-      } else {
-        _savedPosts.add(postId);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _moderationError = (
+            catalogKey: 'community_group_err_post',
+            rawMessage: null,
+          );
+        });
       }
-    });
+    }
   }
 
-  void _votePoll(int postId, int optionIndex) {
-    setState(() => _pollVotes[postId] = optionIndex);
+  List<String> _resolvePostGroupTags() {
+    if (_selectedGroupTags.isNotEmpty) {
+      return _selectedGroupTags.toList();
+    }
+    if (widget.isJoined) return [_groupIdStr];
+    return const [];
   }
 
-  int _pollTotalVotes(_GroupPost post) {
-    if (post.pollOptions == null || post.pollOptions!.isEmpty) return 1;
-    return post.pollOptions!.fold(0, (sum, o) => sum + o.votes).clamp(1, 999999);
+  Future<
+      ({
+        CommunityModerationBlockCopy? block,
+        CommunityUiError? error,
+      })> _submitComment(
+    String postId,
+    String text,
+  ) async {
+    final repo = ref.read(communityRepositoryProvider);
+    final moderation = ref.read(communityPostModerationServiceProvider);
+    final uid = _currentUserId ?? await repo.currentUserId();
+    // Snapshot for moderation — language model matches locale when comment posted.
+    final locale = ref.read(appLocaleProvider);
+
+    var result = await moderation.moderatePost(
+      text: text,
+      language: locale,
+      userId: uid,
+      groupId: _groupIdStr,
+      isComment: true,
+    );
+
+    result = await resolveCommunityModeration(
+      context: context,
+      locale: locale,
+      initialResult: result,
+      runModeration: ({
+        investmentWarningAcknowledged = false,
+        fundraisingWarningAcknowledged = false,
+      }) =>
+          moderation.moderatePost(
+        text: text,
+        language: locale,
+        userId: uid,
+        groupId: _groupIdStr,
+        isComment: true,
+        investmentWarningAcknowledged: investmentWarningAcknowledged,
+        fundraisingWarningAcknowledged: fundraisingWarningAcknowledged,
+      ),
+      onCancelled: (warnResult) => moderation.logModerationWarningCancelled(
+        category: warnResult.category!,
+        text: text,
+        language: locale,
+        userId: uid,
+        contentType: 'group_comment',
+        groupId: _groupIdStr,
+        layer: warnResult.layer,
+      ),
+    );
+
+    if (!result.allowed) {
+      if (result.requiresConfirmation) {
+        return (block: null, error: null);
+      }
+      return (
+        block: CommunityModerationBlockPresentation.resolveCopy(
+          result: result,
+          locale: locale,
+        ),
+        error: null,
+      );
+    }
+
+    try {
+      await repo.createGroupComment(postId: postId, text: text);
+      return (block: null, error: null);
+    } catch (_) {
+      return (
+        block: null,
+        error: (catalogKey: 'community_comment_err_post', rawMessage: null),
+      );
+    }
+  }
+
+  Future<void> _toggleLike(String postId, bool currentlyLiked) async {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    await ref.read(communityRepositoryProvider).toggleGroupPostLike(
+          postId: postId,
+          uid: uid,
+          like: !currentlyLiked,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+    final locale = ref.watch(userLanguageProvider);
+    final suggestedLabels = ref.watch(suggestedCommunityContentLabelIdsProvider);
+    final postsAsync = ref.watch(groupPostsProvider(_groupIdStr));
+    final joinedGroupIds =
+        ref.watch(communityMembershipProvider).value ?? {widget.groupId};
+    final uid = _currentUserId ?? '';
+
+    final memberSubtitle = CommunityStrings.format(
+      'community_members_count',
+      locale,
+      params: {'count': _formatMembers(widget.memberCount)},
+    );
+
+    return HubSubscreenScaffold(
+      title: '${widget.emoji} ${widget.name}',
+      subtitle: memberSubtitle,
+      onBack: () => Navigator.of(context).pop(),
+      headerTrailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CommunityLiveDot(locale: locale),
+          const SizedBox(width: AppSpacing.sm),
+          TextButton(
+            onPressed: widget.onJoinToggle,
+            child: Text(
+              widget.isJoined
+                  ? CommunityStrings.t('community_group_joined_badge', locale)
+                  : CommunityStrings.t('community_join', locale),
+              style: AppTypography.button.copyWith(
+                color: widget.isJoined
+                    ? AppColors.textSecondary
+                    : AppColors.brandFamilyText,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppColors.primaryGradient,
-                      ),
-                      child: Text(widget.emoji, style: const TextStyle(fontSize: 28)),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(widget.name, style: AppTextStyles.h2),
-                          Text(
-                            '${_formatMembers(widget.memberCount)} members',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: 36,
-                      child: ElevatedButton(
-                        onPressed: widget.onJoinToggle,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              widget.isJoined ? AppColors.surface : AppColors.primary,
-                          foregroundColor:
-                              widget.isJoined ? AppColors.textMuted : AppColors.background,
-                          elevation: 0,
-                          side: widget.isJoined
-                              ? BorderSide(color: AppColors.textMuted)
-                              : null,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                        ),
-                        child: Text(
-                          widget.isJoined ? '✓ Joined' : 'Join',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
+            child: RefreshIndicator(
+              color: AppColors.brandFamilyMain,
+              onRefresh: _refreshFeed,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-                const SizedBox(height: AppSpacing.xxl),
-                ..._posts.map(
-                  (post) => _PostCard(
-                    post: post,
-                    isLiked: _likedPosts.contains(post.id),
-                    isSaved: _savedPosts.contains(post.id),
-                    isExpanded: _expandedPosts.contains(post.id),
-                    commentsExpanded: _expandedComments.contains(post.id),
-                    votedOption: _pollVotes[post.id],
-                    pollTotalVotes: _pollTotalVotes(post),
-                    onLike: () => _toggleLike(post.id),
-                    onSave: () => _toggleSave(post.id),
-                    onExpand: () => _toggleExpandPost(post.id),
-                    onCommentTap: () => _toggleComments(post.id),
-                    onVote: (index) => _votePoll(post.id, index),
-                  ),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.lg,
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.surfaceElevated)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _postController,
-                      style: AppTextStyles.bodyLarge,
-                      decoration: InputDecoration(
-                        hintText: 'Write a post...',
-                        hintStyle: AppTextStyles.bodyMedium,
-                        filled: true,
-                        fillColor: AppColors.background,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.xxl),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
+                  postsAsync.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+                      child: HubLoadingPlaceholder(
+                        height: 160,
+                        width: 360,
+                        silhouette: HubLoadingSilhouette.postCard,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      shape: BoxShape.circle,
+                    error: (e, _) => GlassEmptyState(
+                      accent: GlassEmptyStateAccent.teal,
+                      icon: Icons.cloud_off_outlined,
+                      title: CommunityStrings.t(
+                        'community_group_err_feed',
+                        locale,
+                      ),
+                      description: CommunityStrings.t(
+                        'community_group_err_feed_hint',
+                        locale,
+                      ),
                     ),
-                    child: IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    ),
+                    data: (posts) {
+                      if (posts.isEmpty) {
+                        return GlassEmptyState(
+                          accent: GlassEmptyStateAccent.teal,
+                          icon: Icons.forum_outlined,
+                          title: CommunityStrings.t(
+                            'community_group_empty',
+                            locale,
+                          ),
+                          description: widget.isJoined
+                              ? CommunityStrings.format(
+                                  'community_group_empty_joined',
+                                  locale,
+                                  params: {'groupName': widget.name},
+                                )
+                              : CommunityStrings.t(
+                                  'community_group_empty_not_joined',
+                                  locale,
+                                ),
+                        );
+                      }
+                      return Column(
+                        children: posts
+                            .map(
+                              (post) => GroupPostCard(
+                                post: post,
+                                currentUserId: uid,
+                                onLikeToggle: () => _toggleLike(
+                                  post.id,
+                                  post.isLikedBy(uid),
+                                ),
+                                onSubmitComment: (text) =>
+                                    _submitComment(post.id, text),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GroupPost {
-  const _GroupPost({
-    required this.id,
-    required this.author,
-    required this.initials,
-    required this.flag,
-    required this.text,
-    required this.time,
-    required this.likes,
-    required this.comments,
-    required this.replies,
-    this.type = PostType.text,
-    this.isPinned = false,
-    this.hasPhoto = false,
-    this.pollOptions,
-  });
-
-  final int id;
-  final String author;
-  final String initials;
-  final String flag;
-  final String text;
-  final String time;
-  final int likes;
-  final int comments;
-  final List<String> replies;
-  final PostType type;
-  final bool isPinned;
-  final bool hasPhoto;
-  final List<PollOption>? pollOptions;
-}
-
-class _PostCard extends StatelessWidget {
-  const _PostCard({
-    required this.post,
-    required this.isLiked,
-    required this.isSaved,
-    required this.isExpanded,
-    required this.commentsExpanded,
-    required this.votedOption,
-    required this.pollTotalVotes,
-    required this.onLike,
-    required this.onSave,
-    required this.onExpand,
-    required this.onCommentTap,
-    required this.onVote,
-  });
-
-  final _GroupPost post;
-  final bool isLiked;
-  final bool isSaved;
-  final bool isExpanded;
-  final bool commentsExpanded;
-  final int? votedOption;
-  final int pollTotalVotes;
-  final VoidCallback onLike;
-  final VoidCallback onSave;
-  final VoidCallback onExpand;
-  final VoidCallback onCommentTap;
-  final ValueChanged<int> onVote;
-
-  static const int _truncateLength = 120;
-
-  @override
-  Widget build(BuildContext context) {
-    final needsTruncate = post.text.length > _truncateLength;
-    final displayText = isExpanded || !needsTruncate
-        ? post.text
-        : '${post.text.substring(0, _truncateLength)}…';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: post.type == PostType.announcement
-              ? AppColors.warning.withValues(alpha: 0.4)
-              : AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (post.type == PostType.announcement)
-            Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                '📢 ANNOUNCEMENT',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppColors.primaryGradient,
-                ),
-                child: Text(
-                  post.initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          post.author,
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(post.flag, style: const TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                    Text(post.time, style: AppTextStyles.bodySmall),
-                  ],
-                ),
-              ),
-              if (post.isPinned)
-                const Icon(Icons.push_pin, size: 16, color: AppColors.warning),
-            ],
+          GroupFeedComposer(
+            controller: _postController,
+            draftController: _postDraft,
+            showDraftBanner: _showPostDraftBanner,
+            draftRecord: _postDraftRecord,
+            isJoined: widget.isJoined,
+            isSubmitting: _submitting,
+            moderationBlock: _moderationBlock,
+            moderationError: resolveCommunityUiError(_moderationError, locale),
+            rephraseAttemptsUsed: _rephraseAttempts,
+            onRephraseAttemptConsumed: () {
+              setState(() => _rephraseAttempts++);
+            },
+            onApplyRephraseSuggestion: (text) {
+              _postController.text = text;
+              setState(() {
+                _moderationBlock = null;
+                _rephraseAttempts = 0;
+              });
+            },
+            onRestoreDraft: () {
+              _postController.text =
+                  _postDraftRecord?.data['text']?.toString() ?? '';
+              setState(() {
+                _showPostDraftBanner = false;
+                _postDraftRecord = null;
+              });
+            },
+            onDiscardDraft: () async {
+              await _postDraft.clear();
+              setState(() {
+                _showPostDraftBanner = false;
+                _postDraftRecord = null;
+              });
+            },
+            onSubmit: _submitPost,
+            onJoinPrompt: widget.onJoinToggle,
+            joinedGroupIds: joinedGroupIds,
+            selectedGroupTags: _selectedGroupTags,
+            onGroupTagsChanged: (tags) {
+              setState(() => _selectedGroupTags = tags);
+            },
+            locale: locale,
+            suggestedContentLabelIds: suggestedLabels,
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            displayText,
-            style: AppTextStyles.bodyLarge.copyWith(height: 1.4),
-          ),
-          if (needsTruncate)
-            GestureDetector(
-              onTap: onExpand,
-              child: Text(
-                isExpanded ? 'Show less' : 'Read more',
-                style: AppTextStyles.labelLarge.copyWith(fontSize: 12),
-              ),
-            ),
-          if (post.hasPhoto) ...[
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              height: 160,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1A2535), Color(0xFF0D1520)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Center(
-                child: Icon(Icons.image_outlined, color: AppColors.textMuted, size: 48),
-              ),
-            ),
-          ],
-          if (post.type == PostType.poll && post.pollOptions != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            ...post.pollOptions!.asMap().entries.map((entry) {
-              final index = entry.key;
-              final option = entry.value;
-              final fraction = option.votes / pollTotalVotes;
-              final isVoted = votedOption == index;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: LinearProgressIndicator(
-                        value: fraction,
-                        minHeight: 32,
-                        backgroundColor: AppColors.background,
-                        color: isVoted
-                            ? AppColors.primary
-                            : AppColors.primary.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${option.label} · ${option.votes} votes',
-                            style: AppTextStyles.bodySmall,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: votedOption == null ? () => onVote(index) : null,
-                          child: Text(
-                            isVoted ? 'Voted ✓' : 'Vote',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: votedOption == null
-                                  ? AppColors.primary
-                                  : AppColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              _ReactionButton(
-                icon: isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                label: '${post.likes + (isLiked ? 1 : 0)}',
-                active: isLiked,
-                onTap: onLike,
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              _ReactionButton(
-                icon: Icons.chat_bubble_outline,
-                label: '${post.comments}',
-                active: commentsExpanded,
-                onTap: onCommentTap,
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              _ReactionButton(
-                icon: Icons.share_outlined,
-                label: 'Share',
-                onTap: () {},
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              _ReactionButton(
-                icon: isSaved ? Icons.bookmark : Icons.bookmark_border,
-                label: 'Save',
-                active: isSaved,
-                onTap: onSave,
-              ),
-            ],
-          ),
-          if (commentsExpanded) ...[
-            const SizedBox(height: AppSpacing.md),
-            Divider(color: AppColors.surfaceElevated, height: 1),
-            const SizedBox(height: AppSpacing.sm),
-            ...post.replies.map(
-              (reply) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.subdirectory_arrow_right,
-                      color: AppColors.textSecondary,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(reply, style: AppTextStyles.bodyMedium),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReactionButton extends StatelessWidget {
-  const _ReactionButton({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? AppColors.primary : AppColors.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );

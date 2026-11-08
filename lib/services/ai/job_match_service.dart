@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/features/jobs/esco_match/domain/models/esco_job_match_models.dart';
+import 'package:raabta/features/jobs/esco_match/domain/services/esco_job_match_service.dart';
+import 'package:raabta/features/jobs/esco_match/providers/esco_match_providers.dart';
+import 'package:raabta/models/advanced_profile.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/core/colors/app_colors.dart';
 
 // ---------------------------------------------------------------------------
 // Models
@@ -14,6 +19,7 @@ class JobMatchResult {
     required this.matchColor,
     required this.explanation,
     required this.breakdown,
+    this.escoDetail,
   });
 
   final String jobId;
@@ -23,6 +29,9 @@ class JobMatchResult {
   final String explanation;
   final Map<String, int> breakdown;
 
+  /// Explainable ESCO skill overlap — matched/missing skills, hard-req gate.
+  final EscoJobMatchDetail? escoDetail;
+
   Map<String, dynamic> toJson() => {
         'jobId': jobId,
         'matchScore': matchScore,
@@ -30,6 +39,7 @@ class JobMatchResult {
         'matchColor': matchColor.toARGB32(),
         'explanation': explanation,
         'breakdown': breakdown,
+        if (escoDetail != null) 'escoOverlapPercent': escoDetail!.overlapPercent,
       };
 }
 
@@ -48,10 +58,14 @@ class RankedJobMatch {
 // ---------------------------------------------------------------------------
 
 class JobMatchService {
-  static const Color _excellentColor = Color(0xFF34D399);
-  static const Color _strongColor = Color(0xFF22D3EE);
+  JobMatchService({EscoJobMatchService? escoMatcher})
+      : _escoMatcher = escoMatcher ?? EscoJobMatchService();
+
+  final EscoJobMatchService _escoMatcher;
+  static const Color _excellentColor = AppColors.quickActionGreen;
+  static const Color _strongColor = AppColors.quickActionCyan;
   static const Color _goodColor = Color(0xFF60A5FA);
-  static const Color _fairColor = Color(0xFFFBBF24);
+  static const Color _fairColor = AppColors.quickActionYellow;
   static const Color _lowColor = Color(0xFF6B7280);
 
   static const List<String> _criticalCertifications = [
@@ -103,37 +117,64 @@ class JobMatchService {
 
   /// Calculates total match score (0–100) from five weighted dimensions.
   int calculateMatch(Map<String, dynamic> jobData, UserAIProfile profile) {
-    final breakdown = _calculateBreakdown(jobData, profile);
-    final total = breakdown.values.fold<int>(0, (sum, score) => sum + score);
+    final escoDetail = _escoMatcher.evaluate(jobData: jobData, profile: profile);
+    final breakdown =
+        _calculateBreakdown(jobData, profile, escoDetail: escoDetail);
+    var total = breakdown.values.fold<int>(0, (sum, score) => sum + score);
+    if (escoDetail.hardRequirementBlocked) {
+      total = total.clamp(0, EscoJobMatchService.hardRequirementScoreCap);
+    }
     return total.clamp(0, 100);
   }
 
   /// Builds a full [JobMatchResult] including level, color, and explanation.
   JobMatchResult evaluateMatch(
     Map<String, dynamic> jobData,
-    UserAIProfile profile,
-  ) {
+    UserAIProfile profile, {
+    Iterable<String> extraSkillTokens = const [],
+    Iterable<String> extraCertTokens = const [],
+    Iterable<String> jobTitleTokens = const [],
+    String locale = 'English',
+  }) {
     final jobId = _extractJobId(jobData);
-    final breakdown = _calculateBreakdown(jobData, profile);
-    final score = breakdown.values.fold<int>(0, (sum, s) => sum + s).clamp(0, 100);
-    final levelInfo = _resolveMatchLevel(score);
-
-    final result = JobMatchResult(
-      jobId: jobId,
-      matchScore: score,
-      matchLevel: levelInfo.label,
-      matchColor: levelInfo.color,
-      explanation: '',
-      breakdown: breakdown,
+    final escoDetail = _escoMatcher.evaluate(
+      jobData: jobData,
+      profile: profile,
+      extraSkillTokens: extraSkillTokens,
+      extraCertTokens: extraCertTokens,
+      jobTitleTokens: jobTitleTokens,
+      locale: locale,
     );
+    final breakdown = _calculateBreakdown(jobData, profile, escoDetail: escoDetail);
+    var score = breakdown.values.fold<int>(0, (sum, s) => sum + s).clamp(0, 100);
+
+    if (escoDetail.hardRequirementBlocked) {
+      score = score.clamp(0, EscoJobMatchService.hardRequirementScoreCap);
+    }
+
+    final levelInfo = _resolveMatchLevel(score);
 
     return JobMatchResult(
       jobId: jobId,
       matchScore: score,
       matchLevel: levelInfo.label,
       matchColor: levelInfo.color,
-      explanation: generateExplanation(result, profile, jobData),
+      explanation: escoDetail.explanation.isNotEmpty
+          ? escoDetail.explanation
+          : generateExplanation(
+              JobMatchResult(
+                jobId: jobId,
+                matchScore: score,
+                matchLevel: levelInfo.label,
+                matchColor: levelInfo.color,
+                explanation: '',
+                breakdown: breakdown,
+              ),
+              profile,
+              jobData,
+            ),
       breakdown: breakdown,
+      escoDetail: escoDetail,
     );
   }
 
@@ -196,10 +237,11 @@ class JobMatchService {
 
   Map<String, int> _calculateBreakdown(
     Map<String, dynamic> jobData,
-    UserAIProfile profile,
-  ) {
+    UserAIProfile profile, {
+    EscoJobMatchDetail? escoDetail,
+  }) {
     return {
-      'skill': _scoreSkillMatch(jobData, profile),
+      'skill': escoDetail?.skillScore ?? _scoreSkillMatchLegacy(jobData, profile),
       'experience': _scoreExperienceMatch(jobData, profile),
       'location': _scoreLocationMatch(jobData, profile),
       'salary': _scoreSalaryMatch(jobData, profile),
@@ -207,7 +249,7 @@ class JobMatchService {
     };
   }
 
-  int _scoreSkillMatch(Map<String, dynamic> jobData, UserAIProfile profile) {
+  int _scoreSkillMatchLegacy(Map<String, dynamic> jobData, UserAIProfile profile) {
     final required = _extractRequiredSkills(jobData);
     if (required.isEmpty) return 0;
 
@@ -283,6 +325,19 @@ class JobMatchService {
     final salary = _extractSalary(jobData);
     if (salary == null) return 5;
 
+    final adv = profile.advancedProfile;
+    if (profile.advancedProfileConsentGiven &&
+        adv != null &&
+        AdvancedProfile.isSet(adv.salaryComparisonRange)) {
+      final midpoint =
+          AdvancedSalaryRange.midpointQar(adv.salaryComparisonRange);
+      if (midpoint != null) {
+        if (salary >= midpoint * 0.9 && salary <= midpoint * 1.15) return 10;
+        if (salary > midpoint * 1.15 && salary <= midpoint * 1.3) return 8;
+        return 5;
+      }
+    }
+
     final minBudget = (profile.budgetRange['min'] ?? 0).toDouble();
     final maxBudget = (profile.budgetRange['max'] ?? 5000).toDouble();
 
@@ -301,6 +356,15 @@ class JobMatchService {
   ) {
     final jobCategory = _extractJobCategory(jobData).toLowerCase().trim();
     final profession = profile.profession.toLowerCase().trim();
+
+    final advIndustry =
+        profile.advancedProfile?.industry?.toLowerCase().trim() ?? '';
+    if (profile.advancedProfileConsentGiven && advIndustry.isNotEmpty) {
+      if (jobCategory.contains(advIndustry) ||
+          advIndustry.contains(jobCategory)) {
+        return 10;
+      }
+    }
 
     if (jobCategory.isEmpty || profession.isEmpty) return 2;
 
@@ -540,5 +604,5 @@ class JobMatchService {
 // ---------------------------------------------------------------------------
 
 final jobMatchServiceProvider = Provider<JobMatchService>((ref) {
-  return JobMatchService();
+  return JobMatchService(escoMatcher: ref.watch(escoJobMatchServiceProvider));
 });

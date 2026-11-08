@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-const kBoostStarterPrice = 5;
-const kBoostPopularPrice = 15;
-const kBoostPremiumPrice = 45;
-
-const kBoostStarterDays = 3;
-const kBoostPopularDays = 7;
-const kBoostPremiumDays = 30;
+import 'package:raabta/config/monetization_config.dart';
+import 'package:raabta/config/monetization_state.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/intelligence/sensitive_action_confirm.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/core/widgets/monetization_coming_soon_panel.dart';
+import 'package:raabta/models/intelligence/permission_level.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/monetization/l10n/monetization_strings.dart';
+import 'package:raabta/services/intelligence/sensitive_action_audit_service.dart';
 
 class BoostListingScreen extends ConsumerStatefulWidget {
   const BoostListingScreen({
@@ -35,221 +42,296 @@ class _BoostListingScreenState extends ConsumerState<BoostListingScreen> {
   final List<Map<String, dynamic>> _packages = [
     {
       'index': 0,
-      'label': 'Starter',
-      'days': kBoostStarterDays,
-      'price': kBoostStarterPrice,
+      'labelKey': 'boost_package_starter',
+      'days': MonetizationConfig.boostStarterDays,
+      'price': MonetizationConfig.boostStarterQr,
       'oldPrice': null,
       'popular': false,
-      'borderColor': const Color(0xFF00D4FF),
+      'borderColor': AppColors.cyanGlow,
       'borderWidth': 1.0,
       'gradientColors': null,
-      'priceColor': const Color(0xFF00D4FF),
+      'priceColor': AppColors.cyanGlow,
       'buttonStyle': 'outline',
-      'buttonColor': const Color(0xFF00D4FF),
-      'badge': null,
-      'benefits': [
-        '3× more visibility',
-        'Highlighted in search results',
-        'Priority placement for 3 days',
+      'buttonColor': AppColors.cyanGlow,
+      'badgeKey': null,
+      'benefitKeys': [
+        'boost_benefit_3x',
+        'boost_benefit_highlighted',
+        'boost_benefit_priority_3d',
       ],
     },
     {
       'index': 1,
-      'label': 'Popular',
-      'days': kBoostPopularDays,
-      'price': kBoostPopularPrice,
-      'oldPrice': 25,
+      'labelKey': 'boost_package_popular',
+      'days': MonetizationConfig.boostPopularDays,
+      'price': MonetizationConfig.boostPopularQr,
+      'oldPrice': MonetizationConfig.boostPopularCompareAtQr,
       'popular': true,
-      'borderColor': const Color(0xFF00D4FF),
+      'borderColor': AppColors.cyanGlow,
       'borderWidth': 2.0,
-      'gradientColors': [const Color(0xFF00D4FF), const Color(0xFF6C3FC5)],
-      'priceColor': const Color(0xFF00D4FF),
+      'gradientColors': [AppColors.cyanGlow, AppColors.purpleGlow],
+      'priceColor': AppColors.cyanGlow,
       'buttonStyle': 'filled',
-      'buttonColor': const Color(0xFF00D4FF),
-      'badge': 'MOST POPULAR',
-      'benefits': [
-        '7× more visibility',
-        '"FEATURED" badge on your listing',
-        'Top search results for 7 days',
-        'Push alert to 500 nearby users',
+      'buttonColor': AppColors.cyanGlow,
+      'badgeKey': 'badge_most_popular',
+      'benefitKeys': [
+        'boost_benefit_7x',
+        'boost_benefit_featured_badge',
+        'boost_benefit_top_7d',
+        'boost_benefit_push_500',
       ],
     },
     {
       'index': 2,
-      'label': 'Premium',
-      'days': kBoostPremiumDays,
-      'price': kBoostPremiumPrice,
+      'labelKey': 'boost_package_premium',
+      'days': MonetizationConfig.boostPremiumDays,
+      'price': MonetizationConfig.boostPremiumQr,
       'oldPrice': null,
       'popular': false,
-      'borderColor': const Color(0xFFFFB627),
+      'borderColor': AppColors.amberGlow,
       'borderWidth': 2.0,
-      'gradientColors': [const Color(0xFFFFB627), const Color(0xFFFF6B00)],
-      'priceColor': const Color(0xFFFFB627),
+      'gradientColors': [AppColors.amberGlow, AppColors.warning],
+      'priceColor': AppColors.amberGlow,
       'buttonStyle': 'gold',
-      'buttonColor': const Color(0xFFFFB627),
-      'badge': null,
-      'benefits': [
-        '15× more visibility',
-        '"PREMIUM" gold badge on listing',
-        'Homepage featured section',
-        'AI-recommended to matched users',
-        'Monthly analytics report',
+      'buttonColor': AppColors.amberGlow,
+      'badgeKey': null,
+      'benefitKeys': [
+        'boost_benefit_15x',
+        'boost_benefit_premium_badge',
+        'boost_benefit_homepage',
+        'boost_benefit_ai_recommended',
+        'boost_benefit_analytics',
       ],
     },
   ];
 
+  List<Map<String, dynamic>> _packagesFor(String locale) {
+    return _packages.map((pkg) {
+      return {
+        ...pkg,
+        'label': MonetizationStrings.t(pkg['labelKey'] as String, locale),
+        'benefits': (pkg['benefitKeys'] as List<String>)
+            .map((k) => MonetizationStrings.t(k, locale))
+            .toList(),
+        'badge': pkg['badgeKey'] != null
+            ? MonetizationStrings.t(pkg['badgeKey'] as String, locale)
+            : null,
+      };
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A2E),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+    final locale = ref.watch(userLanguageProvider);
+    final packages = _packagesFor(locale);
+
+    if (MonetizationState.isHold) {
+      final plannedPrices =
+          '${MonetizationConfig.formatQr(MonetizationConfig.boostStarterQr)} / '
+          '${MonetizationConfig.formatQr(MonetizationConfig.boostPopularQr)} / '
+          '${MonetizationConfig.formatQr(MonetizationConfig.boostPremiumQr)}';
+      return GlassScreenScaffold(
+        title: MonetizationStrings.t('boost_screen_title', locale),
+        leading: GlassIconButton(
+          icon: Icons.close_rounded,
+          tooltip: CommonActionStrings.t('action_cancel', locale),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          '🚀 Boost Your Listing',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildListingPreview(locale),
+              const SizedBox(height: AppSpacing.lg),
+              const MonetizationHoldBanner(),
+              const SizedBox(height: AppSpacing.md),
+              MonetizationComingSoonPanel(
+                productName:
+                    MonetizationStrings.t('boost_product_name', locale),
+                plannedPriceLabel: MonetizationStrings.format(
+                  'ad_planned_price',
+                  locale,
+                  params: {'price': plannedPrices},
+                ),
+                subtitle: MonetizationStrings.t(
+                  'boost_coming_soon_subtitle',
+                  locale,
+                ),
+                accentColor: AppColors.cyanGlow,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                MonetizationStrings.t('boost_planned_benefits', locale),
+                style: AppTypography.title,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ...packages.map(
+                (pkg) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    MonetizationStrings.format(
+                      'boost_planned_package_line',
+                      locale,
+                      params: {
+                        'label': pkg['label'] as String,
+                        'days': '${pkg['days']}',
+                        'price': MonetizationConfig.formatQr(
+                          pkg['price'] as int,
+                        ),
+                      },
+                    ),
+                    style: AppTypography.bodySmall,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      );
+    }
+
+    return GlassScreenScaffold(
+      title: MonetizationStrings.t('boost_screen_title', locale),
+      leading: GlassIconButton(
+        icon: Icons.close_rounded,
+        tooltip: CommonActionStrings.t('action_cancel', locale),
+        onPressed: () => Navigator.of(context).pop(),
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _showPayment
-            ? _buildPaymentSection()
-            : _buildPackagesSection(),
+            ? _buildPaymentSection(locale, packages)
+            : _buildPackagesSection(locale, packages),
       ),
     );
   }
 
-  Widget _buildPackagesSection() {
+  Widget _buildPackagesSection(
+    String locale,
+    List<Map<String, dynamic>> packages,
+  ) {
     return SingleChildScrollView(
       key: const ValueKey('packages'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildListingPreview(),
-          const SizedBox(height: 20),
-          const Text(
-            'Choose a boost package',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          _buildListingPreview(locale),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            MonetizationStrings.t('boost_choose_package', locale),
+            style: AppTypography.title,
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Prices in Qatari Riyal — no hidden fees',
-            style: TextStyle(color: Colors.white38, fontSize: 12),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            MonetizationStrings.t('boost_no_hidden_fees', locale),
+            style: AppTypography.caption,
           ),
-          const SizedBox(height: 16),
-          ..._packages.map(_buildPackageCard),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
+          ...packages.map((pkg) => _buildPackageCard(locale, pkg)),
+          const SizedBox(height: AppSpacing.md),
           if (_selectedPackage != null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => setState(() => _showPayment = true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C3FC5),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+            GlassCard(
+              onTap: () => setState(() => _showPayment = true),
+              glowColor: AppColors.purpleGlow,
+              glowIntensity: 0.25,
+              backgroundColor: AppColors.purpleGlow,
+              borderRadius: AppSpacing.radiusMd,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                MonetizationStrings.format(
+                  'boost_continue_with',
+                  locale,
+                  params: {
+                    'label': packages[_selectedPackage!]['label'] as String,
+                    'price': MonetizationConfig.formatQr(
+                      packages[_selectedPackage!]['price'] as int,
+                    ),
+                  },
                 ),
-                child: Text(
-                  'Continue with '
-                  '${_packages[_selectedPackage!]['label']} — '
-                  '${_packages[_selectedPackage!]['price']} QR',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                style: AppTypography.button.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 
-  Widget _buildListingPreview() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
-      ),
+  Widget _buildListingPreview(String locale) {
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         children: [
-          Container(
+          GlassContainer(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C3FC5).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
+            padding: EdgeInsets.zero,
+            borderRadius: AppSpacing.radiusSm,
+            glowColor: AppColors.purpleGlow,
+            glowIntensity: 0.12,
+            child: Icon(
               Icons.inventory_2_outlined,
-              color: Color(0xFF6C3FC5),
-              size: 24,
+              color: AppColors.purpleGlow,
+              size: AppSpacing.iconLg,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   widget.listingTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: AppTypography.subtitle.copyWith(
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   children: [
                     _statChip(
                       Icons.visibility_outlined,
-                      '${widget.currentViews} views',
-                      Colors.white54,
+                      MonetizationStrings.format(
+                        'boost_stat_views',
+                        locale,
+                        params: {'count': '${widget.currentViews}'},
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpacing.sm),
                     _statChip(
                       Icons.phone_outlined,
-                      '${widget.currentContacts} contacts',
-                      Colors.white54,
+                      MonetizationStrings.format(
+                        'boost_stat_contacts',
+                        locale,
+                        params: {'count': '${widget.currentContacts}'},
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
+          GlassContainer(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
             ),
-            child: const Text(
-              'ACTIVE',
-              style: TextStyle(
-                color: Colors.orange,
-                fontSize: 10,
+            borderRadius: AppSpacing.radiusXs,
+            glowColor: AppColors.warning,
+            glowIntensity: 0.12,
+            child: Text(
+              MonetizationStrings.t('boost_status_active', locale),
+              style: AppTypography.caption.copyWith(
+                color: AppColors.warning,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -259,374 +341,378 @@ class _BoostListingScreenState extends ConsumerState<BoostListingScreen> {
     );
   }
 
-  Widget _statChip(IconData icon, String label, Color color) {
+  Widget _statChip(IconData icon, String label) {
     return Row(
       children: [
-        Icon(icon, size: 12, color: color),
+        Icon(icon, size: AppSpacing.iconXs, color: AppColors.textSecondary),
         const SizedBox(width: 3),
-        Text(label, style: TextStyle(color: color, fontSize: 11)),
+        Text(label, style: AppTypography.caption),
       ],
     );
   }
 
-  Widget _buildPackageCard(Map<String, dynamic> pkg) {
+  Widget _buildPackageCard(String locale, Map<String, dynamic> pkg) {
     final isSelected = _selectedPackage == pkg['index'];
-    final hasGradient = pkg['gradientColors'] != null;
     final borderColor = pkg['borderColor'] as Color;
     final priceColor = pkg['priceColor'] as Color;
 
-    return GestureDetector(
+    return GlassCard(
       onTap: () => setState(() => _selectedPackage = pkg['index']),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? borderColor
-                : borderColor.withValues(alpha: 0.4),
-            width: isSelected
-                ? (pkg['borderWidth'] as double) + 0.5
-                : pkg['borderWidth'] as double,
-          ),
-          gradient: hasGradient
-              ? LinearGradient(
-                  colors: (pkg['gradientColors'] as List<Color>)
-                      .map((c) => c.withValues(alpha: 0.12))
-                      .toList(),
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: hasGradient ? null : const Color(0xFF1A1A2E),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: borderColor.withValues(alpha: 0.25),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      glowColor: isSelected ? borderColor : null,
+      glowIntensity: isSelected ? 0.2 : 0,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
+                  Text(
+                    MonetizationStrings.format(
+                      'boost_days_label',
+                      locale,
+                      params: {'days': '${pkg['days']}'},
+                    ),
+                    style: AppTypography.title,
+                  ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '${pkg['days']} Days Boost',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          if (pkg['oldPrice'] != null)
-                            Text(
-                              '${pkg['oldPrice']} QR',
-                              style: const TextStyle(
-                                color: Colors.white38,
-                                fontSize: 12,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                          Text(
-                            '${pkg['price']} QR',
-                            style: TextStyle(
-                              color: priceColor,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                            ),
+                      if (pkg['oldPrice'] != null)
+                        Text(
+                          MonetizationConfig.formatQr(pkg['oldPrice'] as int),
+                          style: AppTypography.caption.copyWith(
+                            decoration: TextDecoration.lineThrough,
                           ),
-                        ],
+                        ),
+                      Text(
+                        MonetizationConfig.formatQr(pkg['price'] as int),
+                        style: AppTypography.headline1.copyWith(
+                          color: priceColor,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  ...(pkg['benefits'] as List<String>).map(
-                    (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 7),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: priceColor, size: 16),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              b,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _buildPackageButton(pkg, isSelected, priceColor),
-                  ),
                 ],
               ),
+              const SizedBox(height: AppSpacing.md),
+              ...(pkg['benefits'] as List<String>).map(
+                (b) => Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: priceColor, size: AppSpacing.iconSm),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(b, style: AppTypography.bodySmall),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _buildPackageButton(locale, pkg, isSelected, priceColor),
+            ],
+          ),
+          if (pkg['badge'] != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GlassContainer(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 3,
+                ),
+                borderRadius: AppSpacing.radiusXs,
+                backgroundColor: AppColors.amberGlow,
+                child: Text(
+                  pkg['badge'] as String,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.background,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
             ),
-            if (pkg['badge'] != null)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFB627),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    pkg['badge'] as String,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+          if (isSelected)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: GlassContainer(
+                width: 22,
+                height: 22,
+                padding: EdgeInsets.zero,
+                borderRadius: AppSpacing.radiusFull,
+                backgroundColor: borderColor,
+                child: Icon(
+                  Icons.check,
+                  color: AppColors.textPrimary,
+                  size: 14,
                 ),
               ),
-            if (isSelected)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: borderColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 14),
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildPackageButton(
+    String locale,
     Map<String, dynamic> pkg,
     bool isSelected,
     Color color,
   ) {
     final style = pkg['buttonStyle'] as String;
+    final selectLabel = MonetizationStrings.t('boost_select', locale);
+    final selectedLabel = MonetizationStrings.t('boost_selected', locale);
     if (style == 'outline') {
-      return OutlinedButton(
-        onPressed: () => setState(() => _selectedPackage = pkg['index']),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: color),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-        ),
+      return GlassCard(
+        onTap: () => setState(() => _selectedPackage = pkg['index']),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        borderRadius: AppSpacing.radiusSm,
+        glowColor: color,
+        glowIntensity: 0.15,
         child: Text(
-          'Select',
-          style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          selectLabel,
+          style: AppTypography.button.copyWith(color: color),
+          textAlign: TextAlign.center,
         ),
       );
     }
-    return ElevatedButton(
-      onPressed: () => setState(() => _selectedPackage = pkg['index']),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? color : color.withValues(alpha: 0.8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-      ),
+    return GlassCard(
+      onTap: () => setState(() => _selectedPackage = pkg['index']),
+      glowColor: color,
+      glowIntensity: isSelected ? 0.25 : 0.15,
+      backgroundColor: isSelected ? color : color.withValues(alpha: 0.8),
+      borderRadius: AppSpacing.radiusSm,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Text(
-        isSelected ? '✓ Selected' : 'Select',
-        style: TextStyle(
-          color: style == 'gold' ? Colors.black : Colors.white,
+        isSelected ? selectedLabel : selectLabel,
+        style: AppTypography.button.copyWith(
+          color: style == 'gold' ? AppColors.background : AppColors.textPrimary,
           fontWeight: FontWeight.bold,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }
 
-  Widget _buildPaymentSection() {
+  Widget _buildPaymentSection(
+    String locale,
+    List<Map<String, dynamic>> packages,
+  ) {
     if (_selectedPackage == null) return const SizedBox();
-    final pkg = _packages[_selectedPackage!];
+    final pkg = packages[_selectedPackage!];
+    final priceFormatted = MonetizationConfig.formatQr(pkg['price'] as int);
+    final daysLabel = MonetizationStrings.format(
+      'boost_days_label',
+      locale,
+      params: {'days': '${pkg['days']}'},
+    );
 
     return SingleChildScrollView(
       key: const ValueKey('payment'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
+          GlassCard(
             onTap: () => setState(() => _showPayment = false),
-            child: const Row(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            borderRadius: AppSpacing.radiusFull,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios, color: Color(0xFF00D4FF), size: 16),
+                Icon(Icons.arrow_back_ios, color: AppColors.cyanGlow, size: AppSpacing.iconSm),
                 Text(
-                  'Change package',
-                  style: TextStyle(color: Color(0xFF00D4FF), fontSize: 13),
+                  MonetizationStrings.t('boost_change_package', locale),
+                  style: AppTypography.link,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Complete Payment',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            MonetizationStrings.t('boost_complete_payment', locale),
+            style: AppTypography.headline2.copyWith(fontSize: 20),
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
-            ),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               children: [
-                _summaryRow('Package', '${pkg['label']} — ${pkg['days']} Days'),
-                const Divider(color: Colors.white12, height: 20),
-                _summaryRow('Listing', widget.listingTitle, valueMaxLines: 1),
-                const Divider(color: Colors.white12, height: 20),
                 _summaryRow(
-                  'Total',
-                  '${pkg['price']} QR',
-                  valueColor: const Color(0xFFFFB627),
+                  MonetizationStrings.t('boost_summary_package', locale),
+                  '${pkg['label']} — $daysLabel',
+                ),
+                Divider(color: AppColors.glassBorder, height: AppSpacing.lg),
+                _summaryRow(
+                  MonetizationStrings.t('boost_summary_listing', locale),
+                  widget.listingTitle,
+                  valueMaxLines: 1,
+                ),
+                Divider(color: AppColors.glassBorder, height: AppSpacing.lg),
+                _summaryRow(
+                  MonetizationStrings.t('boost_summary_total', locale),
+                  priceFormatted,
+                  valueColor: AppColors.amberGlow,
                   valueBold: true,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Payment method',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            MonetizationStrings.t('boost_payment_method', locale),
+            style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF00D4FF), width: 1.5),
-            ),
+          const SizedBox(height: AppSpacing.sm),
+          GlassContainer(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            borderRadius: AppSpacing.radiusMd,
+            glowColor: AppColors.cyanGlow,
+            glowIntensity: 0.15,
             child: Row(
               children: [
-                Container(
+                GlassContainer(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00D4FF).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
+                  padding: EdgeInsets.zero,
+                  borderRadius: AppSpacing.radiusSm,
+                  glowColor: AppColors.cyanGlow,
+                  glowIntensity: 0.1,
+                  child: Icon(
                     Icons.credit_card,
-                    color: Color(0xFF00D4FF),
-                    size: 22,
+                    color: AppColors.cyanGlow,
+                    size: AppSpacing.iconMd + 2,
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pay with Card',
-                        style: TextStyle(
-                          color: Colors.white,
+                        MonetizationStrings.t('boost_pay_with_card', locale),
+                        style: AppTypography.subtitle.copyWith(
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
-                          fontSize: 14,
                         ),
                       ),
                       Text(
-                        'Tap Payments — Visa / Mastercard',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                        MonetizationStrings.t('boost_tap_payments', locale),
+                        style: AppTypography.caption,
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.check_circle, color: Color(0xFF00D4FF), size: 20),
+                Icon(Icons.check_circle, color: AppColors.cyanGlow, size: AppSpacing.iconMd),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      '🚀 Boost activated! Redirecting to payment…',
-                    ),
-                    backgroundColor: Color(0xFF6C3FC5),
+          const SizedBox(height: AppSpacing.lg),
+          GlassCard(
+            onTap: () async {
+              if (!MonetizationState.canInitiatePayment) return;
+              final confirmed = await showSensitiveActionConfirmDialog(
+                context,
+                title: MonetizationStrings.t(
+                  'boost_confirm_payment_title',
+                  locale,
+                ),
+                message: MonetizationStrings.format(
+                  'boost_confirm_payment_message',
+                  locale,
+                  params: {
+                    'price': priceFormatted,
+                    'listing': widget.listingTitle,
+                  },
+                ),
+                confirmLabel: MonetizationStrings.t(
+                  'boost_pay_activate_label',
+                  locale,
+                ),
+                destructive: false,
+              );
+              if (!confirmed || !mounted) return;
+
+              await SensitiveActionAuditService.log(
+                actionId: SensitiveActionIds.boostListingPayment,
+                level: PermissionLevel.execute,
+                referenceId: widget.listingId,
+                metadata: {
+                  'packageLabel': pkg['label'],
+                  'priceQr': pkg['price'],
+                },
+              );
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    MonetizationStrings.t('boost_activated_snackbar', locale),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C3FC5),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  backgroundColor: AppColors.purpleGlow,
                 ),
+              );
+            },
+            glowColor: AppColors.purpleGlow,
+            glowIntensity: 0.25,
+            backgroundColor: AppColors.purpleGlow,
+            borderRadius: AppSpacing.radiusMd,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text(
+              MonetizationStrings.format(
+                'boost_pay_button',
+                locale,
+                params: {'price': priceFormatted},
               ),
-              child: Text(
-                'Pay ${pkg['price']} QR — Activate Boost',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+              style: AppTypography.button.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Center(
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white38, fontSize: 13),
+            child: GlassCard(
+              onTap: () => Navigator.of(context).pop(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              borderRadius: AppSpacing.radiusFull,
+              child: Text(
+                CommonActionStrings.t('action_cancel', locale),
+                style: AppTypography.bodySmall,
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          const Center(
+          const SizedBox(height: AppSpacing.sm),
+          Center(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline, color: Colors.white24, size: 12),
-                SizedBox(width: 4),
+                Icon(Icons.lock_outline, color: AppColors.textTertiary, size: AppSpacing.iconXs),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
-                  'Secured by Tap Payments',
-                  style: TextStyle(color: Colors.white24, fontSize: 11),
+                  MonetizationStrings.t('boost_secured_by', locale),
+                  style: AppTypography.caption,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
@@ -642,10 +728,7 @@ class _BoostListingScreenState extends ConsumerState<BoostListingScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
-        ),
+        Text(label, style: AppTypography.bodySmall),
         const Spacer(),
         Flexible(
           child: Text(
@@ -653,9 +736,8 @@ class _BoostListingScreenState extends ConsumerState<BoostListingScreen> {
             textAlign: TextAlign.right,
             maxLines: valueMaxLines,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 13,
+            style: AppTypography.bodySmall.copyWith(
+              color: valueColor ?? AppColors.textPrimary,
               fontWeight: valueBold ? FontWeight.bold : FontWeight.normal,
             ),
           ),

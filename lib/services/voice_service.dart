@@ -112,6 +112,14 @@ class VoiceService {
   bool get isTtsAvailable => _ttsAvailable;
 
   Future<bool> initialize() async {
+    if (kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows) {
+      debugPrint('ℹ️ VoiceService skipped on desktop/web');
+      return false;
+    }
+
     try {
       await _tts.setSharedInstance(true);
 

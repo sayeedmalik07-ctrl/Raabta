@@ -63,7 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '320469579825',
     projectId: 'raabta-27c6a',
     storageBucket: 'raabta-27c6a.firebasestorage.app',
-    iosBundleId: 'com.example.raabta',
+    iosBundleId: 'com.sayeed.raabta',
   );
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyALVZJNmNyxtMR_G3cltndeopSlY1_HBBU',
@@ -71,7 +71,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '320469579825',
     projectId: 'raabta-27c6a',
     storageBucket: 'raabta-27c6a.firebasestorage.app',
-    iosBundleId: 'com.example.raabta',
+    iosBundleId: 'com.sayeed.raabta',
   );
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyB0G-ghacunshN_Yhw5gRY5Jngi8JT2z5E',

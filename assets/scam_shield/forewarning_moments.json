@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "moments": [
+    {
+      "id": "job_apply",
+      "sourceLabel": "Raabta jobs guidance",
+      "ctaTarget": "agency_verification",
+      "advisoryCategory": "money_mule",
+      "variants": [
+        { "reuseKey": "jobs:trust_no_hiring_fees_body" },
+        { "reuseKey": "ss:ss_pay_prompt_job_1" },
+        { "reuseKey": "ss:ss_evidence_money_mule" }
+      ]
+    },
+    {
+      "id": "housing_deposit_viewing",
+      "requiresFlag": "viewingsEnabled",
+      "sourceLabel": "Raabta payment check",
+      "ctaTarget": "payment_check",
+      "variants": [
+        { "reuseKey": "ss:ss_pay_prompt_rent_2" },
+        { "reuseKey": "ss:ss_pay_method_deposit_before_viewing" },
+        { "reuseKey": "ss:ss_pay_prompt_rent_1" }
+      ]
+    },
+    {
+      "id": "marketplace_pay",
+      "requiresFlag": "offersEnabled",
+      "sourceLabel": "Raabta marketplace guidance",
+      "ctaTarget": "payment_check",
+      "advisoryCategory": "vendor_invoice",
+      "variants": [
+        { "reuseKey": "ss:ss_evidence_platform_hop" },
+        { "reuseKey": "ss:ss_pay_prompt_other_2" },
+        { "reuseKey": "mp:mp_payment_security_banner" }
+      ]
+    },
+    {
+      "id": "remittance_family_emergency",
+      "sourceLabel": "Raabta payment check",
+      "ctaTarget": "payment_check",
+      "variants": [
+        { "reuseKey": "ss:ss_pay_prompt_friend_1" },
+        { "reuseKey": "ss:ss_pay_prompt_friend_2" },
+        { "reuseKey": "ss:ss_pay_prompt_friend_3" }
+      ]
+    },
+    {
+      "id": "service_quote_advance",
+      "requiresFlag": "quotesEnabled",
+      "sourceLabel": "Raabta payment check",
+      "ctaTarget": "payment_check",
+      "variants": [
+        { "reuseKey": "ss:ss_pay_prompt_other_2" },
+        { "reuseKey": "ss:ss_pay_prompt_other_3" },
+        { "reuseKey": "ss:ss_flag_upfront_fee" }
+      ]
+    },
+    {
+      "id": "visa_pro_unofficial_agent",
+      "sourceLabel": "Ministry of Labour public list",
+      "ctaTarget": "official_directory",
+      "variants": [
+        { "reuseKey": "qr:section_body" },
+        { "reuseKey": "ss:ss_verify_job_mol" },
+        { "reuseKey": "ss:ss_official_dir_subtitle" }
+      ]
+    }
+  ]
+}

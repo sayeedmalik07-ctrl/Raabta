@@ -1,0 +1,67 @@
+{
+  "channels": [
+    {
+      "id": "municipality_oun",
+      "displayNameKey": "civic_ch_municipality_name",
+      "authorityNameKey": "civic_ch_municipality_authority",
+      "issueTypeIds": [
+        "pests",
+        "abandoned_vehicle",
+        "waste_collection",
+        "workers_accommodation_sanitation"
+      ],
+      "channelType": "official_website",
+      "websiteUrl": "TODO_VERIFY",
+      "phone": "TODO_VERIFY",
+      "iosStoreUrl": "TODO_VERIFY",
+      "androidStoreUrl": "TODO_VERIFY",
+      "deepLinkScheme": "TODO_VERIFY",
+      "raabtaRoute": null,
+      "verificationStatus": "unverified",
+      "sourceLabel": "Ministry of Municipality — confirm Oun / official reporting routes on moi.gov.qa before enabling",
+      "lastVerified": "",
+      "verificationNote": "TODO_VERIFY — Sayeed must confirm Oun app store links, hotlines, and web portal URLs"
+    },
+    {
+      "id": "ashghal",
+      "displayNameKey": "civic_ch_ashghal_name",
+      "authorityNameKey": "civic_ch_ashghal_authority",
+      "issueTypeIds": [
+        "street_lighting",
+        "road_damage",
+        "drainage_sewage"
+      ],
+      "channelType": "official_website",
+      "websiteUrl": "TODO_VERIFY",
+      "phone": "TODO_VERIFY",
+      "iosStoreUrl": null,
+      "androidStoreUrl": null,
+      "deepLinkScheme": null,
+      "raabtaRoute": null,
+      "verificationStatus": "unverified",
+      "sourceLabel": "Public Works Authority (Ashghal) — confirm official contact channels on ashghal.gov.qa before enabling",
+      "lastVerified": "",
+      "verificationNote": "TODO_VERIFY — Sayeed must confirm Ashghal reporting URLs and verified phone targets"
+    },
+    {
+      "id": "kahramaa",
+      "displayNameKey": "civic_ch_kahramaa_name",
+      "authorityNameKey": "civic_ch_kahramaa_authority",
+      "issueTypeIds": [
+        "water_leak_supply",
+        "electricity_fault"
+      ],
+      "channelType": "official_website",
+      "websiteUrl": "TODO_VERIFY",
+      "phone": "TODO_VERIFY",
+      "iosStoreUrl": "TODO_VERIFY",
+      "androidStoreUrl": "TODO_VERIFY",
+      "deepLinkScheme": null,
+      "raabtaRoute": null,
+      "verificationStatus": "unverified",
+      "sourceLabel": "Kahramaa — confirm official customer service routes on km.qa before enabling",
+      "lastVerified": "",
+      "verificationNote": "TODO_VERIFY — Sayeed must confirm Kahramaa web, app, and hotline details"
+    }
+  ]
+}
