@@ -8,6 +8,7 @@ void main() {
   Widget wrap({
     required Widget child,
     double width = 148,
+    double? height,
     TextDirection textDirection = TextDirection.ltr,
     double textScale = 1.0,
   }) {
@@ -21,7 +22,7 @@ void main() {
           child: Center(
             child: SizedBox(
               width: width,
-              height: HomeCardTier.truthEngineGridExtent,
+              height: height ?? HomeCardTier.truthEngineGridExtent,
               child: child,
             ),
           ),
@@ -72,7 +73,10 @@ void main() {
         deepLink: '/eosb',
       );
       await tester.pumpWidget(
-        wrap(child: card(status: invite)),
+        wrap(
+          child: card(status: invite),
+          height: HomeCardTier.truthEngineInviteGridExtent,
+        ),
       );
       expect(
         find.text(HomeTruthChipUiStrings.t('truth_chip_start_cta', 'English')),

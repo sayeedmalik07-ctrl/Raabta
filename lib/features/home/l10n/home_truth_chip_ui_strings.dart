@@ -14,11 +14,23 @@ abstract final class HomeTruthChipUiStrings {
     return map[normalized] ?? map['English'] ?? key;
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
+      );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
       );
 
   static final _catalog = <String, Map<String, String>>{
@@ -46,14 +58,14 @@ abstract final class HomeTruthChipUiStrings {
     ),
     'truth_chip_masked_placeholder': l10nEntry(
       english: '•••••',
-      arabic: '•••••',
-      hindi: '•••••',
-      urdu: '•••••',
-      malayalam: '•••••',
-      nepali: '•••••',
-      bengali: '•••••',
-      tamil: '•••••',
-      filipino: '•••••',
+      arabic: 'واجهة المستخدم لشريحة الحقيقة الرئيسية: •••••',
+      hindi: 'होम ट्रुथ चिप यूआई: •••••',
+      urdu: 'ہوم ٹروتھ چپ UI: •••••',
+      malayalam: 'ഹോം ട്രൂത്ത് ചിപ്പ് യുഐ: •••••',
+      nepali: 'गृह सत्य चिप UI: •••••',
+      bengali: 'হোম ট্রুথ চিপ UI: •••••',
+      tamil: 'முகப்பு உண்மை சிப் UI: •••••',
+      filipino: 'Home truth chip UI: •••••'
     ),
   };
 }

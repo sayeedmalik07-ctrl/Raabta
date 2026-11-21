@@ -24,11 +24,23 @@ abstract final class HomeChipStatusStrings {
     return text;
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
+      );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
       );
 
   static final _catalog = <String, Map<String, String>>{
@@ -196,6 +208,17 @@ abstract final class HomeChipStatusStrings {
       bengali: 'নিয়ম, খরচ, টিপস',
       tamil: 'விதிகள், செலவு, ஆலோசனைகள்',
       filipino: 'Mga tuntunin, gastos, tips',
+    ),
+    'home_chip_barcode_static': l10nEntry(
+      english: 'Scan and check a product',
+      arabic: 'امسح المنتج وتحقق منه',
+      hindi: 'स्कैन करें और उत्पाद जाँचें',
+      urdu: 'اسکین کریں اور پروڈکٹ چیک کریں',
+      malayalam: 'സ്കാൻ ചെയ്ത് ഉൽപ്പന്നം പരിശോധിക്കുക',
+      nepali: 'स्क्यान गर्नुहोस् र उत्पादन जाँच गर्नुहोस्',
+      bengali: 'স্ক্যান করুন এবং পণ্য যাচাই করুন',
+      tamil: 'ஸ்கேன் செய்து பொருளைச் சரிபார்க்கவும்',
+      filipino: 'I-scan at suriin ang produkto',
     ),
     'home_chip_arabic_static': l10nEntry(
       english: 'Practice phrases',

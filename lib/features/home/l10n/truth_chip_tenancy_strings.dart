@@ -24,11 +24,23 @@ abstract final class TruthChipTenancyStrings {
     return text;
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
+      );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
       );
 
   static final _catalog = <String, Map<String, String>>{

@@ -14,6 +14,8 @@ class RaabtaOrb extends StatefulWidget {
     required this.size,
     this.showDepthRings = false,
     this.animationsEnabled = true,
+    this.idleVisualsOnly = false,
+    this.tactileMateriality = false,
   });
 
   final RaabtaOrbState state;
@@ -24,6 +26,12 @@ class RaabtaOrb extends StatefulWidget {
 
   /// Parent can disable motion (e.g. off-screen Home orb).
   final bool animationsEnabled;
+
+  /// Home search orb: static sphere, no gold arc or idle breath (sparkle overlay).
+  final bool idleVisualsOnly;
+
+  /// Round 4B: calmer halo on Home pinned/search orbs (tactile shadow on shell).
+  final bool tactileMateriality;
 
   static const breathDuration = Duration(milliseconds: 3500);
 
@@ -83,6 +91,7 @@ class _RaabtaOrbState extends State<RaabtaOrb>
       _previousState = oldWidget.state;
     }
     if (oldWidget.animationsEnabled != widget.animationsEnabled ||
+        oldWidget.idleVisualsOnly != widget.idleVisualsOnly ||
         oldWidget.state != widget.state) {
       _syncTicker();
     }
@@ -92,7 +101,11 @@ class _RaabtaOrbState extends State<RaabtaOrb>
 
   bool get _routeVisible => ModalRoute.of(context)?.isCurrent ?? true;
 
+  bool get _idleResting =>
+      widget.state == RaabtaOrbState.idle && widget.idleVisualsOnly;
+
   bool get _shouldAnimate {
+    if (_idleResting) return false;
     if (_reduceMotion || !widget.animationsEnabled) return false;
     if (!_routeVisible || !TickerMode.of(context)) return false;
     if (widget.state == RaabtaOrbState.error) return false;
@@ -102,7 +115,7 @@ class _RaabtaOrbState extends State<RaabtaOrb>
   void _syncTicker() {
     if (!_shouldAnimate) {
       if (_controller.isAnimating) _controller.stop();
-      _controller.value = 0.35;
+      _controller.value = _idleResting ? 0 : 0.35;
       return;
     }
     if (widget.state == RaabtaOrbState.completion) {
@@ -144,6 +157,8 @@ class _RaabtaOrbState extends State<RaabtaOrb>
                 diameter: widget.size,
                 showDepthRings: widget.showDepthRings,
                 reduceMotion: _reduceMotion || !widget.animationsEnabled,
+                idleVisualsOnly: widget.idleVisualsOnly,
+                tactileMateriality: widget.tactileMateriality,
                 completionBlend: _completionBlend,
                 isLight: AppColors.isLight,
               ),
@@ -163,6 +178,8 @@ class _RaabtaOrbPainter extends CustomPainter {
     required this.diameter,
     required this.showDepthRings,
     required this.reduceMotion,
+    required this.idleVisualsOnly,
+    required this.tactileMateriality,
     required this.completionBlend,
     required this.isLight,
   });
@@ -173,6 +190,8 @@ class _RaabtaOrbPainter extends CustomPainter {
   final double diameter;
   final bool showDepthRings;
   final bool reduceMotion;
+  final bool idleVisualsOnly;
+  final bool tactileMateriality;
   final double completionBlend;
   final bool isLight;
 
@@ -198,6 +217,15 @@ class _RaabtaOrbPainter extends CustomPainter {
     var processingBoost = 0.0;
     var respondPhase = t;
     var desaturate = 0.0;
+
+    if (idleVisualsOnly && effectiveState == RaabtaOrbState.idle) {
+      return;
+    }
+
+    if (tactileMateriality && effectiveState == RaabtaOrbState.idle) {
+      haloStrength = 0.05;
+      sphereScale = 1.0;
+    }
 
     switch (effectiveState) {
       case RaabtaOrbState.idle:

@@ -60,6 +60,14 @@ class HomePrayerStrip extends ConsumerWidget {
     required String locale,
     required Duration? remaining,
   }) {
+    return timeRemainingLine(locale: locale, remaining: remaining);
+  }
+
+  /// Compact glance: countdown only so prayer name stays on the title line.
+  static String timeRemainingLine({
+    required String locale,
+    required Duration? remaining,
+  }) {
     if (remaining == null) return '—';
     return PrayerStrings.format(
       'home_strip_time_remaining',
@@ -126,11 +134,22 @@ class _HomePrayerStripBody extends ConsumerWidget {
         IslamicContentRepository.hijriMonthNames[hijri.month] ?? '';
     final hijriFull = '$hijriMonth ${hijri.day}, ${hijri.year} AH';
 
-    final title = HomePrayerStrip.nextHeadingLine(locale: locale, next: next);
-    final subtitle = HomePrayerStrip.nextTimeLine(
-      locale: locale,
-      remaining: remaining,
-    );
+    final title = compact
+        ? (next != null
+            ? PrayerStrings.t(next.labelKey, locale)
+            : '—')
+        : HomePrayerStrip.nextHeadingLine(locale: locale, next: next);
+    final subtitle = compact
+        ? (remaining != null
+            ? HomePrayerStrip.timeRemainingLine(
+                locale: locale,
+                remaining: remaining,
+              )
+            : null)
+        : HomePrayerStrip.nextTimeLine(
+            locale: locale,
+            remaining: remaining,
+          );
     final semanticsLabel = [
       HomePrayerStrip.nextCountdownLine(
         locale: locale,
@@ -152,6 +171,8 @@ class _HomePrayerStripBody extends ConsumerWidget {
           subtitle: subtitle,
           showLivePulse: true,
           denseSingleLine: compact,
+          titleMaxLines: compact ? 1 : null,
+          subtitleMaxLines: compact ? 1 : null,
           onTap: () => context.push('/prayer-mosque/times'),
           trailing: !compact
               ? ConstrainedBox(

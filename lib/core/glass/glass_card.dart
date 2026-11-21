@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
+
 import 'glass_container.dart';
 import '../spacing/app_spacing.dart';
 
@@ -19,6 +21,7 @@ class GlassCard extends StatefulWidget {
     this.blurSigma = AppSpacing.glassBlur,
     this.backgroundColor,
     this.onTap,
+    this.solidSurfaceFamily,
   });
 
   final Widget child;
@@ -32,6 +35,7 @@ class GlassCard extends StatefulWidget {
   final double blurSigma;
   final Color? backgroundColor;
   final VoidCallback? onTap;
+  final RaabtaSolidSurfaceFamily? solidSurfaceFamily;
 
   @override
   State<GlassCard> createState() => _GlassCardState();
@@ -109,6 +113,7 @@ class _GlassCardState extends State<GlassCard>
           glowIntensity: widget.glowIntensity,
           blurSigma: widget.blurSigma,
           backgroundColor: widget.backgroundColor,
+          solidSurfaceFamily: widget.solidSurfaceFamily,
           child: widget.child,
         ),
       ),

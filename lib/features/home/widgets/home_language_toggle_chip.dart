@@ -11,7 +11,9 @@ import 'package:raabta/providers/visa_providers.dart';
 
 /// Home header language pill — opens the in-context language sheet.
 class HomeLanguageToggleChip extends ConsumerWidget {
-  const HomeLanguageToggleChip({super.key});
+  const HomeLanguageToggleChip({super.key, this.overSkyline = false});
+
+  final bool overSkyline;
 
   /// Stable pill width so the header does not shift between locales.
   static const pillWidth = 88.0;
@@ -35,6 +37,7 @@ class HomeLanguageToggleChip extends ConsumerWidget {
         width: pillWidth,
         height: 44,
         borderRadius: 22,
+        overSkyline: overSkyline,
         semanticsLabel: semantics,
         onTap: () => HomeLanguagePickerSheet.show(context),
         child: Padding(
@@ -45,7 +48,9 @@ class HomeLanguageToggleChip extends ConsumerWidget {
               Icon(
                 Icons.language_rounded,
                 size: AppSpacing.iconSm + 2,
-                color: AppColors.brandFamilyMain.withValues(alpha: 0.92),
+                color: overSkyline
+                    ? Colors.white.withValues(alpha: 0.95)
+                    : AppColors.brandFamilyMain.withValues(alpha: 0.92),
               ),
               const SizedBox(width: AppSpacing.xxs),
               Text(
@@ -53,14 +58,18 @@ class HomeLanguageToggleChip extends ConsumerWidget {
                 style: AppTypography.subtitle.copyWith(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.brandFamilyText,
+                  color: overSkyline
+                      ? Colors.white
+                      : AppColors.brandFamilyText,
                 ),
               ),
               const SizedBox(width: 2),
               Icon(
                 Icons.expand_more_rounded,
                 size: 16,
-                color: AppColors.textOnGlassSecondary,
+                color: overSkyline
+                    ? Colors.white.withValues(alpha: 0.82)
+                    : AppColors.textOnGlassSecondary,
               ),
             ],
           ),

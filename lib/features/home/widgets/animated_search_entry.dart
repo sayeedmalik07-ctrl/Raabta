@@ -3,16 +3,19 @@ import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/design/home_glass_legibility_tokens.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/home/utils/home_directional_icons.dart';
+import 'package:raabta/features/home/widgets/search_capsule_layout.dart';
 
 List<Color> _brandOrbitGradient() => [
-      AppColors.brandFamilyMain,
-      AppColors.brandFamilyText,
-      AppColors.brandFamilyMain,
-    ];
+  AppColors.brandFamilyMain,
+  AppColors.brandFamilyText,
+  AppColors.brandFamilyMain,
+];
 
 /// Home Screen Global Search entry — gradient ring on tap converge (calm at idle).
 class AnimatedSearchEntry extends StatefulWidget {
@@ -31,6 +34,11 @@ class AnimatedSearchEntry extends StatefulWidget {
   /// Tighter vertical padding for the sticky top search bar.
   final bool compact;
 
+  /// Kit §10 global search pill — same height as header language chip.
+  static const designPillHeight = 44.0;
+
+  static const designPillRadius = designPillHeight / 2;
+
   @override
   State<AnimatedSearchEntry> createState() => _AnimatedSearchEntryState();
 }
@@ -39,8 +47,8 @@ class _AnimatedSearchEntryState extends State<AnimatedSearchEntry>
     with TickerProviderStateMixin {
   static const _idleDuration = Duration(milliseconds: 3600);
   static const _tapDuration = Duration(milliseconds: 420);
-  /// Design kit v2.1 global search pill (§10 / `.srch`).
-  static const _pillHeight = 44.0;
+
+  static const _pillHeight = AnimatedSearchEntry.designPillHeight;
   static const _rowTopInset = 12.0;
 
   late final AnimationController _idleController;
@@ -87,112 +95,176 @@ class _AnimatedSearchEntryState extends State<AnimatedSearchEntry>
     return mq?.disableAnimations ?? false;
   }
 
+  bool get _embeddedInCapsule => SearchCapsuleLayout.embeddedOf(context);
+
+  bool get _hostedInAiRow => SearchCapsuleLayout.hostedInAiRowOf(context);
+
+  BorderRadius get _searchFillRadius {
+    if (_embeddedInCapsule) {
+      return BorderRadius.horizontal(left: Radius.circular(_pillHeight / 2));
+    }
+    return BorderRadius.circular(_pillHeight / 2);
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = _reduceMotion;
+    final embedded = _embeddedInCapsule;
 
     return Padding(
-      padding: widget.compact
+      padding: embedded || _hostedInAiRow || widget.compact
           ? EdgeInsets.zero
-          : const EdgeInsets.only(
-              top: _rowTopInset,
-              bottom: AppSpacing.sm,
-            ),
+          : const EdgeInsets.only(top: _rowTopInset, bottom: AppSpacing.sm),
       child: Semantics(
-      button: true,
-      label: widget.semanticsLabel ?? widget.hint,
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_idleController, _tapController]),
-          builder: (context, _) {
-            final tapT = Curves.easeInOutCubic.transform(_tapController.value);
-            final showOrbitRing =
-                !reduceMotion && (_launching || tapT > 0);
-            final orbitProgress = showOrbitRing
-                ? (_idleController.value + tapT * 0.35) % 1.0
-                : 0.0;
-            final tighten = tapT;
-            final expand = tapT;
-            final ringOpacity = 1.0 - tapT * 0.15;
+        button: true,
+        label: widget.semanticsLabel ?? widget.hint,
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_idleController, _tapController]),
+            builder: (context, _) {
+              final tapT = Curves.easeInOutCubic.transform(
+                _tapController.value,
+              );
+              final compactGeometry =
+                  embedded || _hostedInAiRow || widget.compact;
+              final showOrbitRing =
+                  !reduceMotion && !compactGeometry && (_launching || tapT > 0);
+              final orbitProgress = showOrbitRing
+                  ? (_idleController.value + tapT * 0.35) % 1.0
+                  : 0.0;
+              final tighten = tapT;
+              final expand = tapT;
+              final ringOpacity = 1.0 - tapT * 0.15;
+              final contentHeight = compactGeometry
+                  ? _pillHeight
+                  : _pillHeight + 6;
 
-            return Transform.scale(
-              scale: 1.0 + expand * 0.02,
-              child: SizedBox(
-                height: _pillHeight + 6,
-                width: double.infinity,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (showOrbitRing)
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: SearchOrbitRingPainter(
-                            progress: orbitProgress,
-                            tighten: tighten,
-                            opacity: ringOpacity,
-                            borderRadius: _pillHeight / 2,
-                            gradientColors: _brandOrbitGradient(),
+              return Transform.scale(
+                scale: 1.0 + expand * 0.02,
+                child: SizedBox(
+                  height: contentHeight,
+                  width: double.infinity,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (showOrbitRing && !embedded)
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: SearchOrbitRingPainter(
+                              progress: orbitProgress,
+                              tighten: tighten,
+                              opacity: ringOpacity,
+                              borderRadius: _pillHeight / 2,
+                              gradientColors: _brandOrbitGradient(),
+                            ),
                           ),
                         ),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GlassContainer(
-                        height: _pillHeight,
-                        borderRadius: _pillHeight / 2,
-                        glowColor: AppColors.brandFamilyMain,
-                        glowIntensity: 0.04 + expand * 0.05,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compactGeometry ? 0 : 4,
                         ),
-                        onTap: _handleTap,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              size: AppSpacing.iconMd,
-                              color: AppColors.brandFamilyMain.withValues(
-                                alpha: 0.82 + expand * 0.12,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: 0.55 + expand * 0.45,
-                                child: Text(
-                                  widget.hint,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.start,
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppColors.textOnGlassSecondary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (expand > 0.05)
-                              Icon(
-                                HomeDirectionalIcons.forwardArrowRounded(
-                                  context,
-                                ),
-                                size: 18,
-                                color: AppColors.brandFamilyMain.withValues(
-                                  alpha: expand,
-                                ),
-                              ),
-                          ],
+                        child: _buildSearchSurface(
+                          embedded: embedded,
+                          expand: expand,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
-      ),
+    );
+  }
+
+  Widget _buildSearchSurface({required bool embedded, required double expand}) {
+    final textDirection =
+        SearchCapsuleLayout.localeTextDirectionOf(this.context) ??
+        Directionality.of(this.context);
+    final hostedInRow = _hostedInAiRow;
+
+    final row = Row(
+      textDirection: textDirection,
+      children: [
+        Icon(
+          Icons.search_rounded,
+          size: hostedInRow ? AppSpacing.iconSm + 2 : AppSpacing.iconMd,
+          color: AppColors.brandFamilyMain.withValues(
+            alpha: 0.82 + expand * 0.12,
+          ),
+        ),
+        SizedBox(width: hostedInRow ? AppSpacing.xs : AppSpacing.sm),
+        Expanded(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: 0.55 + expand * 0.45,
+            child: Text(
+              widget.hint,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.start,
+              textDirection: textDirection,
+              style: AppTypography.bodySmall.copyWith(
+                height: hostedInRow ? 1.2 : null,
+                color: AppColors.textOnGlassSecondary,
+              ),
+            ),
+          ),
+        ),
+        if (expand > 0.05)
+          Icon(
+            HomeDirectionalIcons.forwardArrowRounded(context),
+            size: 18,
+            color: AppColors.brandFamilyMain.withValues(alpha: expand),
+          ),
+      ],
+    );
+
+    final horizontalInset = embedded
+        ? AppSpacing.sm
+        : hostedInRow
+        ? AppSpacing.sm
+        : AppSpacing.md;
+    final paddedRow = Padding(
+      padding: EdgeInsets.symmetric(horizontal: horizontalInset),
+      child: row,
+    );
+
+    if (embedded) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _handleTap,
+          borderRadius: _searchFillRadius,
+          child: SizedBox(
+            height: _pillHeight,
+            child: Center(child: paddedRow),
+          ),
+        ),
+      );
+    }
+
+    final pinnedHomeChrome = hostedInRow || widget.compact;
+
+    return GlassContainer(
+      height: _pillHeight,
+      borderRadius: AnimatedSearchEntry.designPillRadius,
+      glowColor: AppColors.brandFamilyMain,
+      glowIntensity: pinnedHomeChrome ? 0 : (0.04 + expand * 0.05),
+      solidSurfaceFamily:
+          pinnedHomeChrome ? RaabtaSolidSurfaceFamily.neutral : null,
+      backgroundColor: pinnedHomeChrome
+          ? RaabtaSolidSurfaceTokens.fill(
+              RaabtaSolidSurfaceFamily.neutral,
+              Theme.of(context).brightness,
+            ).withValues(alpha: HomeGlassLegibilityTokens.pinnedSurfaceAlpha)
+          : null,
+      blurSigma: pinnedHomeChrome ? 0 : HomeGlassLegibilityTokens.fallbackBlurSigma,
+      padding: EdgeInsets.zero,
+      onTap: _handleTap,
+      child: paddedRow,
     );
   }
 }
@@ -242,7 +314,9 @@ class SearchOrbitRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final shader = SweepGradient(
       colors: gradientColors
-          .map((c) => c.withValues(alpha: (0.32 + (1 - tighten) * 0.22) * opacity))
+          .map(
+            (c) => c.withValues(alpha: (0.32 + (1 - tighten) * 0.22) * opacity),
+          )
           .toList(),
       transform: GradientRotation(progress * 2 * math.pi),
     ).createShader(Rect.fromCircle(center: center, radius: size.shortestSide));
@@ -261,7 +335,10 @@ class SearchOrbitRingPainter extends CustomPainter {
     final normalizedStart = start % total;
     final path = Path();
     if (normalizedStart + length <= total) {
-      path.addPath(metric.extractPath(normalizedStart, normalizedStart + length), Offset.zero);
+      path.addPath(
+        metric.extractPath(normalizedStart, normalizedStart + length),
+        Offset.zero,
+      );
     } else {
       path.addPath(metric.extractPath(normalizedStart, total), Offset.zero);
       path.addPath(

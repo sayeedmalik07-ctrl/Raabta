@@ -1336,14 +1336,15 @@ abstract final class AppShellStrings {
       'Filipino': 'Money Hub',
     },
     'home_feat_money_sub': {
-      'English': 'Send money, compare rates & tools',
-      'Arabic': 'تحويل، مقارنة الأسعار والأدوات',
-      'Hindi': 'पैसे भेजें, दरें और टूल्स',
-      'Urdu': 'رقم بھیجیں، شرحیں اور ٹولز',
-      'Malayalam': 'Send money, compare rates & tools',
-      'Nepali': 'Send money, compare rates & tools',
-      'Bengali': 'টাকা পাঠান, হার ও টুলস',
-      'Filipino': 'Send money, compare rates & tools',
+      'English': 'Exchange houses to your home country',
+      'Arabic': 'شركات الصرافة إلى وطنك',
+      'Hindi': 'आपके गृह देश के लिए विनिमय घर',
+      'Urdu': 'آپ کے وطن کے لیے ایکسچینج ہاؤسز',
+      'Malayalam': 'നിങ്ങളുടെ നാട്ടിലേക്കുള്ള എക്സ്ചേഞ്ച് ഹൗസുകൾ',
+      'Nepali': 'तपाईंको गृह देशका विनिमय घरहरू',
+      'Bengali': 'আপনার নিজ দেশের বিনিময় ঘর',
+      'Tamil': 'உங்கள் தாய்நாட்டிற்கான பரிமாற்ற வீடுகள்',
+      'Filipino': 'Mga exchange house papuntang bayan mo',
     },
     'home_feat_visa': {
       'English': 'Visa & Documents',
@@ -1879,5 +1880,168 @@ abstract final class AppShellStrings {
 
     // ── Global search (see GlobalSearchShellStrings) ────────────────────────
     ...GlobalSearchShellStrings.catalog,
+    'home_all_services_title': {
+      'English': 'All services',
+      'Arabic': 'كل الخدمات',
+      'Hindi': 'सभी सेवाएँ',
+      'Urdu': 'تمام سروسز',
+      'Malayalam': 'എല്ലാ സേവനങ്ങളും',
+      'Nepali': 'सबै सेवाहरू',
+      'Bengali': 'সব সেবা',
+      'Tamil': 'அனைத்து சேவைகளும்',
+      'Filipino': 'Lahat ng serbisyo',
+    },
+    'home_exchange_rates_section': {
+      'English': 'Exchange rates',
+      'Arabic': 'أسعار الصرف',
+      'Hindi': 'विनिमय दरें',
+      'Urdu': 'ایکسچینج ریٹس',
+      'Malayalam': 'വിനിമയ നിരക്കുകൾ',
+      'Nepali': 'विनिमय दरहरू',
+      'Bengali': 'বিনিময় হার',
+      'Tamil': 'பரிமாற்ற விகிதங்கள்',
+      'Filipino': 'Mga exchange rate',
+    },
+    'home_money_hub_action': {
+      'English': 'Money Hub',
+      'Arabic': 'مركز المال',
+      'Hindi': 'मनी हब',
+      'Urdu': 'منی حب',
+      'Malayalam': 'മണി ഹബ്',
+      'Nepali': 'मनी हब',
+      'Bengali': 'মানি হাব',
+      'Tamil': 'பண மையம்',
+      'Filipino': 'Sentro ng pera',
+    },
+    'home_services_strip_semantics': {
+      'English': 'See all services, housing jobs marketplace and more',
+      'Arabic': 'عرض كل الخدمات: السكن والوظائف والسوق والمزيد',
+      'Hindi': 'सभी सेवाएँ देखें — आवास, नौकरियाँ, मार्केटप्लेस और अन्य',
+      'Urdu': 'تمام سروسز دیکھیں — ہاؤسنگ، نوکریاں، مارکیٹ پلیس اور مزید',
+      'Malayalam':
+          'എല്ലാ സേവനങ്ങളും കാണുക — ഹൗസിംഗ്, ജോലികൾ, മാർക്കറ്റ്പ്ലേസ് എന്നിവയും മറ്റും',
+      'Nepali': 'सबै सेवाहरू हेर्नुहोस् — आवास, जागिर, मार्केटप्लेस र थप',
+      'Bengali': 'সব সেবা দেখুন — হাউজিং, চাকরি, মার্কেটপ্লেস এবং আরও',
+      'Tamil':
+          'அனைத்து சேவைகளையும் காண்க — வீடு, வேலைகள், சந்தை மற்றும் மேலும்',
+      'Filipino':
+          'Tingnan ang lahat ng serbisyo — pabahay, trabaho, marketplace at iba pa',
+    },
+    'home_scam_shield_glance_title': {
+      'English': 'Protected',
+      'Arabic': 'محمي',
+      'Hindi': 'सुरक्षित',
+      'Urdu': 'محفوظ',
+      'Malayalam': 'സുരക്ഷിതം',
+      'Nepali': 'सुरक्षित',
+      'Bengali': 'সুরক্ষিত',
+      'Tamil': 'பாதுகாக்கப்பட்டது',
+      'Filipino': 'Protektado',
+    },
+    'home_scam_shield_glance_sub': {
+      'English': "You're protected",
+      'Arabic': 'أنت محمي',
+      'Hindi': 'आप सुरक्षित हैं',
+      'Urdu': 'آپ محفوظ ہیں',
+      'Malayalam': 'നിങ്ങൾ സുരക്ഷിതർ',
+      'Nepali': 'तपाईं सुरक्षित हुनुहुन्छ',
+      'Bengali': 'আপনি সুরক্ষিত',
+      'Tamil': 'நீங்கள் பாதுகாக்கப்பட்டுள்ளீர்கள்',
+      'Filipino': 'Protektado ka',
+    },
+    'home_feed_empty_desc_signed_in': {
+      'English':
+          'Complete your profile so we can tailor tools and tips for life in Qatar.',
+      'Arabic': 'أكمل ملفك لنخصص الأدوات والنصائح لحياتك في قطر.',
+      'Hindi':
+          'अपनी प्रोफ़ाइल पूरी करें ताकि हम कतर में जीवन के लिए उपकरण और सुझाव तैयार कर सकें।',
+      'Urdu':
+          'اپنی پروفائل مکمل کریں تاکہ ہم قطر کے لیے آلات اور مشورہ تیار کر سکیں۔',
+      'Malayalam':
+          'പ്രൊഫൈൽ പൂർത്തിയാക്കുക; ഖത്തറിലെ ജീവിതത്തിന് ആവശ്യമായ ഉപകരണങ്ങളും നുറുങ്ങുകളും ഞങ്ങൾ തയ്യാറാക്കും.',
+      'Nepali':
+          'प्रोफाइल पूरा गर्नुहोस् ताकि हामी कतारमा जीवनका लागि उपकरण र सुझावहरू मिलाउन सकौं।',
+      'Bengali':
+          'প্রোফাইল সম্পূর্ণ করুন, যাতে আমরা কাতারে জীবনের জন্য সরঞ্জাম ও টিপস সাজাতে পারি।',
+      'Tamil':
+          'சுயவிவரத்தை முடிக்கவும்; கத்தாரில் வாழ்க்கைக்கான கருவிகளையும் உதவிக்குறிப்புகளையும் நாங்கள் தனிப்பயனாக்குவோம்.',
+      'Filipino':
+          'Kumpletuhin ang profile para maiayon namin ang mga tool at tip para sa buhay sa Qatar.',
+    },
+    'home_feed_empty_desc_signed_out': {
+      'English':
+          'Sign in and complete your profile so we can tailor tools and tips for life in Qatar.',
+      'Arabic':
+          'سجّل الدخول وأكمل ملفك لنخصص الأدوات والنصائح لحياتك في قطر.',
+      'Hindi':
+          'साइन इन करें और अपनी प्रोफ़ाइल पूरी करें ताकि हम कतर में जीवन के लिए उपकरण और सुझाव तैयार कर सकें।',
+      'Urdu':
+          'سائن اِن کریں اور اپنی پروفائل مکمل کریں تاکہ ہم قطر کے لیے آلات اور مشورہ تیار کر سکیں۔',
+      'Malayalam':
+          'സൈൻ ഇൻ ചെയ്ത് പ്രൊഫൈൽ പൂർത്തിയാക്കുക; ഖത്തറിലെ ജീവിതത്തിന് ആവശ്യമായ ഉപകരണങ്ങളും നുറുങ്ങുകളും ഞങ്ങൾ തയ്യാറാക്കും.',
+      'Nepali':
+          'साइन इन गर्नुहोस् र प्रोफाइल पूरा गर्नुहोस् ताकि हामी कतारमा जीवनका लागि उपकरण र सुझावहरू मिलाउन सकौं।',
+      'Bengali':
+          'সাইন ইন করে প্রোফাইল সম্পূর্ণ করুন, যাতে আমরা কাতারে জীবনের জন্য সরঞ্জাম ও টিপস সাজাতে পারি।',
+      'Tamil':
+          'உள்நுழைந்து சுயவிவரத்தை முடிக்கவும்; கத்தாரில் வாழ்க்கைக்கான கருவிகளையும் உதவிக்குறிப்புகளையும் நாங்கள் தனிப்பயனாக்குவோம்.',
+      'Filipino':
+          'Mag-sign in at kumpletuhin ang profile para maiayon namin ang mga tool at tip para sa buhay sa Qatar.',
+    },
+    'home_hero_guest_chip_deadlines': {
+      'English': 'Track deadlines',
+      'Arabic': 'تتبع المواعيد',
+      'Hindi': 'अंतिम तिथियाँ ट्रैक करें',
+      'Urdu': 'آخری تاریخیں ٹریک کریں',
+      'Malayalam': 'അവസാന തീയതികൾ ട്രാക്ക് ചെയ്യുക',
+      'Nepali': 'अन्तिम मितिहरू ट्र्याक गर्नुहोस्',
+      'Bengali': 'শেষ তারিখ ট্র্যাক করুন',
+      'Tamil': 'காலக்கெடுகளைக் கண்காணிக்கவும்',
+      'Filipino': 'Subaybayan ang mga deadline',
+    },
+    'home_hero_guest_chip_rights': {
+      'English': 'Check your rights',
+      'Arabic': 'تحقق من حقوقك',
+      'Hindi': 'अपने अधिकार जाँचें',
+      'Urdu': 'اپنے حقوق چیک کریں',
+      'Malayalam': 'നിങ്ങളുടെ അവകാശങ്ങൾ പരിശോധിക്കുക',
+      'Nepali': 'आफ्ना अधिकार जाँच गर्नुहोस्',
+      'Bengali': 'আপনার অধিকার যাচাই করুন',
+      'Tamil': 'உங்கள் உரிமைகளை சரிபார்க்கவும்',
+      'Filipino': 'Suriin ang iyong mga karapatan',
+    },
+    'home_hero_guest_chip_picks': {
+      'English': 'Tailored picks',
+      'Arabic': 'اقتراحات مخصصة',
+      'Hindi': 'अनुकूलित चयन',
+      'Urdu': 'ذاتی نوعیت کے انتخاب',
+      'Malayalam': 'അനുയോജ്യമായ തിരഞ്ഞെടുപ്പുകൾ',
+      'Nepali': 'अनुकूलित छनोट',
+      'Bengali': 'উপযোগী পছন্দ',
+      'Tamil': 'தனிப்பயன் தேர்வுகள்',
+      'Filipino': 'Mga pinasadyang pick',
+    },
+    'nav_documents': {
+      'English': 'Documents',
+      'Arabic': 'المستندات',
+      'Hindi': 'दस्तावेज़',
+      'Urdu': 'دستاویز',
+      'Malayalam': 'രേഖകൾ',
+      'Nepali': 'कागजात',
+      'Bengali': 'নথি',
+      'Tamil': 'ஆவணங்கள்',
+      'Filipino': 'Dokumento',
+    },
+    'nav_documents_semantics': {
+      'English': 'Open Documents hub',
+      'Arabic': 'فتح مركز المستندات',
+      'Hindi': 'दस्तावेज़ हब खोलें',
+      'Urdu': 'دستاویز ہب کھولیں',
+      'Malayalam': 'ഡോക്യുമെൻ്റ്സ് ഹബ് തുറക്കുക',
+      'Nepali': 'कागजात हब खोल्नुहोस्',
+      'Bengali': 'নথি হাব খুলুন',
+      'Tamil': 'ஆவணங்கள் மையத்தைத் திற',
+      'Filipino': 'Buksan ang Documents hub',
+    },
   };
 }

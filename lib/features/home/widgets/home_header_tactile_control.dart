@@ -16,6 +16,7 @@ class HomeHeaderTactileControl extends StatefulWidget {
     this.circular = false,
     this.semanticsLabel,
     this.controlKey,
+    this.overSkyline = false,
   });
 
   final Widget child;
@@ -26,6 +27,9 @@ class HomeHeaderTactileControl extends StatefulWidget {
   final bool circular;
   final String? semanticsLabel;
   final Key? controlKey;
+
+  /// Translucent glass over the Doha skyline (EN pill, bell, avatar chrome).
+  final bool overSkyline;
 
   @override
   State<HomeHeaderTactileControl> createState() =>
@@ -95,8 +99,6 @@ class _HomeHeaderTactileControlState extends State<HomeHeaderTactileControl>
   @override
   Widget build(BuildContext context) {
     final radius = widget.circular ? widget.height / 2 : widget.borderRadius;
-    final glow = _pressed ? 0.14 : 0.05;
-
     return Semantics(
       button: true,
       label: widget.semanticsLabel,
@@ -118,11 +120,14 @@ class _HomeHeaderTactileControlState extends State<HomeHeaderTactileControl>
               height: widget.height,
               borderRadius: radius,
               padding: EdgeInsets.zero,
-              glowColor: AppColors.brandFamilyMain,
-              glowIntensity: glow,
-              backgroundColor: AppColors.isLight
-                  ? Color.lerp(AppColors.surface, Colors.white, 0.35)
-                  : null,
+              glowIntensity: 0,
+              backgroundColor: widget.overSkyline
+                  ? Colors.white.withValues(
+                      alpha: AppColors.isLight ? 0.20 : 0.14,
+                    )
+                  : AppColors.isLight
+                      ? Color.lerp(AppColors.surface, Colors.white, 0.35)
+                      : AppColors.glassSurface.withValues(alpha: 0.42),
               child: widget.child,
             ),
           ),

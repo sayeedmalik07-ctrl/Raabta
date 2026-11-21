@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:raabta/features/home/utils/home_ai_assistant_launcher.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_tactile_button_tokens.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/widgets/raabta_orb.dart';
 import 'package:raabta/core/widgets/raabta_orb_kit_sizes.dart';
@@ -212,7 +213,14 @@ class _HomeAliveAiOrbState extends State<HomeAliveAiOrb> {
       widget.locale,
     );
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final scale = reduceMotion ? 1.0 : (_pressing ? 0.94 : 1.0);
+    final scale = reduceMotion
+        ? 1.0
+        : RaabtaTactileButtonTokens.pressScale(_pressing);
+    final pressOffset = RaabtaTactileButtonTokens.pressTranslation(
+      _pressing,
+      reduceMotion: reduceMotion,
+    );
+    final brightness = Theme.of(context).brightness;
     final pressDuration =
         _pressing ? Duration.zero : AppSpacing.tapAnimation;
     final pressCurve =
@@ -234,51 +242,65 @@ class _HomeAliveAiOrbState extends State<HomeAliveAiOrb> {
             maxWidth: HomeAiAssistantHost.aiOrbSize * 1.26,
             minHeight: HomeAiAssistantHost.aiOrbSize,
             maxHeight: HomeAiAssistantHost.aiOrbSize * 1.26,
-            child: AnimatedScale(
-            scale: scale,
-            duration: pressDuration,
-            curve: pressCurve,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                RaabtaOrb(
-                  state: RaabtaOrbState.idle,
-                  size: HomeAiAssistantHost.aiOrbSize,
-                  animationsEnabled: widget.animationsEnabled,
-                ),
-                IgnorePointer(
-                  child: RaabtaOrbSparkleGlyph(
-                    size: HomeAiAssistantHost.aiOrbSize * 0.42,
+            child: Transform.translate(
+              offset: pressOffset,
+              child: AnimatedScale(
+                scale: scale,
+                duration: pressDuration,
+                curve: pressCurve,
+                child: DecoratedBox(
+                  decoration: RaabtaTactileButtonTokens.circleDecoration(
+                    brightness: brightness,
                   ),
-                ),
-                if (widget.showProactiveDot)
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Container(
-                      key: const Key('home_ai_proactive_badge'),
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.warning,
-                        border: Border.all(
-                          color: AppColors.background,
-                          width: 1.5,
+                  child: SizedBox(
+                    width: HomeAiAssistantHost.aiOrbSize,
+                    height: HomeAiAssistantHost.aiOrbSize,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        RaabtaOrb(
+                          state: RaabtaOrbState.idle,
+                          size: HomeAiAssistantHost.aiOrbSize,
+                          animationsEnabled: widget.animationsEnabled,
+                          idleVisualsOnly: false,
+                          tactileMateriality: true,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.warning.withValues(alpha: 0.45),
-                            blurRadius: 4,
+                        IgnorePointer(
+                          child: RaabtaOrbSparkleGlyph(
+                            size: HomeAiAssistantHost.aiOrbSize * 0.42,
                           ),
-                        ],
-                      ),
+                        ),
+                        if (widget.showProactiveDot)
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              key: const Key('home_ai_proactive_badge'),
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.warning,
+                                border: Border.all(
+                                  color: AppColors.background,
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.warning.withValues(alpha: 0.45),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
           ),
         ),
       ),

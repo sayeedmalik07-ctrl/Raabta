@@ -203,6 +203,7 @@ class _HomeProfilePopoverPanel extends ConsumerWidget {
                         photoUrl: user?.photoURL,
                         size: GlassStatusHeader.kitAvatarSize,
                         ringStyle: ProfileAvatarRingStyle.brandKit,
+                        showGuestProfileIcon: user == null,
                       ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(

@@ -135,6 +135,7 @@ class HomeTodayIntelligenceAlerts extends StatelessWidget {
               context,
               title: item.title,
               explanation: item.explanation,
+              locale: locale,
               actionCapability: item.capability,
             ),
           ),

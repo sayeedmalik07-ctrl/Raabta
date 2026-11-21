@@ -34,6 +34,8 @@ void main() {
                 statusText: 'x',
                 freshnessText: '',
                 deepLink: engine.homeRoute,
+                revealedText:
+                    engine == TruthChipEngine.eosb ? 'QAR ••••' : null,
               );
             }),
         ],

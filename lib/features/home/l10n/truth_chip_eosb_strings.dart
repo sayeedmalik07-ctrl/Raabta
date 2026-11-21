@@ -24,11 +24,23 @@ abstract final class TruthChipEosbStrings {
     return text;
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
+      );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
       );
 
   static final _catalog = <String, Map<String, String>>{
@@ -156,13 +168,13 @@ abstract final class TruthChipEosbStrings {
     'truth_chip_eosb_revealed_estimate': l10nEntry(
       english: 'Estimate · QAR {amount}',
       arabic: 'تقدير · {amount} ر.ق',
-      hindi: 'अनुमान · QAR {amount}',
-      urdu: 'تخمینہ · QAR {amount}',
+      hindi: 'अनुमान · QAR {राशि} {amount}',
+      urdu: 'تخمینہ · QAR {رقم} {رقم} {amount}',
       malayalam: 'അനുമാനം · QAR {amount}',
       nepali: 'अनुमान · QAR {amount}',
       bengali: 'অনুমান · QAR {amount}',
       tamil: 'மதிப்பீடு · QAR {amount}',
-      filipino: 'Estimate · QAR {amount}',
+      filipino: 'Tantyahin · QAR {amount}'
     ),
   };
 }

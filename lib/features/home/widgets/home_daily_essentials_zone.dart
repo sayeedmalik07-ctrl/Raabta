@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/glass/glass_container.dart';
 import 'package:raabta/core/l10n/app_shell_strings.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
@@ -13,6 +14,7 @@ import 'package:raabta/features/home/providers/daily_essentials_order_provider.d
 import 'package:raabta/features/home/providers/home_chip_status_providers.dart';
 import 'package:raabta/features/home/widgets/home_chip_status_line.dart';
 import 'package:raabta/features/home/widgets/home_icon_badge.dart';
+import 'package:raabta/features/home/utils/home_directional_icons.dart';
 import 'package:raabta/features/home/widgets/home_section_header.dart';
 import 'package:raabta/features/quick_actions/l10n/quick_actions_strings.dart';
 import 'package:raabta/features/quick_actions/quick_actions_hub.dart';
@@ -34,17 +36,14 @@ class HomeDailyEssentialsZone extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionHeader(
-          overline: AppShellStrings.t('home_daily_essentials_overline', locale),
           title: AppShellStrings.t('home_daily_essentials', locale),
-          subtitle: AppShellStrings.t('home_daily_essentials_sub', locale),
+          compact: true,
           actionText: AppShellStrings.t('home_see_all', locale),
           onActionTap: () => QuickActionsHub.show(
             context,
             presentation: QuickActionsHubPresentation.dailyEssentialsTeal,
           ),
-          compact: true,
         ),
-        const SizedBox(height: AppSpacing.lg),
         _EssentialTileStack(
           tools: tools,
           locale: locale,
@@ -85,27 +84,47 @@ class _EssentialTileStack extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < tools.length; i++) ...[
-          if (i > 0)
-            const SizedBox(height: HomeCardTier.dailyEssentialTileGap),
-          _DailyEssentialCmpTile(
-            tool: tools[i],
-            locale: locale,
-            status: watchHomeChipStatus(ref, tools[i].route, locale),
-            onTap: () => onOpen(tools[i].route),
-          ),
+    final brightness = Theme.of(context).brightness;
+    final dividerColor = RaabtaSolidSurfaceTokens.hairline(
+      RaabtaSolidSurfaceFamily.teal,
+      brightness,
+    );
+
+    return GlassContainer(
+      key: const Key('home_daily_essentials_grouped_list'),
+      padding: EdgeInsets.zero,
+      borderRadius: HomeCardTier.dailyEssentialTileRadius,
+      glowIntensity: 0,
+      solidSurfaceFamily: RaabtaSolidSurfaceFamily.teal,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < tools.length; i++) ...[
+            _DailyEssentialGroupedRow(
+              tool: tools[i],
+              locale: locale,
+              status: watchHomeChipStatus(ref, tools[i].route, locale),
+              onTap: () => onOpen(tools[i].route),
+            ),
+            if (i < tools.length - 1)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: dividerColor,
+                indent: HomeCardTier.dailyEssentialTilePadding +
+                    HomeCardTier.dailyEssentialIconBadge +
+                    10,
+              ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
-/// Kit `.cmp .card` — horizontal row, 16 radius, teal family chip.
-class _DailyEssentialCmpTile extends StatelessWidget {
-  const _DailyEssentialCmpTile({
+/// Single row inside the grouped list — no per-row surface.
+class _DailyEssentialGroupedRow extends StatelessWidget {
+  const _DailyEssentialGroupedRow({
     required this.tool,
     required this.locale,
     required this.status,
@@ -127,53 +146,57 @@ class _DailyEssentialCmpTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: semanticsLabel,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: GlassContainer(
-          padding: const EdgeInsets.symmetric(
-            horizontal: HomeCardTier.dailyEssentialTilePadding,
-            vertical: HomeCardTier.dailyEssentialTilePaddingVertical,
-          ),
-          borderRadius: HomeCardTier.dailyEssentialTileRadius,
-          glowColor: AppColors.tealFamilyMain,
-          glowIntensity: HomeCardTier.dailyEssentialsGlowIntensity,
-          backgroundColor: AppColors.tealFamilyMain.withValues(
-            alpha: AppColors.isLight ? 0.06 : 0.08,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              HomeIconBadge(
-                icon: tool.icon,
-                accentColor: AppColors.tealFamilyMain,
-                size: HomeCardTier.dailyEssentialIconBadge,
-                iconSize: HomeCardTier.dailyEssentialIconSize,
-                variant: HomeIconBadgeVariant.tealBrand,
-                chipBorderRadius: HomeCardTier.dailyEssentialIconChipRadius,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: HomeCardTier.dailyEssentialGroupedRowHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: HomeCardTier.dailyEssentialTilePadding,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: AppTypography.chipLabel.copyWith(
-                        fontSize: HomeCardTier.dailyEssentialTitleFontSize,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  HomeIconBadge(
+                    icon: tool.icon,
+                    accentColor: AppColors.tealFamilyMain,
+                    size: HomeCardTier.dailyEssentialIconBadge,
+                    iconSize: HomeCardTier.dailyEssentialIconSize,
+                    variant: HomeIconBadgeVariant.tealBrand,
+                    chipBorderRadius: HomeCardTier.dailyEssentialIconChipRadius,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          label,
+                          style: AppTypography.chipLabel.copyWith(
+                            fontSize: HomeCardTier.dailyEssentialTitleFontSize,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        _DailyEssentialMicroLine(status: status),
+                      ],
                     ),
-                    _DailyEssentialMicroLine(status: status),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    HomeDirectionalIcons.forwardArrowRounded(context),
+                    size: AppSpacing.iconSm,
+                    color: AppColors.textOnGlassMuted,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -188,8 +211,11 @@ class _DailyEssentialMicroLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (status.isLoading || status.line.isEmpty) {
+    if (status.isLoading) {
       return const SizedBox(height: HomeChipStatusLine.slotHeight);
+    }
+    if (status.line.isEmpty) {
+      return const SizedBox.shrink();
     }
 
     final isAttention = status.tone == HomeChipStatusTone.attention;

@@ -128,8 +128,15 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/home_materiality_assets/home_grain_light_soft.png
+    - assets/home_materiality_assets/home_grain_light.png
+    - assets/home_materiality_assets/home_grain_dark.png
+    - assets/images/doha/layer_dhow.png
+    - assets/images/doha/layer_front.png
+    - assets/images/doha/layer_windows.png
+    - assets/images/doha/layer_mid.png
+    - assets/images/doha/layer_back.png
     - assets/fonts/NotoSansArabic.ttf
-    - assets/images/raabta_watermark_logo.png
     - assets/documents/bill_provider_templates.json
     - assets/official_directory.json
     - assets/scam_shield/forewarning_moments.json
@@ -153,6 +160,10 @@ flutter:
     - lib/features/quick_actions/barcode_scanner/data/e_numbers.json
 
   fonts:
+  #    Plus Jakarta Sans — Latin UI (English, Filipino). OFL: home_materiality_assets/OFL.txt
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/home_materiality_assets/PlusJakartaSans-VariableFont_wght.ttf
     - family: NotoSansArabic
       fonts:
         - asset: assets/fonts/NotoSansArabic.ttf

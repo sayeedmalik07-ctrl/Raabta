@@ -4,14 +4,13 @@ import 'package:raabta/features/home/widgets/glass_status_header.dart';
 
 void main() {
   group('HomeHeaderContextLine', () {
-    test('rejects dash-only preferred area', () {
+    test('returns null without stored preferred area', () {
       final parts = HomeHeaderContextLine.composeParts(
         locale: 'English',
         preferredArea: '—',
         weather: null,
       );
-      expect(parts?.area, isNull);
-      expect(parts?.visibleSegments(locale: 'English'), ['Qatar']);
+      expect(parts, isNull);
     });
 
     test('joins country temp and area when present', () {

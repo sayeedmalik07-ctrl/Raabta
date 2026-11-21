@@ -15,6 +15,7 @@ import 'package:raabta/features/home/utils/home_for_you_because_mapper.dart';
 import 'package:raabta/features/home/utils/home_for_you_pick_family.dart';
 import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 import 'package:raabta/features/home/widgets/home_icon_badge.dart';
+import 'package:raabta/features/home/widgets/home_for_you_inline_copy.dart';
 import 'package:raabta/features/home/widgets/home_section_header.dart';
 import 'package:raabta/providers/visa_providers.dart';
 import 'package:raabta/services/ai/ai_feed_engine.dart';
@@ -46,24 +47,16 @@ class HomeForYouZone extends ConsumerWidget {
         HomeSectionHeader(
           overline: AppShellStrings.t('home_for_you_overline', locale),
           title: sectionTitle,
-          subtitle: AppShellStrings.t('home_for_you_sub', locale),
           actionText: AppShellStrings.t('home_ask_ai', locale),
           onActionTap: onAiTap,
           actionLinkColor: AppColors.brandFamilyMain,
           compact: true,
         ),
-        const SizedBox(height: AppSpacing.lg),
         feedAsync.when(
-          loading: () => const Column(
-            children: [
-              GlassLoadingCard(height: HomeCardTier.forYouPickHeight),
-              SizedBox(height: AppSpacing.md),
-              GlassLoadingCard(height: HomeCardTier.forYouPickHeight),
-            ],
-          ),
+          loading: () => const GlassLoadingCard(height: 56),
           error: (_, _) => _FeedNeutralEmptyCard(
             locale: locale,
-            onAiTap: onAiTap,
+            signedIn: profile != null,
           ),
           data: (result) {
             if (profile != null &&
@@ -83,7 +76,7 @@ class HomeForYouZone extends ConsumerWidget {
             if (sorted.isEmpty) {
               return _FeedNeutralEmptyCard(
                 locale: locale,
-                onAiTap: onAiTap,
+                signedIn: profile != null,
               );
             }
             final cards = sorted.take(_homeVisibleCount).toList();
@@ -150,55 +143,14 @@ class _ForYouSetupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final prompt = ExpatScoreProfileHelper.buildProfilePrompt(profile, locale);
 
-    final card = GlassCard(
-      onTap: onBuildProfileTap,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm + 2,
+    return Semantics(
+      button: true,
+      label: prompt,
+      child: HomeForYouInlineCopy(
+        title: AppShellStrings.t('home_for_you_setup_title', locale),
+        body: prompt,
+        onBodyTap: onBuildProfileTap,
       ),
-      borderRadius: HomeCardTier.homeCardRadius,
-      glowColor: AppColors.brandFamilyMain,
-      glowIntensity: HomeCardTier.homeCardGlowIntensity,
-      backgroundColor: AppColors.brandFamilyMain.withValues(
-        alpha: HomeCardTier.forYouPickFamilyTintAlpha,
-      ),
-      child: Row(
-        children: [
-          HomeIconBadge(
-            icon: Icons.auto_awesome_outlined,
-            accentColor: AppColors.brandFamilyMain,
-            size: HomeCardTier.compactIconBadgeSize,
-            iconSize: 20,
-            variant: HomeIconBadgeVariant.exploreBrand,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppShellStrings.t('home_for_you_setup_title', locale),
-                  style: AppTypography.subtitle.copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  prompt,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textOnGlassMuted,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return _SlowBrandSheen(
-      borderRadius: HomeCardTier.homeCardRadius,
-      child: card,
     );
   }
 }
@@ -210,45 +162,9 @@ class _ForYouPrivacyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderRadius: HomeCardTier.homeCardRadius,
-      glowColor: AppColors.brandFamilyMain,
-      glowIntensity: HomeCardTier.homeCardGlowIntensity * 0.6,
-      backgroundColor: AppColors.glassSurface,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          HomeIconBadge(
-            icon: Icons.visibility_off_outlined,
-            accentColor: AppColors.textOnGlassMuted,
-            size: HomeCardTier.compactIconBadgeSize,
-            iconSize: 20,
-            variant: HomeIconBadgeVariant.exploreBrand,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppShellStrings.t('home_for_you_privacy_title', locale),
-                  style: AppTypography.subtitle,
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  AppShellStrings.t('home_for_you_privacy_desc', locale),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textOnGlassMuted,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return HomeForYouInlineCopy(
+      title: AppShellStrings.t('home_for_you_privacy_title', locale),
+      body: AppShellStrings.t('home_for_you_privacy_desc', locale),
     );
   }
 }
@@ -256,160 +172,26 @@ class _ForYouPrivacyCard extends StatelessWidget {
 class _FeedNeutralEmptyCard extends StatelessWidget {
   const _FeedNeutralEmptyCard({
     required this.locale,
-    required this.onAiTap,
+    required this.signedIn,
   });
 
   final String locale;
-  final VoidCallback onAiTap;
+  final bool signedIn;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      onTap: onAiTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderRadius: HomeCardTier.homeCardRadius,
-      glowColor: AppColors.brandFamilyMain,
-      glowIntensity: HomeCardTier.homeCardGlowIntensity,
-      backgroundColor: AppColors.brandFamilyMain.withValues(
-        alpha: HomeCardTier.forYouPickFamilyTintAlpha,
-      ),
-      child: Row(
-        children: [
-          HomeIconBadge(
-            icon: Icons.auto_awesome_outlined,
-            accentColor: AppColors.brandFamilyMain,
-            size: HomeCardTier.compactIconBadgeSize,
-            iconSize: 20,
-            variant: HomeIconBadgeVariant.exploreBrand,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppShellStrings.t('home_feed_empty_title', locale),
-                  style: AppTypography.subtitle,
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  AppShellStrings.t('home_feed_empty_desc', locale),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textOnGlassMuted,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
+    final bodyKey = signedIn
+        ? 'home_feed_empty_desc_signed_in'
+        : 'home_feed_empty_desc_signed_out';
+    return Semantics(
+      container: true,
+      label: AppShellStrings.t('home_feed_empty_title', locale),
+      child: HomeForYouInlineCopy(
+        key: const Key('home_for_you_inline_empty'),
+        title: AppShellStrings.t('home_feed_empty_title', locale),
+        body: AppShellStrings.t(bodyKey, locale),
       ),
     );
-  }
-}
-
-/// One slow brand sheen sweep (4.5s); disabled when reduce-motion is on.
-class _SlowBrandSheen extends StatefulWidget {
-  const _SlowBrandSheen({
-    required this.child,
-    required this.borderRadius,
-  });
-
-  final Widget child;
-  final double borderRadius;
-
-  @override
-  State<_SlowBrandSheen> createState() => _SlowBrandSheenState();
-}
-
-class _SlowBrandSheenState extends State<_SlowBrandSheen>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _controller;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion) {
-      _controller?.dispose();
-      _controller = null;
-      return;
-    }
-    if (_controller != null) return;
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 4500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context) || _controller == null) {
-      return widget.child;
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.borderRadius),
-      child: Stack(
-        children: [
-          widget.child,
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _controller!,
-                builder: (context, _) {
-                  return CustomPaint(
-                    painter: _BrandSheenPainter(
-                      progress: _controller!.value,
-                      color: AppColors.brandFamilyMain,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BrandSheenPainter extends CustomPainter {
-  _BrandSheenPainter({
-    required this.progress,
-    required this.color,
-  });
-
-  final double progress;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bandWidth = size.width * 0.35;
-    final left = -bandWidth + (size.width + bandWidth * 2) * progress;
-    final rect = Rect.fromLTWH(left, 0, bandWidth, size.height);
-    final paint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          color.withValues(alpha: 0),
-          color.withValues(alpha: 0.12),
-          color.withValues(alpha: 0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(rect);
-    canvas.drawRect(rect, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BrandSheenPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }
 

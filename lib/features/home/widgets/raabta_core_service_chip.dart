@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/glass/glass_container.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
@@ -39,6 +40,7 @@ class RaabtaCoreServiceChip extends StatefulWidget {
     this.centerLabelWhenTopAligned = false,
     this.contentPadding,
     this.iconLabelGap,
+    this.solidSurfaceFamily,
   });
 
   final IconData icon;
@@ -78,6 +80,7 @@ class RaabtaCoreServiceChip extends StatefulWidget {
 
   /// Gap between icon badge and label; defaults vary by layout mode.
   final double? iconLabelGap;
+  final RaabtaSolidSurfaceFamily? solidSurfaceFamily;
 
   /// Default lifestyle-rail height (Qatar Life and other non-Explore rails).
   static const chipHeight = HomeCardTier.lifestyleChipHeight;
@@ -226,13 +229,16 @@ class _RaabtaCoreServiceChipState extends State<RaabtaCoreServiceChip>
                         vertical: AppSpacing.sm,
                       )),
             borderRadius: widget.tileBorderRadius,
-            glowColor: widget.surfaceGlowColor,
-            glowIntensity: widget.glowIntensity,
-            backgroundColor: widget.backgroundTintAlpha > 0
-                ? widget.surfaceGlowColor.withValues(
-                    alpha: widget.backgroundTintAlpha,
-                  )
-                : null,
+            glowIntensity: widget.solidSurfaceFamily != null ? 0 : widget.glowIntensity,
+            glowColor: widget.solidSurfaceFamily != null ? null : widget.surfaceGlowColor,
+            solidSurfaceFamily: widget.solidSurfaceFamily,
+            backgroundColor: widget.solidSurfaceFamily != null
+                ? null
+                : (widget.backgroundTintAlpha > 0
+                    ? widget.surfaceGlowColor.withValues(
+                        alpha: widget.backgroundTintAlpha,
+                      )
+                    : null),
             child: Column(
               crossAxisAlignment: topCrossAxis,
               mainAxisAlignment: widget.topAlignedContent

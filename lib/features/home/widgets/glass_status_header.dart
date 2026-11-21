@@ -83,6 +83,7 @@ class GlassStatusHeader extends StatelessWidget {
               if (onProfileTap != null) ...[
                 _ProfileAvatarButton(
                   initials: profileInitials ?? 'R',
+                  showGuestProfileIcon: profileInitials == null,
                   photoUrl: profilePhotoUrl,
                   onTap: onProfileTap,
                   semanticsLabel: profileMenuSemanticsLabel,
@@ -212,12 +213,14 @@ class _PlaceLine extends StatelessWidget {
 class _ProfileAvatarButton extends StatelessWidget {
   const _ProfileAvatarButton({
     required this.initials,
+    this.showGuestProfileIcon = false,
     this.photoUrl,
     this.onTap,
     this.semanticsLabel,
   });
 
   final String initials;
+  final bool showGuestProfileIcon;
   final String? photoUrl;
   final VoidCallback? onTap;
   final String? semanticsLabel;
@@ -244,6 +247,7 @@ class _ProfileAvatarButton extends StatelessWidget {
                 photoUrl: photoUrl,
                 size: GlassStatusHeader.kitAvatarSize,
                 ringStyle: ProfileAvatarRingStyle.brandKit,
+                showGuestProfileIcon: showGuestProfileIcon,
               ),
             ),
           ),

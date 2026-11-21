@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'package:raabta/features/home/l10n/home_currency_rail_strings.dart';
@@ -21,12 +23,21 @@ String homeSendMoneyDisplayCurrency(String selectedCode) {
   return normalizeSelectedCurrencyCode(selectedCode);
 }
 
+/// Mid-market/open.er-api sourced — not house-specific remittance quotes.
+bool homeSendMoneyRatesAreLive(ExchangeRates rates) {
+  if (rates.isDirectApi) return true;
+  return !rates.isFallback && rates.rates.isNotEmpty;
+}
+
 double? homeSendMoneyRateForCurrency(
   ExchangeRates rates,
   String currencyCode,
 ) {
   final code = currencyCode.toUpperCase();
-  return rates.rates[code] ?? kFallbackRates[code];
+  final quoted = rates.rates[code];
+  if (quoted != null) return quoted;
+  if (rates.isFallback) return kFallbackRates[code];
+  return null;
 }
 
 /// Weekly % from first→last valid observations; null if unavailable.
@@ -62,13 +73,45 @@ bool homeSendMoneyShouldShowSparkline(List<double> values) {
 }
 
 List<double>? homeSendMoneyDisplaySparklineValues(
+  List<RateHistoryPoint>? historyPoints,
+) {
+  if (historyPoints == null) return null;
+  if (historyPoints.where((p) => p.rate != null).length < 2) return null;
+  final values = homeSendMoneySparklineValues(historyPoints);
+  if (values.length < 2) return null;
+  return values;
+}
+
+/// Indicative 7-day shape when market history is missing (kit sparkline slot).
+List<double> homeSendMoneyFallbackSparklineValues(double anchorRate) {
+  final scale = (anchorRate * 0.0035).clamp(0.03, 0.18);
+  return List.generate(7, (i) {
+    final wobble = math.sin(i * 0.92) * scale + (i - 3) * scale * 0.28;
+    return double.parse((anchorRate + wobble).toStringAsFixed(2));
+  });
+}
+
+/// Home exchange-rates card — market history only (no synthetic fallback).
+List<double>? homeSendMoneyHomeCardSparklineValues(
   List<RateHistoryPoint>? marketHistory,
 ) {
-  if (marketHistory == null) return null;
-  if (marketHistory.where((p) => p.rate != null).length < 2) return null;
-  final values = homeSendMoneySparklineValues(marketHistory);
+  final values = homeSendMoneyDisplaySparklineValues(marketHistory);
+  if (values == null) return null;
   if (!homeSendMoneyShouldShowSparkline(values)) return null;
   return values;
+}
+
+/// Resolves chart values from history; synthetic shape only when [rates] are offline.
+List<double>? homeSendMoneyResolvedSparklineValues({
+  required double anchorRate,
+  List<RateHistoryPoint>? historyPoints,
+  ExchangeRates? rates,
+}) {
+  final fromHistory = homeSendMoneyDisplaySparklineValues(historyPoints);
+  if (fromHistory != null) return fromHistory;
+  final offline = rates == null || !homeSendMoneyRatesAreLive(rates);
+  if (!offline) return null;
+  return homeSendMoneyFallbackSparklineValues(anchorRate);
 }
 
 /// True when [rates.isFallback] and [lastUpdated] was likely set at fetch time.

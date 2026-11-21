@@ -237,6 +237,88 @@ Browse taxonomy for the hub is **static Dart** (`lib/screens/services/data/servi
 |------|-------------------|
 | `quotesEnabled` | Hide quote section, submit-quote secondary, and `/quote` UI affordances |
 
+## Home — Doha collapsing top zone (D1–D12)
+
+Source: `docs/raabta_home_collapsing_doha_header_decision.md`, `docs/raabta_home_collapsing_doha_header_kit.html`, `HomeDohaTopZoneMetrics` (`lib/features/home/widgets/home_doha_header_choreography.dart`).
+
+| Rule | Value / implementation |
+|------|-------------------------|
+| Layout | Single pinned `SliverPersistentHeader` (`HomeDohaCollapsingHeaderDelegate`) on Home — replaces separate `GlassStatusHeader` + floating search duplicate |
+| Expanded body height | **236dp** (+ device top safe inset) |
+| Collapsed body height | **64dp** (+ top safe inset) — search row only on glass bar |
+| Collapse range | **172dp** — progress **t** = `shrinkOffset / 172`, clamped 0…1 |
+| Search row Y | **72dp** → **10dp** below safe inset (lerp); reduced motion: snap at t ≥ 0.5 |
+| Greeting row | `HomeDohaSkylineGreetingRow` at **12dp** below safe inset; fades out by **t = 0.55**; no place line (D8) |
+| Skyline | `HomeDohaSkylineStack` — five tinted PNG layers under `assets/images/doha/`; gradient + optional starfield fallback when layers unavailable |
+| Parallax | Back **8px**, mid **18px**, front **30px** vs scroll **t** (zero when reduced motion) |
+| Celestial | Sun/moon orb fades before skyline (**t × 1.25**) |
+| Discover Qatar chip | Fades out by **t = 0.45**; **min 44dp** height; semantics = `KnowQatarStrings` `kq_screen_title` |
+| Glass collapsed bar | Fades in from **t = 0.55**; surface alpha **0.88**, blur sigma **18** (solid fill on light / Android / reduced motion) |
+| Day part palette | `homeDohaDayPartProvider` → `DohaScenePalette` (dawn, day, golden, dusk, night) |
+| Optional snap | `ScrollEndNotification` → `HomeDohaTopZoneMetrics.snapTargetOffset` (mid scroll → expanded or collapsed) — **no** `HomeScreen.setState` per scroll pixel |
+| Know Qatar entry | Skyline tap + Discover chip → `homeDohaOpenKnowQatar` → `KnowQatarScreen.route()` |
+| AI orb | Inline in header search row only (`HomeSearchWithAiRow`); **54dp** (`RaabtaOrbKitSizes.homeSparkle`), tactile shell; glyph = logo-kit **link mark** + small sparkle (`RaabtaOrbSparkleGlyph` / `RaabtaOrbBrandGlyphTokens`); semantics and launcher unchanged |
+| Global search | Same `AnimatedSearchEntry` / anchor behavior as pre-collapse Home |
+
+**Scroll performance:** Header shrink/repaint is driven by the sliver delegate; `HomeScreen` does not listen to scroll offset for `setState`.
+
+**Assets:** `homeDohaSkylineAssetsAvailable` fails closed to gradient-only stack (no crash if bundle missing).
+
+### Home feed bottom clearance (D5)
+
+| Component | Token / helper | Value |
+|-----------|----------------|-------|
+| Nav + Post FAB clearance | `HomeScreen.shellBodyBottomClearance()` | `PostVerticalMenu.fabBottomInset()` + `navOverlap` + `mainButtonSize` + `AppSpacing.sm` |
+| Device safe area | `MediaQuery.paddingOf(context).bottom` | Not double-counted inside shell clearance |
+| Extra feed inset (D5) | `HomeScreen.homeFeedBottomClearanceExtra` | **+16dp** |
+| Home scroll bottom padding | `HomeScreen.homeScrollBottomPadding` | shell clearance + safe bottom + **16dp** (Home tab only, when bottom nav visible) |
+| Keyboard open | `viewInsets.bottom > 0` | Bottom nav hidden → Home scroll bottom padding **0** (no double inset) |
+
+## Home dashboard spacing (Round 4 polish)
+
+Source: `docs/raabta_home_design_kit.md` v2.1. Tokens live in `HomeZoneSpacing` (`lib/features/home/widgets/home_card_tiers.dart`).
+
+| Rule | Token | Value |
+|------|--------|-------|
+| Section title → content | `HomeZoneSpacing.afterSectionHeader` | **12dp** — built into `HomeSectionHeader` / `HomeTruthEngineSectionHeader` when `includeContentGap` / default |
+| Between major Home zones | `HomeZoneSpacing.betweenZones` | **28dp** |
+| Hero → glance row | `HomeZoneSpacing.afterHero` | **14dp** |
+
+**Compact Truth invite:** grid `mainAxisExtent` = `HomeCardTier.truthEngineInviteGridExtent` (**112dp**) when all four chips are invite-only; otherwise `truthEngineGridExtent` (**156dp**). No `Spacer` band before invite “Start”.
+
+**Floating nav glass (Home tab):** `kFloatingNavHomeSurfaceAlpha` **0.78**, blur sigma **18**, token border via `GlassContainer`; shell bottom scrim gradient unchanged (`home_screen.dart`). Hub dock tabs keep legacy dock opacity.
+
+## Home responsive layout (Round 4C)
+
+Source: Round 4C polish — `HomeResponsiveLayout` (`lib/features/home/utils/home_responsive_layout.dart`).
+
+| Rule | Token / helper | Value |
+|------|----------------|-------|
+| Compact tier | `HomeResponsiveLayout.compactMax` | **&lt; 600dp** |
+| Medium tier | `tierFor` | **600–1023dp** |
+| Expanded tier | `HomeResponsiveLayout.expandedMin` | **≥ 1024dp** |
+| Feed content cap | `HomeResponsiveLayout.contentMaxWidth` | **680dp**, centered below full-bleed Doha header |
+| Horizontal inset | `contentLeadingInset(viewportWidth)` | `HomeZoneSpacing.sectionHorizontalPadding` on narrow; centers cap on wide |
+| Truth Engines grid | `truthEngineGridCrossAxisCount` | **2×2** compact + medium; **1×4** expanded (four items) |
+| Qatar Life rail | `qatarLifeUsesHorizontalScroll` | horizontal scroll **compact**; equal-width **Row** medium + expanded |
+| Section gutter | `HomeZoneSpacing.sectionHorizontalPadding` | shared **16dp** (`AppSpacing.screenHorizontalPadding`) |
+
+**Do not change:** Doha skyline layer stack, day-part palette wiring, or scroll-collapse choreography when adjusting responsive insets.
+
+## Home materiality (Round 4B)
+
+Source: `docs/raabta_home_round4b_materiality_cursor_prompt.md`, `lib/core/design/*`, `HomeGrainTokens`, `RaabtaSolidSurfaceTokens`, `RaabtaTactileButtonTokens`, `RaabtaContinuousShape`.
+
+| Rule | Implementation |
+|------|----------------|
+| Solid surfaces | Family tints + hairlines (`RaabtaSolidSurfaceFamily`); icon chips solid tint, dark glyph, no glow |
+| Tactile buttons | Solid fill, physical shadow, 1px press; sky controls stay glass |
+| Continuous shape | `RaabtaContinuousShape` (squircle / desktop continuous rect) |
+| Film grain | Home tab only, behind content (`HomePageGrainLayer`); tiled PNG, alpha baked, off under reduce motion / reduce transparency |
+| Daily Essentials rhythm | One grouped list — single teal surface, hairline row dividers, **60dp** rows |
+| For you empty | Inline copy + tappable **Ask Raabta** in body (`HomeForYouInlineCopy`); pick rail unchanged when feed has cards |
+| Glow budget | Decorative glow off by default; rings/pulse only for loading, live, attention |
+
 ## When you add a component
 
 1. Add the widget under `lib/core/widgets/hub/`.

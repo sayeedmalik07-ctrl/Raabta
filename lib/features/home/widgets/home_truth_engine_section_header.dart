@@ -5,6 +5,8 @@ import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/home/l10n/home_truth_engine_section_strings.dart';
 import 'package:raabta/features/home/providers/home_truth_engine_reveal_provider.dart';
+import 'package:raabta/features/home/widgets/home_section_header.dart';
+
 /// Truth Engine section header — eyebrow, title, attention badge, eye reveal.
 class HomeTruthEngineSectionHeader extends ConsumerWidget {
   const HomeTruthEngineSectionHeader({
@@ -25,62 +27,37 @@ class HomeTruthEngineSectionHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final attentionCount = ref.watch(homeTruthEngineAttentionCountProvider);
+    final hasRevealable =
+        ref.watch(homeTruthEngineHasRevealableDetailProvider);
     final revealed = ref.watch(homeTruthEngineDetailsRevealedProvider);
     final controller = ref.read(homeTruthEngineRevealControllerProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _formatOverline(overline, context),
-          style: AppTypography.overline.copyWith(
-            color: AppColors.textOnGlassSecondary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: AppTypography.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (attentionCount > 0) ...[
-              const SizedBox(width: AppSpacing.sm),
-              _AttentionBadge(count: attentionCount, locale: locale),
-            ],
+    Widget? trailing;
+    if (attentionCount > 0 || hasRevealable) {
+      trailing = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (attentionCount > 0)
+            _AttentionBadge(count: attentionCount, locale: locale),
+          if (attentionCount > 0 && hasRevealable)
             const SizedBox(width: AppSpacing.xs),
+          if (hasRevealable)
             _RevealEyeButton(
               revealed: revealed,
               locale: locale,
               onPressed: controller.toggle,
             ),
-          ],
-        ),
-        if (subtitle != null && !compact) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            subtitle!,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textOnGlassMuted,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
-      ],
-    );
-  }
+      );
+    }
 
-  static String _formatOverline(String text, BuildContext context) {
-    if (Directionality.of(context) == TextDirection.rtl) return text;
-    return text.toUpperCase();
+    return HomeSectionHeader(
+      overline: overline,
+      title: title,
+      subtitle: subtitle,
+      compact: compact,
+      titleTrailing: trailing,
+    );
   }
 }
 
@@ -166,11 +143,12 @@ class _RevealEyeButton extends StatelessWidget {
               ),
             ),
             child: Icon(
-              revealed ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              revealed
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
               size: 20,
-              color: revealed
-                  ? AppColors.goldFamilyMain
-                  : AppColors.textOnGlassSecondary,
+              color:
+                  revealed ? AppColors.goldFamilyMain : AppColors.textPrimary,
             ),
           ),
         ),

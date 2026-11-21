@@ -1,15 +1,18 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/design/home_glass_legibility_tokens.dart';
 import 'package:raabta/features/home/widgets/home_search_with_ai_row.dart';
 
 /// Sticky top search — slides in when the inline home search scrolls off screen.
 class HomeFloatingSearchBar extends StatelessWidget {
   /// Sticky scrim fill alpha over [AppColors.background] (Home-only readability).
   @visibleForTesting
-  static const double stickyScrimOpacity = 0.94;
+  static const double stickyScrimOpacity =
+      HomeGlassLegibilityTokens.pinnedSurfaceAlpha;
 
   /// Theme-aware sticky scrim fill (opaque in light; translucent scrim in dark).
   @visibleForTesting
@@ -106,7 +109,13 @@ class _StickySearchScrim extends StatelessWidget {
       child: child,
     );
 
-    if (AppColors.isLight) {
+    final skipBlur = AppColors.isLight ||
+        (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.macOS ||
+                defaultTargetPlatform == TargetPlatform.windows ||
+                defaultTargetPlatform == TargetPlatform.linux));
+
+    if (skipBlur) {
       return scrim;
     }
 

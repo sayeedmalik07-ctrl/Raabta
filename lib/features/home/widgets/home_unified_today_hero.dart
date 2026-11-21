@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/l10n/app_shell_strings.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
@@ -50,8 +51,8 @@ class HomeUnifiedTodayHero extends StatelessWidget {
       label: semanticsLabel,
       child: GlassCard(
         borderRadius: heroRadius,
-        glowColor: AppColors.brandFamilyMain,
-        glowIntensity: 0.06,
+        glowIntensity: 0,
+        solidSurfaceFamily: RaabtaSolidSurfaceFamily.brand,
         padding: const EdgeInsets.all(AppSpacing.cardPadding),
         child: switch (phase) {
           HomeExpatHeroPhase.guest => _GuestBody(
@@ -220,6 +221,12 @@ class _GuestBody extends StatelessWidget {
   final String locale;
   final VoidCallback onSignIn;
 
+  static const _chipKeys = [
+    'home_hero_guest_chip_deadlines',
+    'home_hero_guest_chip_rights',
+    'home_hero_guest_chip_picks',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -240,7 +247,19 @@ class _GuestBody extends StatelessWidget {
             color: AppColors.textOnGlassMuted,
           ),
           maxLines: 3,
+          softWrap: true,
           overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final key in _chipKeys)
+              _GuestBenefitChip(
+                label: AppShellStrings.t(key, locale),
+              ),
+          ],
         ),
         const SizedBox(height: AppSpacing.md),
         HomeBrandPrimaryButton(
@@ -248,6 +267,40 @@ class _GuestBody extends StatelessWidget {
           onPressed: onSignIn,
         ),
       ],
+    );
+  }
+}
+
+class _GuestBenefitChip extends StatelessWidget {
+  const _GuestBenefitChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.brandFamilyMain.withValues(
+          alpha: AppColors.isLight ? 0.1 : 0.16,
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(
+          color: AppColors.brandFamilyMain.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption.copyWith(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }

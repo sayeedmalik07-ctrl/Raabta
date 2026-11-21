@@ -13,6 +13,7 @@ import 'package:raabta/screens/community/community_screen.dart';
 import 'package:raabta/screens/community/news_screen.dart';
 import 'package:raabta/screens/expat_score/expat_score_screen.dart';
 import 'package:raabta/screens/home_screen.dart';
+import 'package:raabta/features/home/screens/home_all_services_screen.dart';
 import 'package:raabta/screens/housing/housing_screen.dart';
 import 'package:raabta/screens/housing/housing_detail_screen.dart';
 import 'package:raabta/screens/housing/my_housing_listings_screen.dart';
@@ -414,14 +415,33 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/home',
+      redirect: (context, state) {
+        final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+        if (tab == ShellNavConfig.legacyMarketplaceTabIndex) {
+          return '/marketplace';
+        }
+        return null;
+      },
       builder: (context, state) {
         final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
         final launch = ShellNavConfig.resolveLegacyHomeTabQuery(tab);
+        final shell = state.uri.queryParameters['shell'];
+        ShellTab? initialShellTab;
+        if (shell == 'documents') {
+          initialShellTab = ShellTab.documents;
+        }
         return HomeScreen(
           initialTab: tab,
+          initialShellTab: initialShellTab,
           openAiChatOnLaunch: launch.openAiChat,
         );
       },
+      routes: [
+        GoRoute(
+          path: 'all-services',
+          builder: (context, state) => const HomeAllServicesScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/jobs',

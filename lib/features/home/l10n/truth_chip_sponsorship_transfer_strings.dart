@@ -24,12 +24,38 @@ abstract final class TruthChipSponsorshipTransferStrings {
     return text;
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
       );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
+      );
+
+  /// Draft chip copy — employment/immigration review-sensitive.
+  static const keysNeedingProfessionalReview = <String>{
+    'truth_chip_st_attention_grace',
+    'truth_chip_st_freshness',
+    'truth_chip_st_invite',
+    'truth_chip_st_pill_action',
+    'truth_chip_st_pill_refresh',
+    'truth_chip_st_stale',
+    'truth_chip_st_tracked_grace',
+    'truth_chip_st_tracked_saved',
+    'truth_chip_st_tracked_window_open',
+    'truth_chip_st_urgent_grace_closed',
+  };
 
   static final _catalog = <String, Map<String, String>>{
     'truth_chip_st_invite': l10nEntry(

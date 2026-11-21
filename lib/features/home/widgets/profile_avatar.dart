@@ -19,6 +19,8 @@ class ProfileAvatar extends StatelessWidget {
     this.size = AppSpacing.avatarMd,
     this.fontSize,
     this.ringStyle = ProfileAvatarRingStyle.standard,
+    this.onSkyline = false,
+    this.showGuestProfileIcon = false,
   });
 
   final String initials;
@@ -26,6 +28,10 @@ class ProfileAvatar extends StatelessWidget {
   final double size;
   final double? fontSize;
   final ProfileAvatarRingStyle ringStyle;
+  final bool onSkyline;
+
+  /// Signed-out shell avatar — person icon (matches Profile tab), not initials.
+  final bool showGuestProfileIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -71,12 +77,16 @@ class ProfileAvatar extends StatelessWidget {
                   initials: initials,
                   size: innerSize,
                   fontSize: textSize,
+                  onSkyline: onSkyline,
+                  showGuestProfileIcon: showGuestProfileIcon,
                 ),
               )
             : _InitialsFallback(
                 initials: initials,
                 size: innerSize,
                 fontSize: textSize,
+                onSkyline: onSkyline,
+                showGuestProfileIcon: showGuestProfileIcon,
               ),
       ),
     );
@@ -88,29 +98,44 @@ class _InitialsFallback extends StatelessWidget {
     required this.initials,
     required this.size,
     required this.fontSize,
+    this.onSkyline = false,
+    this.showGuestProfileIcon = false,
   });
 
   final String initials;
   final double size;
   final double fontSize;
+  final bool onSkyline;
+  final bool showGuestProfileIcon;
 
   @override
   Widget build(BuildContext context) {
+  final iconColor = onSkyline
+        ? Colors.white
+        : AppColors.isLight
+            ? AppColors.textPrimary
+            : Colors.white;
     return Container(
       width: size,
       height: size,
-      color: AppColors.surface,
+      color: onSkyline
+          ? Colors.white.withValues(alpha: 0.16)
+          : AppColors.surface,
       alignment: Alignment.center,
-      child: Text(
-        initials,
-        style: AppTypography.subtitle.copyWith(
-          color: AppColors.isLight
-              ? AppColors.textPrimary
-              : Colors.white,
-          fontSize: fontSize,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      child: showGuestProfileIcon
+          ? Icon(
+              Icons.person_outline_rounded,
+              size: fontSize * 1.45,
+              color: iconColor,
+            )
+          : Text(
+              initials,
+              style: AppTypography.subtitle.copyWith(
+                color: iconColor,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
     );
   }
 }

@@ -70,6 +70,22 @@ abstract final class AppLocale {
     return normalized == 'Arabic' || normalized == 'Urdu';
   }
 
+  static bool usesBundledLatinFont(String locale) {
+    final normalized = normalize(locale);
+    return normalized == 'English' || normalized == 'Filipino';
+  }
+  static bool usesIndicScriptLocale(String locale) {
+    final normalized = normalize(locale);
+    return normalized == 'Hindi' ||
+        normalized == 'Nepali' ||
+        normalized == 'Bengali' ||
+        normalized == 'Tamil' ||
+        normalized == 'Malayalam';
+  }
+  static bool usesLatinTypographyTracking(String locale) {
+    return usesBundledLatinFont(locale);
+  }
+
   /// BCP-47-ish code for Material [Locale] / [Directionality].
   static String toLanguageCode(String locale) {
     switch (normalize(locale)) {

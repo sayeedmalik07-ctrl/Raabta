@@ -4,7 +4,7 @@ import 'package:raabta/core/l10n/app_shell_strings.dart';
 /// Primary shell tabs (bottom navigation).
 enum ShellTab {
   home,
-  market,
+  documents,
   community,
   profile,
 }
@@ -42,6 +42,9 @@ abstract final class ShellNavConfig {
   static const legacyAiTabIndex = 3;
   static const legacyProfileTabIndex = 4;
 
+  /// Pre–Documents-tab era: `/home?tab=1` opened the Market / Marketplace shell.
+  static const legacyMarketplaceTabIndex = 1;
+
   static List<ShellNavSlot> slotsFor(String locale) => [
         ShellNavTabSlot(
           tab: ShellTab.home,
@@ -52,11 +55,11 @@ abstract final class ShellNavConfig {
           ),
         ),
         ShellNavTabSlot(
-          tab: ShellTab.market,
+          tab: ShellTab.documents,
           destination: NavigationDestination(
-            icon: const Icon(Icons.storefront_outlined),
-            selectedIcon: const Icon(Icons.storefront_rounded),
-            label: AppShellStrings.t('nav_market', locale),
+            icon: const Icon(Icons.description_outlined),
+            selectedIcon: const Icon(Icons.description_rounded),
+            label: AppShellStrings.t('nav_documents', locale),
           ),
         ),
         ShellNavCenterActionSlot(),
@@ -92,10 +95,12 @@ abstract final class ShellNavConfig {
     return tabs[navIndex].tab;
   }
 
-  /// Maps a tab to the `/home?tab=` query index (4-tab shell).
-  static int legacyQueryIndexFor(ShellTab tab) => switch (tab) {
+  /// Maps a shell tab to a legacy `/home?tab=` query index when one exists.
+  ///
+  /// [ShellTab.documents] uses `/home?shell=documents` instead — never index 1.
+  static int? legacyQueryIndexFor(ShellTab tab) => switch (tab) {
         ShellTab.home => 0,
-        ShellTab.market => 1,
+        ShellTab.documents => null,
         ShellTab.community => 2,
         ShellTab.profile => 3,
       };
@@ -111,8 +116,14 @@ abstract final class ShellNavConfig {
     if (rawTab >= legacyProfileTabIndex) {
       return const ShellHomeTabLaunch(tab: ShellTab.profile);
     }
-    return ShellHomeTabLaunch(
-      tab: ShellTab.values[rawTab.clamp(0, ShellTab.values.length - 1)],
-    );
+    if (rawTab == legacyMarketplaceTabIndex) {
+      return const ShellHomeTabLaunch(tab: ShellTab.home);
+    }
+    return switch (rawTab) {
+      0 => const ShellHomeTabLaunch(tab: ShellTab.home),
+      2 => const ShellHomeTabLaunch(tab: ShellTab.community),
+      3 => const ShellHomeTabLaunch(tab: ShellTab.profile),
+      _ => const ShellHomeTabLaunch(tab: ShellTab.home),
+    };
   }
 }

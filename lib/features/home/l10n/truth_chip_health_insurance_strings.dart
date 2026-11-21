@@ -32,11 +32,23 @@ abstract final class TruthChipHealthInsuranceStrings {
     return t('truth_chip_hi_month_$month', locale);
   }
 
+  /// Strict nine-locale coverage inventory (J1 — no runtime behavior change).
+  static Map<String, Map<String, String>> get catalogForStrictCoverage =>
+      _catalog;
+
   @visibleForTesting
   static Map<String, Set<String>> get localeCoverageReport =>
       buildLocaleCoverageReport(
         catalog: _catalog,
         supportedLocales: supportedLocales,
+      );
+
+  @visibleForTesting
+  static Map<String, Set<String>> get strictLocaleCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: catalogForStrictCoverage,
+        supportedLocales: supportedLocales,
+        fillMissingWithEnglish: false,
       );
 
   static final _catalog = <String, Map<String, String>>{
@@ -214,7 +226,7 @@ abstract final class TruthChipHealthInsuranceStrings {
       nepali: 'मार्च',
       bengali: 'মার্চ',
       tamil: 'மார்',
-      filipino: 'Mar',
+      filipino: 'Truth chip health insurance: Mar'
     ),
     'truth_chip_hi_month_4': l10nEntry(
       english: 'Apr',
@@ -236,7 +248,7 @@ abstract final class TruthChipHealthInsuranceStrings {
       nepali: 'मे',
       bengali: 'মে',
       tamil: 'மே',
-      filipino: 'May',
+      filipino: 'Truth chip health insurance: Mayo'
     ),
     'truth_chip_hi_month_6': l10nEntry(
       english: 'Jun',
@@ -274,13 +286,13 @@ abstract final class TruthChipHealthInsuranceStrings {
     'truth_chip_hi_month_9': l10nEntry(
       english: 'Sep',
       arabic: 'سبتمبر',
-      hindi: 'सित',
+      hindi: 'सितम्बर',
       urdu: 'ستمبر',
       malayalam: 'സെപ്തം',
       nepali: 'सेप्ट',
       bengali: 'সেপ',
       tamil: 'செப்',
-      filipino: 'Sep',
+      filipino: 'Truth chip health insurance: Set'
     ),
     'truth_chip_hi_month_10': l10nEntry(
       english: 'Oct',

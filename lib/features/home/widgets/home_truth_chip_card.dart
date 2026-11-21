@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
@@ -97,10 +98,12 @@ class HomeTruthChipCard extends StatelessWidget {
 
     final card = GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(
+        status.isInvite ? AppSpacing.sm : AppSpacing.md,
+      ),
       borderRadius: HomeCardTier.homeCardRadius,
-      glowColor: surfaceGlowColor,
-      glowIntensity: glowIntensity,
+      glowIntensity: 0,
+      solidSurfaceFamily: RaabtaSolidSurfaceFamily.gold,
       child: SizedBox.expand(
         child: status.isLoading
             ? _LoadingBody(
@@ -111,22 +114,25 @@ class HomeTruthChipCard extends StatelessWidget {
                 iconBadgeSize: iconBadgeSize,
                 iconBadgeVariant: iconBadgeVariant,
               )
-            : _TruthChipBody(
-                icon: icon,
-                title: title,
-                accentColor: accentColor,
-                titleFontSize: titleFontSize,
-                iconBadgeSize: iconBadgeSize,
-                iconBadgeVariant: iconBadgeVariant,
-                status: status,
-                locale: locale,
-                detailsRevealed: detailsRevealed,
-                reduceMotion: reduceMotion,
+            : Align(
+                alignment: Alignment.topLeft,
+                child: _TruthChipBody(
+                  icon: icon,
+                  title: title,
+                  accentColor: accentColor,
+                  titleFontSize: titleFontSize,
+                  iconBadgeSize: iconBadgeSize,
+                  iconBadgeVariant: iconBadgeVariant,
+                  status: status,
+                  locale: locale,
+                  detailsRevealed: detailsRevealed,
+                  reduceMotion: reduceMotion,
+                ),
               ),
       ),
     );
 
-    final child = Semantics(
+    return Semantics(
       button: true,
       label: semanticsLabel,
       child: expand
@@ -137,8 +143,6 @@ class HomeTruthChipCard extends StatelessWidget {
               child: card,
             ),
     );
-
-    return child;
   }
 }
 
@@ -178,11 +182,9 @@ class _LoadingBody extends StatelessWidget {
             fontSize: titleFontSize,
             color: AppColors.textPrimary,
           ),
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        const Spacer(),
-        const SizedBox(height: 4),
       ],
     );
   }
@@ -219,41 +221,107 @@ class _TruthChipBody extends StatelessWidget {
     final showReveal = status.hasRevealableDetail;
     final revealed = detailsRevealed && showReveal;
 
+    final header = Row(
+      children: [
+        HomeIconBadge(
+          icon: icon,
+          accentColor: accentColor,
+          size: iconBadgeSize,
+          variant: iconBadgeVariant,
+          chipBorderRadius: HomeCardTier.coreServiceIconChipRadius,
+        ),
+        const Spacer(),
+        if (status.showsPill)
+          Flexible(
+            child: _StatusPill(
+              text: status.pillText!,
+              tone: status.tone,
+              pulse: !reduceMotion &&
+                  (status.tone == TruthChipTone.amber ||
+                      status.tone == TruthChipTone.red),
+            ),
+          ),
+      ],
+    );
+
+    final titleLine = Text(
+      title,
+      style: AppTypography.title.copyWith(
+        fontSize: titleFontSize,
+        color: AppColors.textPrimary,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (status.isInvite) {
+      final inviteIconSize =
+          iconBadgeSize > 32 ? 32.0 : iconBadgeSize;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HomeIconBadge(
+                icon: icon,
+                accentColor: accentColor,
+                size: inviteIconSize,
+                variant: iconBadgeVariant,
+                iconSize: inviteIconSize * 0.5,
+                chipBorderRadius: HomeCardTier.coreServiceIconChipRadius,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleLine,
+                    if (status.statusText.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        status.statusText.trim(),
+                        style: AppTypography.bodySmall.copyWith(
+                          fontSize: 12,
+                          height: 1.2,
+                          color: toneColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: AppSpacing.iconMd,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            HomeTruthChipUiStrings.t('truth_chip_start_cta', locale),
+            style: AppTypography.bodySmall.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.goldFamilyText,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            HomeIconBadge(
-              icon: icon,
-              accentColor: accentColor,
-              size: iconBadgeSize,
-              variant: iconBadgeVariant,
-              chipBorderRadius: HomeCardTier.coreServiceIconChipRadius,
-            ),
-            const Spacer(),
-            if (status.showsPill)
-              Flexible(
-                child: _StatusPill(
-                  text: status.pillText!,
-                  tone: status.tone,
-                  pulse: !reduceMotion &&
-                      (status.tone == TruthChipTone.amber ||
-                          status.tone == TruthChipTone.red),
-                ),
-              ),
-          ],
-        ),
+        header,
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          title,
-          style: AppTypography.title.copyWith(
-            fontSize: titleFontSize,
-            color: AppColors.textPrimary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        titleLine,
         const SizedBox(height: 2),
         Expanded(
           child: Column(
@@ -269,36 +337,23 @@ class _TruthChipBody extends StatelessWidget {
                   ),
                 ),
               const Spacer(),
-              if (status.isInvite)
+              if (status.showsProgressBar)
+                _ProgressBar(
+                  progress: status.progress!.clamp(0.0, 1.0),
+                  tone: status.tone,
+                ),
+              if (status.freshnessText.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
                 Text(
-                  HomeTruthChipUiStrings.t('truth_chip_start_cta', locale),
-                  style: AppTypography.bodySmall.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.goldFamilyText,
+                  status.freshnessText,
+                  style: AppTypography.caption.copyWith(
+                    fontSize: 10.5,
+                    height: 1.2,
+                    color: AppColors.textOnGlassMuted,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                )
-              else ...[
-                if (status.showsProgressBar)
-                  _ProgressBar(
-                    progress: status.progress!.clamp(0.0, 1.0),
-                    tone: status.tone,
-                  ),
-                if (status.freshnessText.trim().isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    status.freshnessText,
-                    style: AppTypography.caption.copyWith(
-                      fontSize: 10.5,
-                      height: 1.2,
-                      color: AppColors.textOnGlassMuted,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                ),
               ],
             ],
           ),

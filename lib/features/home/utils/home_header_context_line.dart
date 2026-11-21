@@ -56,8 +56,10 @@ abstract final class HomeHeaderContextLine {
     String? preferredArea,
     QatarWeather? weather,
   }) {
-    final country = HomeProfileStrings.t('header_country_qatar', locale);
     final area = isMeaningfulPlacePart(preferredArea) ? preferredArea!.trim() : null;
+    if (area == null) return null;
+
+    final country = HomeProfileStrings.t('header_country_qatar', locale);
     final liveWeather = weather != null &&
             weather.dataAvailable &&
             !weather.isFallback
@@ -70,7 +72,7 @@ abstract final class HomeHeaderContextLine {
       temperatureC: isMeaningfulPlacePart(temp) ? temp : null,
       area: area,
     );
-    return parts.hasContent ? parts : null;
+    return parts;
   }
 
   /// @deprecated Use [placePartsFromProviderState] for rendering.

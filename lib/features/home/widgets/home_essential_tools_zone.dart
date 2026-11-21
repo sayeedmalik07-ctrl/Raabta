@@ -18,6 +18,7 @@ import 'package:raabta/features/home/widgets/home_section_header.dart';
 import 'package:raabta/features/home/widgets/home_truth_engine_section_header.dart';
 import 'package:raabta/features/home/widgets/home_tool_rail_titles.dart';
 import 'package:raabta/features/quick_actions/quick_actions_hub.dart';
+import 'package:raabta/features/home/utils/home_responsive_layout.dart';
 import 'package:raabta/providers/visa_providers.dart';
 
 enum HomeToolsLayout { rail, grid }
@@ -67,7 +68,26 @@ class HomeEssentialToolsZone extends ConsumerWidget {
   final HomeIconBadgeVariant? iconBadgeVariant;
   final bool truthEngineSection;
 
-  static const double _tabletBreakpoint = 600;
+  static double _truthEngineGridExtent(
+    WidgetRef ref,
+    List<QuickActionTool> tools,
+  ) {
+    var inviteOnly = true;
+    for (final tool in tools) {
+      final engine = TruthChipEngineRoutes.fromHomeRoute(tool.route);
+      if (engine == null) continue;
+      final status = ref.watch(truthChipWatchStatusProvider(engine));
+      if (!status.isInvite ||
+          status.showsProgressBar ||
+          status.hasRevealableDetail) {
+        inviteOnly = false;
+        break;
+      }
+    }
+    return inviteOnly
+        ? HomeCardTier.truthEngineInviteGridExtent
+        : HomeCardTier.truthEngineGridExtent;
+  }
 
   static const truthEngineRoutes = [
     '/eosb',
@@ -103,7 +123,7 @@ class HomeEssentialToolsZone extends ConsumerWidget {
         ? null
         : AppShellStrings.t(seeAllLabelKey!, locale);
     final gridExtent = truthEngineSection
-        ? HomeCardTier.truthEngineGridExtent
+        ? _truthEngineGridExtent(ref, visibleTools)
         : HomeCardTier.toolGridExtent;
 
     return Column(
@@ -126,12 +146,21 @@ class HomeEssentialToolsZone extends ConsumerWidget {
             onActionTap: onSeeAllTap,
             compact: compactHeader,
           ),
-        const SizedBox(height: AppSpacing.lg),
         LayoutBuilder(
           builder: (context, constraints) {
+            final viewportWidth = MediaQuery.sizeOf(context).width;
             final useGrid = layout == HomeToolsLayout.grid ||
-                constraints.maxWidth >= _tabletBreakpoint;
+                constraints.maxWidth >= HomeResponsiveLayout.compactMax;
             if (useGrid) {
+              final crossAxisCount = truthEngineSection
+                  ? HomeResponsiveLayout.truthEngineGridCrossAxisCount(
+                      viewportWidth: viewportWidth,
+                      itemCount: visibleTools.length,
+                    )
+                  : (constraints.maxWidth >= HomeResponsiveLayout.compactMax &&
+                          visibleTools.length >= 4
+                      ? 4
+                      : 2);
               return Semantics(
                 container: true,
                 label: sectionTitle,
@@ -139,10 +168,7 @@ class HomeEssentialToolsZone extends ConsumerWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: constraints.maxWidth >= _tabletBreakpoint &&
-                            visibleTools.length >= 4
-                        ? 4
-                        : 2,
+                    crossAxisCount: crossAxisCount,
                     crossAxisSpacing: cardSeparator,
                     mainAxisSpacing: cardSeparator,
                     mainAxisExtent: gridExtent,

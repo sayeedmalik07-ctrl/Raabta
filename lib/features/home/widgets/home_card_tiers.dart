@@ -41,8 +41,11 @@ abstract final class HomeCardTier {
 
   static const double toolGridExtent = 108;
 
-  /// Truth Engine grid — design kit min-height 156dp.
+  /// Truth Engine grid — active / tracked chips.
   static const double truthEngineGridExtent = 156;
+
+  /// Truth Engine invite-only grid — two-line title/subtitle + Start (no dead band).
+  static const double truthEngineInviteGridExtent = 132;
   /// Home See-all bottom sheets — matches Qatar Life catalog row height.
   static const double homeCatalogTileExtent = 118;
   static const double toolTitleFontSize = 14;
@@ -65,10 +68,10 @@ abstract final class HomeCardTier {
   static const double forYouPickFamilyTintAlpha = 0.08;
 
   /// Send money home rate card — design kit v2.1 (`.card.f.gold.rate`).
-  static const double sendMoneyRateLoadingHeight = 220;
+  static const double sendMoneyRateLoadingHeight = 168;
   static const double sendMoneyRateSparklineHeight = 46;
   static const double sendMoneyRateBigFontSize = 34;
-  static const double sendMoneyRateFamilyTintAlpha = 0.055;
+  static const double sendMoneyRateFamilyTintAlpha = 0.085;
 
   /// Glance row (Prayer + ScamShield) — kit `.two .card`.
   static const double glanceTileRadius = 20;
@@ -88,15 +91,18 @@ abstract final class HomeCardTier {
   static const double dailyEssentialTilePadding = 10;
 
   /// Vertical inset — with 36dp icon yields ~64dp row (normal text scale).
-  static const double dailyEssentialTilePaddingVertical = 14;
+  static const double dailyEssentialTilePaddingVertical = 12;
   static const double dailyEssentialIconBadge = 36;
   static const double dailyEssentialIconSize = 18;
   static const double dailyEssentialIconChipRadius = 12;
   static const double dailyEssentialTitleFontSize = 14;
 
-  /// Home Daily Essentials row — compact tap target (normal text scale).
-  static const double dailyEssentialRowMinHeight = 64;
-  static const double dailyEssentialRowMaxHeight = 72;
+  /// Grouped Daily Essentials list row (Batch G — single surface).
+  static const double dailyEssentialGroupedRowHeight = 60;
+
+  /// Legacy bounds — prefer [dailyEssentialGroupedRowHeight].
+  static const double dailyEssentialRowMinHeight = dailyEssentialGroupedRowHeight;
+  static const double dailyEssentialRowMaxHeight = dailyEssentialGroupedRowHeight;
 
   /// Lifestyle rails (Qatar Life) — default chip footprint.
   static const double lifestyleChipWidth = 92;
@@ -123,11 +129,21 @@ abstract final class HomeCardTier {
   static const double coreServiceExploreIconLabelGap = 8;
 }
 
-/// Vertical rhythm between Home zones.
+/// Vertical rhythm between Home zones (kit v2.1 / polish round 4).
 abstract final class HomeZoneSpacing {
   HomeZoneSpacing._();
 
-  static const double afterHero = AppSpacing.lg;
-  static const double betweenZones = AppSpacing.xl;
+  /// Horizontal inset for Home section headers and content (matches screen gutter).
+  static const double sectionHorizontalPadding = AppSpacing.screenHorizontalPadding;
+
+  /// Space under a section title before its content.
+  static const double afterSectionHeader = 12;
+
+  /// Space between major Home sections.
+  static const double betweenZones = 28;
+
+  /// Hero card → Prayer / ScamShield glance row.
+  static const double afterHero = 14;
+
   static const double withinTrustGroup = AppSpacing.md;
 }

@@ -51,14 +51,26 @@ class HomeScamShieldAnchorCard extends ConsumerWidget {
         ? scamShieldRiskColor(severity)
         : _calmAccent;
 
-    final title = elevated ? alertTitle : _calmTitle(calmCopy);
+    final title = elevated
+        ? alertTitle
+        : compact
+            ? AppShellStrings.t('home_scam_shield_glance_title', locale)
+            : _calmTitle(calmCopy);
     final subtitle = elevated
         ? reviewLabel
-        : AppShellStrings.format(
-            'home_scam_shield_unacknowledged_alerts',
-            locale,
-            params: {'count': '$unacknowledgedCount'},
-          );
+        : compact
+            ? (unacknowledgedCount > 0
+                ? AppShellStrings.format(
+                    'home_scam_shield_unacknowledged_alerts',
+                    locale,
+                    params: {'count': '$unacknowledgedCount'},
+                  )
+                : AppShellStrings.t('home_scam_shield_glance_sub', locale))
+            : AppShellStrings.format(
+                'home_scam_shield_unacknowledged_alerts',
+                locale,
+                params: {'count': '$unacknowledgedCount'},
+              );
 
     final semanticsLabel = elevated
         ? '$alertTitle, $reviewLabel'
@@ -72,7 +84,7 @@ class HomeScamShieldAnchorCard extends ConsumerWidget {
           child: HomeGlanceAnchorShell(
             familyMain: accentColor,
             icon: Icons.shield_outlined,
-            iconVariant: HomeIconBadgeVariant.standard,
+            iconVariant: HomeIconBadgeVariant.greenBrand,
             iconAccent: accentColor,
             title: title,
             subtitle: subtitle,
@@ -94,6 +106,8 @@ class HomeScamShieldAnchorCard extends ConsumerWidget {
           subtitle: subtitle,
           showLivePulse: false,
           denseSingleLine: compact,
+          titleMaxLines: compact ? 1 : null,
+          subtitleMaxLines: compact ? 2 : null,
           onTap: () => QuickActionsHub.navigateTo(context, '/scam-shield'),
         ),
       ),

@@ -56,9 +56,7 @@ class HomeAdaptiveExpatHero extends ConsumerWidget {
       profile: profile,
     );
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: HomeUnifiedTodayHero(
+    return HomeUnifiedTodayHero(
         phase: phase,
         locale: locale,
         ringScore: ringScore,
@@ -80,7 +78,6 @@ class HomeAdaptiveExpatHero extends ConsumerWidget {
           statusLabel: ringStatusLabel,
           locale: locale,
         ),
-      ),
     );
   }
 }

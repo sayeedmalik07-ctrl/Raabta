@@ -1,9 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/design/color_family.dart';
+import 'package:raabta/core/design/raabta_continuous_shape.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 import 'package:raabta/core/icons/raabta_icon.dart';
 import 'package:raabta/core/icons/raabta_icons.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/features/home/widgets/home_card_tiers.dart';
+
+ShapeDecoration _homeIconBadgeDecoration({
+  required double radius,
+  Color? color,
+  Gradient? gradient,
+  BorderSide side = BorderSide.none,
+  List<BoxShadow>? shadows,
+}) {
+  return RaabtaContinuousShape.decoration(
+    radius: radius,
+    color: color,
+    gradient: gradient,
+    side: side,
+    shadows: shadows,
+  );
+}
 
 /// Visual treatment for [HomeIconBadge] — default keeps legacy glass chips.
 enum HomeIconBadgeVariant {
@@ -84,10 +103,8 @@ class HomeIconBadge extends StatelessWidget {
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          circular ? size / 2 : (chipBorderRadius ?? AppSpacing.radiusMd),
-        ),
+      decoration: _homeIconBadgeDecoration(
+        radius: circular ? size / 2 : (chipBorderRadius ?? AppSpacing.radiusMd),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -96,7 +113,7 @@ class HomeIconBadge extends StatelessWidget {
             accentColor.withValues(alpha: fillAlpha * 0.35),
           ],
         ),
-        border: Border.all(color: accentColor.withValues(alpha: borderAlpha)),
+        side: BorderSide(color: accentColor.withValues(alpha: borderAlpha)),
       ),
       child: RaabtaIcon(
         icon,
@@ -122,58 +139,13 @@ class _ExploreBrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = AppColors.isLight;
-    final brandMain = AppColors.brandFamilyMain;
-    final brandDeep = AppColors.brandFamilyLightDeep;
-
-    if (isLight) {
-      return Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(chipBorderRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [brandMain, brandDeep],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: brandMain.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: RaabtaIcon(
-          icon,
-          size: iconSize,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(chipBorderRadius),
-        color: brandMain.withValues(alpha: 0.22),
-        border: Border.all(color: brandMain.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: brandMain.withValues(alpha: 0.35),
-            blurRadius: 18,
-          ),
-        ],
-      ),
-      child: RaabtaIcon(
-        icon,
-        size: iconSize,
-        color: brandMain,
-      ),
+    return _SolidFamilyIconBadge(
+      icon: icon,
+      size: size,
+      iconSize: iconSize,
+      chipBorderRadius: chipBorderRadius,
+      surfaceFamily: RaabtaSolidSurfaceFamily.brand,
+      glyphFamily: RaabtaColorFamilies.brand,
     );
   }
 }
@@ -193,58 +165,13 @@ class _GoldBrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = AppColors.isLight;
-    final goldMain = AppColors.goldFamilyMain;
-    final goldDeep = AppColors.goldFamilyLightDeep;
-
-    if (isLight) {
-      return Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(chipBorderRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [goldMain, goldDeep],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: goldMain.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: RaabtaIcon(
-          icon,
-          size: iconSize,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(chipBorderRadius),
-        color: goldMain.withValues(alpha: 0.22),
-        border: Border.all(color: goldMain.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: goldMain.withValues(alpha: 0.35),
-            blurRadius: 18,
-          ),
-        ],
-      ),
-      child: RaabtaIcon(
-        icon,
-        size: iconSize,
-        color: goldMain,
-      ),
+    return _SolidFamilyIconBadge(
+      icon: icon,
+      size: size,
+      iconSize: iconSize,
+      chipBorderRadius: chipBorderRadius,
+      surfaceFamily: RaabtaSolidSurfaceFamily.gold,
+      glyphFamily: RaabtaColorFamilies.gold,
     );
   }
 }
@@ -264,58 +191,15 @@ class _GreenBrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = AppColors.isLight;
-    final greenMain = AppColors.greenFamilyMain;
-    final greenDeep = AppColors.greenFamilyLightDeep;
-
-    if (isLight) {
-      return Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(chipBorderRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [greenMain, greenDeep],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: greenMain.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: RaabtaIcon(
-          icon,
-          size: iconSize,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(chipBorderRadius),
-        color: greenMain.withValues(alpha: 0.22),
-        border: Border.all(color: greenMain.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: greenMain.withValues(alpha: 0.35),
-            blurRadius: 18,
-          ),
-        ],
-      ),
-      child: RaabtaIcon(
-        icon,
-        size: iconSize,
-        color: greenMain,
-      ),
+    return _SolidFamilyIconBadge(
+      icon: icon,
+      size: size,
+      iconSize: iconSize,
+      chipBorderRadius: chipBorderRadius,
+      glyphFamily: RaabtaColorFamilies.green,
+      surfaceFill: (brightness) => brightness == Brightness.dark
+          ? const Color(0xFF0A1F18)
+          : const Color(0xFFE8F7F1),
     );
   }
 }
@@ -335,57 +219,60 @@ class _TealBrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = AppColors.isLight;
-    final tealMain = AppColors.tealFamilyMain;
-    final tealDeep = AppColors.tealFamilyLightDeep;
+    return _SolidFamilyIconBadge(
+      icon: icon,
+      size: size,
+      iconSize: iconSize,
+      chipBorderRadius: chipBorderRadius,
+      surfaceFamily: RaabtaSolidSurfaceFamily.teal,
+      glyphFamily: RaabtaColorFamilies.teal,
+    );
+  }
+}
 
-    if (isLight) {
-      return Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(chipBorderRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [tealMain, tealDeep],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: tealMain.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: RaabtaIcon(
-          icon,
-          size: iconSize,
-          color: Colors.white,
-        ),
-      );
-    }
+/// Materiality kit icon chip — solid family tint, dark glyph, no glow.
+class _SolidFamilyIconBadge extends StatelessWidget {
+  const _SolidFamilyIconBadge({
+    required this.icon,
+    required this.size,
+    required this.iconSize,
+    required this.chipBorderRadius,
+    required this.glyphFamily,
+    this.surfaceFamily,
+    this.surfaceFill,
+  });
+
+  final IconData icon;
+  final double size;
+  final double iconSize;
+  final double chipBorderRadius;
+  final ColorFamily glyphFamily;
+  final RaabtaSolidSurfaceFamily? surfaceFamily;
+  final Color Function(Brightness brightness)? surfaceFill;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final fill = surfaceFamily != null
+        ? RaabtaSolidSurfaceTokens.fill(surfaceFamily!, brightness)
+        : (surfaceFill?.call(brightness) ?? glyphFamily.main(brightness));
+    final borderColor = surfaceFamily != null
+        ? RaabtaSolidSurfaceTokens.hairline(surfaceFamily!, brightness)
+        : glyphFamily.main(brightness).withValues(alpha: 0.28);
 
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(chipBorderRadius),
-        color: tealMain.withValues(alpha: 0.22),
-        border: Border.all(color: tealMain.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: tealMain.withValues(alpha: 0.35),
-            blurRadius: 18,
-          ),
-        ],
+      decoration: _homeIconBadgeDecoration(
+        radius: chipBorderRadius,
+        color: fill,
+        side: BorderSide(color: borderColor),
       ),
       child: RaabtaIcon(
         icon,
         size: iconSize,
-        color: tealMain,
+        color: glyphFamily.text(brightness),
       ),
     );
   }

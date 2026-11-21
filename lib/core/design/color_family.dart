@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:raabta/core/design/raabta_continuous_shape.dart';
 
 /// Kit v2 color family: dark / light / lightDeep tokens resolved by [Brightness].
 @immutable
@@ -69,15 +70,15 @@ abstract final class RaabtaColorFamilies {
 }
 
 /// Premium card surface from kit §3 (no [BackdropFilter]).
-BoxDecoration premiumSurfaceDecoration({
+ShapeDecoration premiumSurfaceDecoration({
   required ColorFamily family,
   required Brightness brightness,
   required double borderRadius,
 }) {
   final accent = family.main(brightness);
   if (brightness == Brightness.dark) {
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
+    return RaabtaContinuousShape.decoration(
+      radius: borderRadius,
       gradient: LinearGradient(
         begin: const Alignment(-0.9, -1.0),
         end: const Alignment(0.9, 1.0),
@@ -92,12 +93,12 @@ BoxDecoration premiumSurfaceDecoration({
           ),
         ],
       ),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
     );
   }
 
-  return BoxDecoration(
-    borderRadius: BorderRadius.circular(borderRadius),
+  return RaabtaContinuousShape.decoration(
+    radius: borderRadius,
     gradient: LinearGradient(
       begin: const Alignment(-0.85, -1.0),
       end: const Alignment(0.85, 1.0),
@@ -106,8 +107,8 @@ BoxDecoration premiumSurfaceDecoration({
         Color.alphaBlend(accent.withValues(alpha: 0.06), Colors.white),
       ],
     ),
-    border: Border.all(color: accent.withValues(alpha: 0.14)),
-    boxShadow: [
+    side: BorderSide(color: accent.withValues(alpha: 0.14)),
+    shadows: [
       BoxShadow(
         color: accent.withValues(alpha: 0.16),
         blurRadius: 16,

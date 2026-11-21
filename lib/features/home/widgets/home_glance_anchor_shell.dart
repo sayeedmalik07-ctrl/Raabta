@@ -21,6 +21,8 @@ class HomeGlanceAnchorShell extends StatelessWidget {
     this.trailing,
     this.showLivePulse = false,
     this.denseSingleLine = false,
+    this.titleMaxLines,
+    this.subtitleMaxLines,
     required this.onTap,
   });
 
@@ -33,12 +35,13 @@ class HomeGlanceAnchorShell extends StatelessWidget {
   final Widget? trailing;
   final bool showLivePulse;
   final bool denseSingleLine;
+  final int? titleMaxLines;
+  final int? subtitleMaxLines;
   final VoidCallback onTap;
 
-  /// Compact glance tiles keep smaller type but still allow two lines before ellipsis.
-  int get _titleMaxLines => 2;
+  int get _titleMaxLines => titleMaxLines ?? (denseSingleLine ? 1 : 2);
 
-  int get _subtitleMaxLines => 2;
+  int get _subtitleMaxLines => subtitleMaxLines ?? (denseSingleLine ? 1 : 2);
 
   double get _titleFontSize => denseSingleLine
       ? HomeCardTier.glanceDenseTitleFontSize

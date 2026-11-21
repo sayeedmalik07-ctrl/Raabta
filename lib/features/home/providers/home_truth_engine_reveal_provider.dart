@@ -29,3 +29,12 @@ final homeTruthEngineAttentionCountProvider = Provider<int>((ref) {
   }
   return count;
 });
+
+/// Whether any Truth Engine chip on Home has details to reveal.
+final homeTruthEngineHasRevealableDetailProvider = Provider<bool>((ref) {
+  for (final engine in TruthChipEngine.values) {
+    final status = ref.watch(truthChipWatchStatusProvider(engine));
+    if (status.hasRevealableDetail) return true;
+  }
+  return false;
+});

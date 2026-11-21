@@ -1,6 +1,10 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:raabta/core/design/raabta_continuous_shape.dart';
+import 'package:raabta/core/design/raabta_physical_shadow_tokens.dart';
+import 'package:raabta/core/design/raabta_solid_surface_tokens.dart';
 
 import '../colors/app_colors.dart';
 import '../spacing/app_spacing.dart';
@@ -20,6 +24,7 @@ class GlassContainer extends StatelessWidget {
     this.blurSigma = AppSpacing.glassBlur,
     this.backgroundColor,
     this.onTap,
+    this.solidSurfaceFamily,
   });
 
   final Widget child;
@@ -34,48 +39,81 @@ class GlassContainer extends StatelessWidget {
   final Color? backgroundColor;
   final VoidCallback? onTap;
 
+  /// Round 4B materiality — tinted solid surface (replaces glass tint + glow).
+  final RaabtaSolidSurfaceFamily? solidSurfaceFamily;
+
+  static bool get _preferSolidSurfaceOnPlatform {
+    if (AppColors.isLight) return true;
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Home design kit v2.1 §3: no BackdropFilter in light mode.
-    final effectiveBlur = AppColors.isLight ? 0.0 : blurSigma;
-    final surfaceColor = backgroundColor ??
-        (AppColors.isLight ? AppColors.surface : AppColors.glassSurface);
+    final brightness = Theme.of(context).brightness;
+    final solid = solidSurfaceFamily;
 
-    Widget surface = Container(
+    var effectiveBlur = _preferSolidSurfaceOnPlatform ? 0.0 : blurSigma;
+    if (solid != null) {
+      effectiveBlur = 0;
+    }
+
+    final surfaceColor = solid != null
+        ? (backgroundColor ??
+            RaabtaSolidSurfaceTokens.fill(solid, brightness))
+        : (backgroundColor ??
+            (AppColors.isLight ? AppColors.surface : AppColors.glassSurface));
+
+    final borderSide = solid != null
+        ? BorderSide(
+            color: RaabtaSolidSurfaceTokens.hairline(solid, brightness),
+            width: 1,
+          )
+        : BorderSide(
+            color: AppColors.glassBorder,
+            width: AppSpacing.glassBorderWidth,
+          );
+
+    final surfaceShape = RaabtaContinuousShape.surface(
+      borderRadius,
+      side: borderSide,
+    );
+
+    Widget inner = Padding(
       padding: padding ?? const EdgeInsets.all(AppSpacing.cardPadding),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: AppColors.glassBorder,
-          width: AppSpacing.glassBorderWidth,
-        ),
-      ),
       child: child,
     );
 
     if (effectiveBlur > 0) {
-      surface = BackdropFilter(
+      inner = BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: effectiveBlur,
           sigmaY: effectiveBlur,
         ),
-        child: surface,
+        child: inner,
       );
     }
+
+    final surface = Material(
+      color: surfaceColor,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      shape: surfaceShape,
+      clipBehavior: Clip.antiAlias,
+      child: inner,
+    );
 
     final content = Container(
       width: width,
       height: height,
       margin: margin,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: _buildGlowShadow(),
+      decoration: RaabtaContinuousShape.shadowOnly(
+        radius: borderRadius,
+        shadows: _resolveOuterShadows(brightness),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: surface,
-      ),
+      child: surface,
     );
 
     if (onTap == null) {
@@ -87,6 +125,13 @@ class GlassContainer extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: content,
     );
+  }
+
+  List<BoxShadow>? _resolveOuterShadows(Brightness brightness) {
+    if (solidSurfaceFamily != null) {
+      return RaabtaPhysicalShadowTokens.card(brightness);
+    }
+    return _buildGlowShadow();
   }
 
   List<BoxShadow>? _buildGlowShadow() {

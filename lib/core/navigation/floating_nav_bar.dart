@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../colors/app_colors.dart';
+import '../design/raabta_continuous_shape.dart';
 import '../glass/glass_container.dart';
 import '../navigation/post_vertical_menu.dart';
 import '../navigation/shell_nav_config.dart';
 import '../navigation/shell_post_center_action.dart';
+import '../design/home_glass_legibility_tokens.dart';
 import '../spacing/app_spacing.dart';
 import '../typography/app_typography.dart';
 
@@ -128,9 +130,9 @@ class _FloatingNavBarState extends State<FloatingNavBar>
         clipBehavior: Clip.none,
         children: [
           DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppSpacing.navRadius),
-              boxShadow: AppColors.isLight
+            decoration: RaabtaContinuousShape.shadowOnly(
+              radius: AppSpacing.navRadius,
+              shadows: AppColors.isLight
                   ? [
                       BoxShadow(
                         color: AppColors.brandFamilyMain.withValues(alpha: 0.12),
@@ -290,13 +292,13 @@ class _NavActiveLens extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         children: [
           DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(height / 2),
+            decoration: RaabtaContinuousShape.decoration(
+              radius: height / 2,
               color: fill,
-              border: Border.all(
+              side: BorderSide(
                 color: color.withValues(alpha: AppColors.isLight ? 0.28 : 0.22),
               ),
-              boxShadow: [
+              shadows: [
                 BoxShadow(
                   color: color.withValues(alpha: 0.18 * opacity),
                   blurRadius: AppColors.isLight ? 6 : 8,
@@ -566,8 +568,17 @@ class _FloatingNavItemState extends State<_FloatingNavItem>
 /// does not compete with the glass pill. Home keeps the lighter glass.
 @visibleForTesting
 bool floatingNavUsesHubDockGlass(ShellTab tab) {
-  return tab == ShellTab.market || tab == ShellTab.community;
+  return tab == ShellTab.documents || tab == ShellTab.community;
 }
+
+/// Home tab glass pill — kit polish ~78% surface (see [HUB_DESIGN_CONTRACT.md]).
+@visibleForTesting
+const kFloatingNavHomeSurfaceAlpha =
+    HomeGlassLegibilityTokens.homeNavSurfaceAlpha;
+
+/// Home tab backdrop blur sigma (Round 4C legibility floor).
+@visibleForTesting
+const kFloatingNavHomeBlurSigma = HomeGlassLegibilityTokens.homeNavBlurSigma;
 
 @visibleForTesting
 Color floatingNavGlassBackground({
@@ -575,17 +586,20 @@ Color floatingNavGlassBackground({
   required bool isLight,
 }) {
   final hubDock = floatingNavUsesHubDockGlass(currentTab);
+  if (!hubDock) {
+    return AppColors.surface.withValues(alpha: kFloatingNavHomeSurfaceAlpha);
+  }
   if (isLight) {
     return Color.lerp(
       AppColors.surface,
       Colors.white,
-      hubDock ? 0.58 : 0.48,
+      0.58,
     )!;
   }
   return Color.lerp(
     AppColors.surface,
     AppColors.background,
-    hubDock ? 0.66 : 0.52,
+    0.66,
   )!;
 }
 
@@ -594,9 +608,10 @@ double floatingNavGlassBlurSigma({
   required ShellTab currentTab,
   required bool isLight,
 }) {
-  if (isLight) return 0;
   final hubDock = floatingNavUsesHubDockGlass(currentTab);
-  return hubDock ? AppSpacing.glassBlur * 0.55 : AppSpacing.glassBlur;
+  if (!hubDock) return kFloatingNavHomeBlurSigma;
+  if (isLight) return 0;
+  return AppSpacing.glassBlur * 0.55;
 }
 
 /// Tab center X for the inner nav row [totalWidth] (LTR layout coords).

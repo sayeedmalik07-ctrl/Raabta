@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 
 /// Reusable section header for Home dashboard sections.
 class HomeSectionHeader extends StatelessWidget {
@@ -16,6 +17,8 @@ class HomeSectionHeader extends StatelessWidget {
     this.leadingIcon,
     this.compact = false,
     this.actionLinkColor,
+    this.includeContentGap = true,
+    this.titleTrailing,
   });
 
   /// Small category label above the title (N26 / Revolut pattern).
@@ -31,6 +34,12 @@ class HomeSectionHeader extends StatelessWidget {
 
   /// Optional header action color (defaults to [AppColors.link]).
   final Color? actionLinkColor;
+
+  /// When true, adds [HomeZoneSpacing.afterSectionHeader] below the header.
+  final bool includeContentGap;
+
+  /// Optional trailing controls beside the title (e.g. Truth Engine privacy eye).
+  final Widget? titleTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +76,10 @@ class HomeSectionHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (titleTrailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              titleTrailing!,
+            ],
             if (actionText != null)
               _SectionAction(
                 label: actionText!,
@@ -84,6 +97,8 @@ class HomeSectionHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+        if (includeContentGap)
+          const SizedBox(height: HomeZoneSpacing.afterSectionHeader),
       ],
     );
   }

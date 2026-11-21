@@ -89,6 +89,10 @@ abstract final class HomeChipStatusLogic {
         return HomeChipStatus.ready(
           line: HomeChipStatusStrings.t('home_chip_arabic_static', locale),
         );
+      case '/barcode-scanner':
+        return HomeChipStatus.ready(
+          line: HomeChipStatusStrings.t('home_chip_barcode_static', locale),
+        );
       default:
         return const HomeChipStatus.ready(line: '');
     }

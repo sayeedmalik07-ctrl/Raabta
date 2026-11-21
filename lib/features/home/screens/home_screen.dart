@@ -11,11 +11,12 @@ import 'package:raabta/core/navigation/shell_nav_config.dart';
 import 'package:raabta/features/home/providers/expat_score_advice_provider.dart';
 import 'package:raabta/features/home/utils/home_ai_assistant_action_resolver.dart';
 import 'package:raabta/features/home/utils/home_ai_feed_utils.dart';
-import 'package:raabta/features/home/widgets/home_language_toggle_chip.dart';
 import 'package:raabta/core/utils/profile_display_helper.dart';
 import 'package:raabta/features/home/widgets/animated_search_entry.dart';
 import 'package:raabta/features/home/l10n/home_profile_strings.dart';
-import 'package:raabta/features/home/widgets/glass_status_header.dart';
+import 'package:raabta/features/home/providers/home_doha_day_part_provider.dart';
+import 'package:raabta/features/home/widgets/home_doha_collapsing_header.dart';
+import 'package:raabta/features/home/widgets/home_doha_header_choreography.dart';
 import 'package:raabta/features/home/widgets/home_profile_popover.dart';
 import 'package:raabta/features/home/widgets/home_glance_row.dart';
 import 'package:raabta/features/home/widgets/home_currency_rail_zone.dart';
@@ -26,11 +27,12 @@ import 'package:raabta/features/home/widgets/home_daily_essentials_zone.dart';
 import 'package:raabta/features/home/utils/home_personalization_resolver.dart';
 import 'package:raabta/features/home/widgets/home_trust_safety_zone.dart';
 import 'package:raabta/features/home/widgets/home_truth_engine_reveal_listener.dart';
-import 'package:raabta/features/home/widgets/home_explore_zone.dart';
+import 'package:raabta/features/home/widgets/home_services_strip_zone.dart';
 import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 import 'package:raabta/features/home/widgets/home_qatar_life_zone.dart';
 import 'package:raabta/features/home/widgets/home_for_you_zone.dart';
-import 'package:raabta/features/home/widgets/home_floating_search_bar.dart';
+import 'package:raabta/core/design/home_glass_legibility_tokens.dart';
+import 'package:raabta/features/home/widgets/home_page_grain_layer.dart';
 import 'package:raabta/features/home/widgets/home_search_with_ai_row.dart';
 import 'package:raabta/features/home/widgets/home_lazy_section.dart';
 import 'package:raabta/features/home/data/home_ai_orb_coach_mark_prefs.dart';
@@ -45,8 +47,9 @@ import 'package:raabta/features/home/providers/life_events_providers.dart';
 import 'package:raabta/features/home/providers/life_intelligence_providers.dart';
 import 'package:raabta/features/scam_shield/security_alerts/security_awareness_providers.dart';
 import 'package:raabta/features/home/providers/life_intelligence_push_providers.dart';
+import 'package:raabta/features/home/widgets/home_today_supplementary_zone.dart';
 import 'package:raabta/features/home/widgets/home_today_zone.dart';
-import 'package:raabta/features/home/utils/home_header_context_line.dart';
+import 'package:raabta/features/home/utils/home_responsive_layout.dart';
 import 'package:raabta/features/home/utils/home_time_greeting.dart';
 import 'package:raabta/features/quick_actions/climate_navigator/models/qatar_weather.dart';
 import 'package:raabta/core/l10n/app_locale.dart';
@@ -58,19 +61,23 @@ import 'package:raabta/services/ai/ai_feed_engine.dart';
 import 'package:raabta/services/ai/expat_life_score_service.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
 import 'package:raabta/screens/community/community_screen.dart';
-import 'package:raabta/screens/marketplace/marketplace_screen.dart';
 import 'package:raabta/screens/profile/profile_screen.dart';
+import 'package:raabta/screens/visa/visa_screen.dart';
 
 /// Home dashboard — v2 layout: hero, today, shortcuts, for you, explore.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({
     super.key,
     this.initialTab = 0,
+    this.initialShellTab,
     this.openAiChatOnLaunch = false,
   });
 
   /// Legacy `/home?tab=` query index (see [ShellNavConfig.resolveLegacyHomeTabQuery]).
   final int initialTab;
+
+  /// Optional shell tab from `/home?shell=documents` (not legacy numeric indices).
+  final ShellTab? initialShellTab;
   final bool openAiChatOnLaunch;
 
   /// Shell body inset clearing nav bar + raised center Post control.
@@ -82,11 +89,16 @@ class HomeScreen extends ConsumerStatefulWidget {
         core_spacing.AppSpacing.sm;
   }
 
+  /// Extra feed inset above the floating nav (D5 — safe area counted separately).
+  @visibleForTesting
+  static const homeFeedBottomClearanceExtra = 16.0;
+
   /// Home scroll padding when content extends under the floating nav + Post FAB.
   @visibleForTesting
   static double homeScrollBottomPadding(BuildContext context) {
     return shellBodyBottomClearance() +
-        MediaQuery.paddingOf(context).bottom;
+        MediaQuery.paddingOf(context).bottom +
+        homeFeedBottomClearanceExtra;
   }
 
   /// Height of the non-interactive bottom fade on Home (scroll-under-nav).
@@ -140,11 +152,18 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// Lazy Home zones between hero and the bottom services strip (explore not listed here).
   static const List<HomeSectionId> _canonicalLazySectionOrder = [
     HomeSectionId.trust,
     HomeSectionId.qatarLife,
     HomeSectionId.dailyEssentials,
+    HomeSectionId.exchangeRates,
     HomeSectionId.forYou,
+  ];
+
+  /// Trailing zones after main lazy sections — move this list to promote services higher.
+  static const List<HomeSectionId> _homeTrailingSectionOrder = [
+    HomeSectionId.explore,
   ];
 
   ShellTab _currentTab = ShellTab.home;
@@ -153,20 +172,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _expatScoreLoading = false;
   bool _postMenuOpen = false;
   final ScrollController _homeScrollController = ScrollController();
-  final GlobalKey _homeSearchAnchorKey = GlobalKey();
   final LayerLink _aiOrbLayerLink = LayerLink();
-  bool _floatingSearchVisible = false;
   bool _hideAiCoachMark = false;
 
   @override
   void initState() {
     super.initState();
     final launch = ShellNavConfig.resolveLegacyHomeTabQuery(widget.initialTab);
-    _currentTab = launch.tab;
+    _currentTab = widget.initialShellTab ?? launch.tab;
     _launchAiChatOnMount = widget.openAiChatOnLaunch || launch.openAiChat;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _bootstrapExpatScore();
-      _syncFloatingSearchVisibility();
       if (_launchAiChatOnMount) {
         _launchAiChatOnMount = false;
         _openAiChat();
@@ -176,46 +192,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await evaluateLifeIntelligenceSignalsOnHomeLoad(ref);
       await evaluateLifeIntelligencePushOnHomeLoad(ref);
     });
-    _homeScrollController.addListener(_syncFloatingSearchVisibility);
   }
 
   @override
   void dispose() {
-    _homeScrollController.removeListener(_syncFloatingSearchVisibility);
     _homeScrollController.dispose();
     super.dispose();
   }
 
-  void _syncFloatingSearchVisibility() {
-    if (_currentTab != ShellTab.home) {
-      if (_floatingSearchVisible && mounted) {
-        setState(() => _floatingSearchVisible = false);
-      }
-      return;
-    }
-
-    final anchorContext = _homeSearchAnchorKey.currentContext;
-    if (anchorContext == null || !mounted) return;
-
-    final renderBox = anchorContext.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    final topInset = MediaQuery.paddingOf(context).top;
-    final searchBottom =
-        renderBox.localToGlobal(Offset.zero).dy + renderBox.size.height;
-    final shouldShow = searchBottom <= topInset + 2;
-
-    if (shouldShow != _floatingSearchVisible) {
-      setState(() => _floatingSearchVisible = shouldShow);
-    }
+  Future<void> _maybeSnapDohaHeader() async {
+    if (!mounted || !_homeScrollController.hasClients) return;
+    final target = HomeDohaTopZoneMetrics.snapTargetOffset(
+      _homeScrollController.offset,
+    );
+    if (target == null) return;
+    await _homeScrollController.animateTo(
+      target,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab) {
-      _currentTab =
-          ShellNavConfig.resolveLegacyHomeTabQuery(widget.initialTab).tab;
+    if (oldWidget.initialTab != widget.initialTab ||
+        oldWidget.initialShellTab != widget.initialShellTab) {
+      final launch =
+          ShellNavConfig.resolveLegacyHomeTabQuery(widget.initialTab);
+      _currentTab = widget.initialShellTab ?? launch.tab;
     }
   }
 
@@ -313,55 +320,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
-  Widget _buildFixedHomeHeader(String locale, {Widget? aiSearchOrb}) {
-    final profile = ref.watch(userAIProfileProvider);
-    final weatherAsync = ref.watch(qatarWeatherProvider);
-    final headerPlace = HomeHeaderContextLine.placePartsFromProviderState(
-      locale: locale,
-      preferredArea: profile?.preferredArea,
-      weatherAsync: weatherAsync,
-    );
+  String _greetingLine(String locale, String? displayName) {
+    final greeting = homeTimeGreetingForLocale(locale);
+    if (displayName != null && displayName.isNotEmpty) {
+      return '$greeting $displayName';
+    }
+    return greeting;
+  }
+
+  HomeDohaHeaderConfig _buildDohaHeaderConfig(
+    String locale, {
+    Widget? aiSearchOrb,
+  }) {
+    final user = ref.watch(currentUserProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider).maybeWhen(
           data: (value) => value,
           orElse: () => 0,
         );
-    final user = ref.watch(currentUserProvider);
+    final resolvedName = _resolveUserName();
+    final displayName =
+        user != null && resolvedName != null ? resolvedName : null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GlassStatusHeader(
-          locale: locale,
-          userName:
-              _resolveUserName() ?? AppShellStrings.t('default_friend', locale),
-          greeting: homeTimeGreetingForLocale(locale),
-          place: headerPlace,
-          notificationCount: unreadCount,
-          languageToggle: const HomeLanguageToggleChip(),
-          profileInitials: ProfileDisplayHelper.initials(user),
-          profilePhotoUrl: user?.photoURL,
-          profileMenuSemanticsLabel:
-              HomeProfileStrings.t('open_profile_menu', locale),
-          searchSemanticsLabel:
-              HomeProfileStrings.t('header_search', locale),
-          notificationSemanticsLabel: unreadCount > 0
-              ? HomeProfileStrings.t('header_notifications_unread', locale)
-                  .replaceAll('{count}', '$unreadCount')
-              : HomeProfileStrings.t('header_notifications', locale),
-          onProfileTap: () => HomeProfilePopover.show(context, ref),
-          onNotificationTap: () => context.push('/notifications'),
+    return (
+      locale: locale,
+      greetingLine: _greetingLine(locale, displayName),
+      profileInitials: ProfileDisplayHelper.initials(user),
+      showGuestProfileIcon: user == null,
+      profilePhotoUrl: user?.photoURL,
+      notificationCount: unreadCount,
+      onProfileTap: () => HomeProfilePopover.show(context, ref),
+      onNotificationTap: () => context.push('/notifications'),
+      onDiscoverQatar: () => homeDohaOpenKnowQatar(context),
+      profileMenuSemanticsLabel: user == null
+          ? HomeProfileStrings.t('home_profile_guest_sign_in', locale)
+          : HomeProfileStrings.t('open_profile_menu', locale),
+      notificationSemanticsLabel: unreadCount > 0
+          ? HomeProfileStrings.t('header_notifications_unread', locale)
+              .replaceAll('{count}', '$unreadCount')
+          : HomeProfileStrings.t('header_notifications', locale),
+      searchRow: HomeSearchWithAiRow(
+        aiOrb: aiSearchOrb,
+        search: AnimatedSearchEntry(
+          hint: AppShellStrings.t('global_search_hint', locale),
+          semanticsLabel:
+              AppShellStrings.t('global_search_field_label', locale),
+          onTap: () => context.push('/global-search'),
         ),
-        HomeSearchWithAiRow(
-          aiOrb: aiSearchOrb,
-          search: AnimatedSearchEntry(
-            key: _homeSearchAnchorKey,
-            hint: AppShellStrings.t('global_search_hint', locale),
-            semanticsLabel:
-                AppShellStrings.t('global_search_field_label', locale),
-            onTap: () => context.push('/global-search'),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -382,6 +387,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         HomeSectionId.trust => const HomeTrustSafetyZone(),
         HomeSectionId.qatarLife => const HomeQatarLifeZone(),
         HomeSectionId.dailyEssentials => const HomeDailyEssentialsZone(),
+        HomeSectionId.exchangeRates => const HomeCurrencyRailZone(),
         HomeSectionId.forYou =>
           HomeForYouZone(
             onAiTap: () => _openAiChat(),
@@ -391,16 +397,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
-    if (sections.isNotEmpty) {
+    for (final trailingId in _homeTrailingSectionOrder) {
       sections.add(SizedBox(height: HomeZoneSpacing.betweenZones));
+      sections.add(switch (trailingId) {
+        HomeSectionId.explore => const HomeServicesStripZone(),
+        _ => const SizedBox.shrink(),
+      });
     }
-    sections.add(const HomeCurrencyRailZone());
 
     return sections;
   }
 
   Widget _buildHomeContent(String locale) {
-    final searchHint = AppShellStrings.t('global_search_hint', locale);
+    ref.watch(homeDohaDayPartProvider);
+    final dayPartSeed = ref.read(homeDohaDayPartProvider);
+    final topInset = MediaQuery.paddingOf(context).top;
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final aiActive = isHomeFloatingAiAssistantVisible(
       currentTab: _currentTab,
@@ -422,7 +433,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       active: aiActive,
       showProactiveDot: showAiFeedDot,
       orbLayerLink: _aiOrbLayerLink,
-      linkLeaderOnStickyRow: _floatingSearchVisible,
+      linkLeaderOnStickyRow: false,
       onAssistantOpening: () {
         setState(() => _hideAiCoachMark = true);
         unawaited(HomeAiOrbCoachMarkPrefs.dismiss());
@@ -433,77 +444,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             SafeArea(
               bottom: false,
-              child: RefreshIndicator(
-                color: glass.AppColors.brandFamilyMain,
-                onRefresh: () async {
-                  ref.invalidate(qatarWeatherProvider);
-                  final profile = ref.read(userAIProfileProvider);
-                  if (profile != null) {
-                    await _refreshExpatScore();
-                  } else {
-                    _expatScoreBootstrapStarted = false;
-                    await _bootstrapExpatScore();
-                  }
+              child: NotificationListener<ScrollEndNotification>(
+                onNotification: (_) {
+                  unawaited(_maybeSnapDohaHeader());
+                  return false;
                 },
-                child: SingleChildScrollView(
-                  controller: _homeScrollController,
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: EdgeInsets.fromLTRB(
-                    core_spacing.AppSpacing.screenHorizontalPadding,
-                    core_spacing.AppSpacing.screenVerticalPadding,
-                    core_spacing.AppSpacing.screenHorizontalPadding,
-                    HomeScreen.usesHomeScrollUnderNav(
-                      currentTab: _currentTab,
-                      showBottomNav:
-                          MediaQuery.viewInsetsOf(context).bottom <= 0,
-                    )
-                        ? HomeScreen.homeScrollBottomPadding(context)
-                        : 0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFixedHomeHeader(
-                        locale,
-                        aiSearchOrb: aiOrbs.inline,
+                child: RefreshIndicator(
+                  color: glass.AppColors.brandFamilyMain,
+                  onRefresh: () async {
+                    ref.invalidate(qatarWeatherProvider);
+                    final profile = ref.read(userAIProfileProvider);
+                    if (profile != null) {
+                      await _refreshExpatScore();
+                    } else {
+                      _expatScoreBootstrapStarted = false;
+                      await _bootstrapExpatScore();
+                    }
+                  },
+                  child: CustomScrollView(
+                    controller: _homeScrollController,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: HomeDohaCollapsingHeaderDelegate(
+                          topSafeInset: topInset,
+                          dayPartSeed: dayPartSeed.part,
+                          config: _buildDohaHeaderConfig(
+                            locale,
+                            aiSearchOrb: aiOrbs.inline,
+                          ),
+                        ),
                       ),
-                      SizedBox(height: HomeZoneSpacing.betweenZones),
-                      HomeTodayZone(
-                        onFocusTap: _openExpatScoreScreen,
-                        expatScoreLoading: _expatScoreLoading,
-                        onOpenExpatScore: _openExpatScoreScreen,
-                        onOpenBuildProfile: _openBuildProfile,
-                      ),
-                      SizedBox(height: HomeZoneSpacing.betweenZones),
-                      const ConciergeHomeCard(),
-                      const HomeGlanceRow(),
-                      SizedBox(height: HomeZoneSpacing.betweenZones),
-                      const HomeExploreZone(),
-                      SizedBox(height: HomeZoneSpacing.betweenZones),
-                      HomeLazySection(
-                        builder: (context) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _buildPersonalizedSections(locale),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          HomeResponsiveLayout.contentLeadingInset(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          HomeZoneSpacing.betweenZones,
+                          HomeResponsiveLayout.contentLeadingInset(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          HomeScreen.usesHomeScrollUnderNav(
+                            currentTab: _currentTab,
+                            showBottomNav:
+                                MediaQuery.viewInsetsOf(context).bottom <= 0,
+                          )
+                              ? HomeScreen.homeScrollBottomPadding(context)
+                              : 0,
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate(
+                            [
+                              HomeTodayZone(
+                                onFocusTap: _openExpatScoreScreen,
+                                expatScoreLoading: _expatScoreLoading,
+                                onOpenExpatScore: _openExpatScoreScreen,
+                                onOpenBuildProfile: _openBuildProfile,
+                              ),
+                              const SizedBox(height: HomeZoneSpacing.afterHero),
+                              const HomeGlanceRow(),
+                              const SizedBox(height: HomeZoneSpacing.afterHero),
+                              const HomeTodaySupplementaryZone(),
+                              const ConciergeHomeCard(),
+                              SizedBox(height: HomeZoneSpacing.betweenZones),
+                              HomeLazySection(
+                                builder: (context) => Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: _buildPersonalizedSections(locale),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: HomeFloatingSearchBar(
-                visible: _floatingSearchVisible,
-                aiOrb: aiOrbs.sticky,
-                searchEntry: AnimatedSearchEntry(
-                  hint: searchHint,
-                  compact: true,
-                  onTap: () => context.push('/global-search'),
                 ),
               ),
             ),
@@ -526,7 +544,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final localeKey = ValueKey(locale);
     return switch (_currentTab) {
       ShellTab.home => _buildHomeContent(locale),
-      ShellTab.market => MarketplaceScreen(key: localeKey),
+      ShellTab.documents =>
+        VisaScreen(key: localeKey, isShellRootTab: true),
       ShellTab.community => CommunityScreen(key: localeKey),
       ShellTab.profile => ProfileScreen(key: localeKey),
     };
@@ -592,6 +611,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Stack(
               clipBehavior: Clip.none,
               children: [
+                if (_currentTab == ShellTab.home)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: HomePageGrainLayer(),
+                    ),
+                  ),
                 Padding(
                   padding: EdgeInsets.only(
                     bottom: homeScrollUnderNav
@@ -617,8 +642,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               glass.AppColors.background.withValues(alpha: 0),
-                              glass.AppColors.background.withValues(alpha: 0.55),
-                              glass.AppColors.background.withValues(alpha: 0.92),
+                              glass.AppColors.background.withValues(
+                                alpha: HomeGlassLegibilityTokens.bottomScrimMidAlpha,
+                              ),
+                              glass.AppColors.background.withValues(
+                                alpha: HomeGlassLegibilityTokens.bottomScrimHighAlpha,
+                              ),
                               glass.AppColors.background,
                             ],
                             stops: const [0.0, 0.35, 0.72, 1.0],
@@ -653,12 +682,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (tab == ShellTab.home && _currentTab == ShellTab.home) {
                           return;
                         }
-                        setState(() {
-                          if (tab != ShellTab.home) {
-                            _floatingSearchVisible = false;
-                          }
-                          _currentTab = tab;
-                        });
+                        setState(() => _currentTab = tab);
                       },
                     ),
                   ),

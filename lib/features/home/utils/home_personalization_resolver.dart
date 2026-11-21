@@ -10,6 +10,7 @@ enum HomeSectionId {
   trust,
   qatarLife,
   dailyEssentials,
+  exchangeRates,
   forYou,
   explore,
 }
@@ -37,6 +38,7 @@ abstract final class HomePersonalizationResolver {
     HomeSectionId.trust,
     HomeSectionId.qatarLife,
     HomeSectionId.dailyEssentials,
+    HomeSectionId.exchangeRates,
     HomeSectionId.forYou,
     HomeSectionId.explore,
   ];
@@ -115,6 +117,7 @@ abstract final class HomePersonalizationResolver {
         HomeSectionId.trust,
         HomeSectionId.explore,
         HomeSectionId.dailyEssentials,
+        HomeSectionId.exchangeRates,
         HomeSectionId.forYou,
         HomeSectionId.qatarLife,
       ];
@@ -126,6 +129,7 @@ abstract final class HomePersonalizationResolver {
         HomeSectionId.explore,
         HomeSectionId.qatarLife,
         HomeSectionId.dailyEssentials,
+        HomeSectionId.exchangeRates,
         HomeSectionId.forYou,
       ];
     }
@@ -136,6 +140,7 @@ abstract final class HomePersonalizationResolver {
         HomeSectionId.qatarLife,
         HomeSectionId.explore,
         HomeSectionId.dailyEssentials,
+        HomeSectionId.exchangeRates,
         HomeSectionId.forYou,
       ];
     }
