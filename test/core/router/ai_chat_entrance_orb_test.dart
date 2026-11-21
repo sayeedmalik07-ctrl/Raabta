@@ -36,5 +36,29 @@ void main() {
     );
 
     expect(find.byType(RaabtaOrb), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('AiChatFlyingEntranceOrb builds under LayoutBuilder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              return AiChatFlyingEntranceOrb(
+                progress: 0.25,
+                screenSize: constraints.biggest,
+                sourceRect: const Rect.fromLTWH(280, 120, 54, 54),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(RaabtaOrb), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

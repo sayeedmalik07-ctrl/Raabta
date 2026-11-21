@@ -9,12 +9,7 @@ import 'package:raabta/core/widgets/raabta_orb_state.dart';
 abstract final class AiChatEntranceOrbRectCodec {
   static Map<String, double>? encode(Rect? rect) {
     if (rect == null) return null;
-    return {
-      'l': rect.left,
-      't': rect.top,
-      'w': rect.width,
-      'h': rect.height,
-    };
+    return {'l': rect.left, 't': rect.top, 'w': rect.width, 'h': rect.height};
   }
 
   static Rect? decode(Object? raw) {
@@ -24,7 +19,12 @@ abstract final class AiChatEntranceOrbRectCodec {
     final w = raw['w'];
     final h = raw['h'];
     if (l is! num || t is! num || w is! num || h is! num) return null;
-    return Rect.fromLTWH(l.toDouble(), t.toDouble(), w.toDouble(), h.toDouble());
+    return Rect.fromLTWH(
+      l.toDouble(),
+      t.toDouble(),
+      w.toDouble(),
+      h.toDouble(),
+    );
   }
 }
 
@@ -78,18 +78,25 @@ class AiChatFlyingEntranceOrb extends StatelessWidget {
 
     final extent = diameter * 1.26;
 
-    return Positioned(
-      left: center.dx - extent / 2,
-      top: center.dy - extent / 2,
-      child: Opacity(
-        opacity: fadeOut,
-        child: RepaintBoundary(
-          child: RaabtaOrb(
-            state: RaabtaOrbState.idle,
-            size: diameter,
-            showDepthRings: progress > 0.35,
+    return SizedBox.expand(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: center.dx - extent / 2,
+            top: center.dy - extent / 2,
+            child: Opacity(
+              opacity: fadeOut,
+              child: RepaintBoundary(
+                child: RaabtaOrb(
+                  state: RaabtaOrbState.idle,
+                  size: diameter,
+                  showDepthRings: progress > 0.35,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
