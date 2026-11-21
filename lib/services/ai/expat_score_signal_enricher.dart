@@ -8,28 +8,57 @@ import 'package:raabta/features/jobs/cv_maker/domain/models/cv_document.dart';
 import 'package:raabta/features/visa/data/deadline_tracker_repository.dart';
 import 'package:raabta/models/visa_models.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
+import 'package:raabta/services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Merges live app signals into profile interest tags for [ExpatLifeScoreService].
 abstract final class ExpatScoreSignalEnricher {
+  static const eosbCalculationTag = 'profile:eosb_calculation';
+  static const overtimeCalculationTag = 'profile:overtime_calculation';
+
+  static const _salaryInterestTags = {
+    eosbCalculationTag,
+    overtimeCalculationTag,
+  };
+
   static Future<List<String>> enrichInterests({
     required UserAIProfile profile,
+    required String? storageUid,
     SharedPreferences? prefs,
     DeadlineTrackerRepository? deadlineRepo,
     FirebaseFirestore? firestore,
+    required EosbRepository eosbRepository,
   }) async {
     final tags = profile.interests.map((e) => e.toLowerCase()).toSet();
     final resolvedPrefs = prefs ?? await SharedPreferences.getInstance();
-    final db = firestore ?? FirebaseFirestore.instance;
-    final uid = profile.uid;
+    final db =
+        firestore ??
+        (FirebaseService.isReady ? FirebaseFirestore.instance : null);
+
+    final salaryConsent =
+        storageUid != null &&
+        storageUid.isNotEmpty &&
+        eosbRepository.salaryConsent(uid: storageUid);
+    if (!salaryConsent) {
+      tags.removeAll(_salaryInterestTags);
+    }
 
     _applyProfileDerivedSignals(tags, profile);
-    _applyEosbSignals(tags, resolvedPrefs, uid);
+    if (salaryConsent) {
+      _applyEosbSignals(
+        tags,
+        resolvedPrefs,
+        storageUid,
+        eosbRepository: eosbRepository,
+      );
+    }
     _applyMoneyServiceSignals(tags, profile);
-    await _applyDeadlineSignals(tags, uid, deadlineRepo);
-    await _applyVaultSignals(tags, uid, db);
-    await _applyBillTrackerSignals(tags, uid, db);
-    await _applyCvSignals(tags, uid, resolvedPrefs, db);
+    await _applyDeadlineSignals(tags, storageUid ?? '', deadlineRepo);
+    if (db != null && storageUid != null && storageUid.isNotEmpty) {
+      await _applyVaultSignals(tags, storageUid, db);
+      await _applyBillTrackerSignals(tags, storageUid, db);
+      await _applyCvSignals(tags, storageUid, resolvedPrefs, db);
+    }
 
     return tags.toList();
   }
@@ -80,9 +109,11 @@ abstract final class ExpatScoreSignalEnricher {
   static void _applyEosbSignals(
     Set<String> tags,
     SharedPreferences prefs,
-    String uid,
-  ) {
+    String uid, {
+    required EosbRepository eosbRepository,
+  }) {
     if (uid.isEmpty) return;
+    if (!eosbRepository.salaryConsent(uid: uid)) return;
     final eosbHistory = UidScopedPreferences.getString(
       prefs,
       EosbRepository.calculationHistoryKey,
@@ -262,7 +293,8 @@ abstract final class ExpatScoreSignalEnricher {
       if (cv != null) return cv;
     }
 
-    final ids = UidScopedPreferences.getStringList(
+    final ids =
+        UidScopedPreferences.getStringList(
           prefs,
           CvRepository.indexKey,
           uid: uid,
@@ -281,10 +313,7 @@ abstract final class ExpatScoreSignalEnricher {
     String uid,
   ) {
     final raw = prefs.getString(
-      UidScopedPreferences.scopedKey(
-        uid,
-        CvRepository.documentBaseKey(id),
-      ),
+      UidScopedPreferences.scopedKey(uid, CvRepository.documentBaseKey(id)),
     );
     if (raw == null) return null;
     try {
@@ -298,7 +327,8 @@ abstract final class ExpatScoreSignalEnricher {
     final hasExperience = cv.experience.any(
       (entry) => entry.jobTitle.trim().isNotEmpty,
     );
-    final hasSkills = cv.skills.hardSkills.isNotEmpty ||
+    final hasSkills =
+        cv.skills.hardSkills.isNotEmpty ||
         cv.skills.softSkills.isNotEmpty ||
         cv.skills.toolsSoftware.isNotEmpty;
 

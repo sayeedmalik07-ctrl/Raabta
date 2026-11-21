@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:raabta/core/persistence/uid_scoped_preferences.dart';
 import 'package:raabta/features/eosb/data/eosb_repository.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_storage_policy.dart';
 import 'package:raabta/features/jobs/cv_maker/data/cv_repository.dart';
 import 'package:raabta/features/jobs/cv_maker/domain/models/cv_document.dart';
 import 'package:raabta/features/quick_actions/bill_tracker/data/bill_tracker_repository.dart';
 import 'package:raabta/features/visa/data/deadline_tracker_repository.dart';
 import 'package:raabta/models/intelligence/risk.dart';
 import 'package:raabta/services/ai/expat_score_live_calculator.dart';
-import 'package:raabta/services/ai/expat_score_signal_enricher.dart';
+import 'package:raabta/features/eosb/domain/models/eosb_result.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
 import 'package:raabta/services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,45 +19,57 @@ import 'package:shared_preferences/shared_preferences.dart';
 abstract final class ExpatScoreLiveInputsLoader {
   static Future<ExpatScoreLiveInputs> load({
     required UserAIProfile profile,
+    required String? storageUid,
+    required EosbRepository eosbRepository,
     FirebaseFirestore? firestore,
     SharedPreferences? prefs,
-    EosbRepository? eosbRepository,
     BillTrackerRepository? billRepository,
     DeadlineTrackerRepository? deadlineRepo,
   }) async {
-    final db = firestore ??
+    final db =
+        firestore ??
         (FirebaseService.isReady ? FirebaseFirestore.instance : null);
     final resolvedPrefs = prefs ?? await SharedPreferences.getInstance();
-    final eosbRepo =
-        eosbRepository ?? EosbRepository(resolvedPrefs);
     final billsRepo = billRepository ?? BillTrackerRepository(firestore: db);
-    final uid = profile.uid;
 
-    final enrichedInterests = await ExpatScoreSignalEnricher.enrichInterests(
-      profile: profile,
-      prefs: resolvedPrefs,
-      deadlineRepo: deadlineRepo,
-      firestore: db,
+    final hasStorageUid = storageUid != null && storageUid.isNotEmpty;
+    final salaryConsent =
+        hasStorageUid && eosbRepository.salaryConsent(uid: storageUid);
+
+    final documents = hasStorageUid
+        ? await _loadDocuments(storageUid, db)
+        : const <DocumentVaultRecord>[];
+    final bills = hasStorageUid
+        ? await _loadBills(storageUid, billsRepo)
+        : const <BillDueRecord>[];
+    final cv = hasStorageUid
+        ? await _loadCv(storageUid, resolvedPrefs, db)
+        : null;
+    final eosbHistory = hasStorageUid
+        ? await eosbRepository.loadHistory(uid: storageUid)
+        : const <CalculationHistoryEntry>[];
+    final latestEosb = EosbSalaryStoragePolicy.pickSalaryAwareHistoryEntry(
+      eosbHistory,
+      salaryStorageConsent: salaryConsent,
     );
-    final scoringProfile = profile.copyWith(interests: enrichedInterests);
-
-    final documents = await _loadDocuments(uid, db);
-    final bills = await _loadBills(uid, billsRepo);
-    final cv = await _loadCv(uid, resolvedPrefs, db);
-    final eosbHistory = await eosbRepo.loadHistory(uid: uid);
-    final latestEosb = eosbHistory.isNotEmpty ? eosbHistory.first : null;
-    final overtimeInput = eosbRepo.loadCachedOvertimeInput(uid: uid);
+    final overtimeInput = salaryConsent
+        ? eosbRepository.loadCachedOvertimeInput(uid: storageUid)
+        : null;
 
     return ExpatScoreLiveInputs(
-      profile: scoringProfile,
+      profile: profile,
       documents: documents,
       bills: bills,
       eosbInput: latestEosb?.input,
       eosbBreakdown: latestEosb?.result.breakdown,
       eosbCalculationId: latestEosb?.id,
       eosbSavedAt: latestEosb?.savedAt,
-      overtimeCompanyName: overtimeInput?.companyName ?? '',
-      overtimeBasicSalary: overtimeInput?.basicSalary ?? 0,
+      overtimeCompanyName: salaryConsent
+          ? (overtimeInput?.companyName ?? '')
+          : '',
+      overtimeBasicSalary: salaryConsent
+          ? (overtimeInput?.basicSalary ?? 0)
+          : 0,
       cvDocument: cv,
     );
   }
@@ -152,7 +165,8 @@ abstract final class ExpatScoreLiveInputsLoader {
       if (cv != null) return cv;
     }
 
-    final ids = UidScopedPreferences.getStringList(
+    final ids =
+        UidScopedPreferences.getStringList(
           prefs,
           CvRepository.indexKey,
           uid: uid,
@@ -171,10 +185,7 @@ abstract final class ExpatScoreLiveInputsLoader {
     String uid,
   ) {
     final raw = prefs.getString(
-      UidScopedPreferences.scopedKey(
-        uid,
-        CvRepository.documentBaseKey(id),
-      ),
+      UidScopedPreferences.scopedKey(uid, CvRepository.documentBaseKey(id)),
     );
     if (raw == null) return null;
     try {

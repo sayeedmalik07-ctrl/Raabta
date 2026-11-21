@@ -6,17 +6,29 @@ import 'package:raabta/features/eosb/domain/models/eosb_public_verification_reco
 import 'package:raabta/features/eosb/domain/rules/eosb_certificate_constants.dart';
 import 'package:raabta/features/eosb/services/eosb_certificate_generation_service.dart';
 import 'package:raabta/features/eosb/services/eosb_certificate_registration_service.dart';
+import 'package:raabta/features/eosb/providers/eosb_providers.dart';
+import 'package:raabta/features/eosb/providers/eosb_salary_storage_consent.dart';
 import 'package:raabta/features/eosb/services/eosb_certificate_verification_service.dart';
+import 'package:raabta/providers/auth_scoped_storage_providers.dart';
 
 final eosbCertificateRegistrationServiceProvider =
-    Provider<EosbCertificateRegistrationService>(
-  (ref) => EosbCertificateRegistrationService(),
-);
+    Provider<EosbCertificateRegistrationService>((ref) {
+      ref.watch(currentAuthUidProvider);
+      ref.watch(eosbSalaryConsentProvider);
+      return EosbCertificateRegistrationService(
+        salaryConsent: () {
+          final repo = ref.read(eosbRepositoryProvider).valueOrNull;
+          if (repo == null) return false;
+          final uid = ref.read(currentAuthUidProvider);
+          return repo.salaryConsent(uid: uid);
+        },
+      );
+    });
 
 final eosbCertificateVerificationServiceProvider =
     Provider<EosbCertificateVerificationService>(
-  (ref) => EosbCertificateVerificationService(),
-);
+      (ref) => EosbCertificateVerificationService(),
+    );
 
 /// Session cache after successful registration (Phase 2/3).
 @immutable
@@ -32,13 +44,16 @@ class EosbRegisteredCertificateCacheEntry {
 
 /// Session cache: certificateId → registration metadata.
 final eosbRegisteredVerificationUrlsProvider =
-    StateProvider<Map<String, EosbRegisteredCertificateCacheEntry>>((ref) => {});
+    StateProvider<Map<String, EosbRegisteredCertificateCacheEntry>>(
+      (ref) => {},
+    );
 
 /// Registers a public record and caches the verification URL on success.
 Future<EosbCertificateRegistrationResult> registerEosbCertificate(
   WidgetRef ref,
   EosbPublicVerificationRecord record,
 ) async {
+  await requireEosbSalaryStorageConsent(ref);
   final service = ref.read(eosbCertificateRegistrationServiceProvider);
   final result = await service.register(record);
   if (result.success && result.verificationUrl != null) {
@@ -47,7 +62,8 @@ Future<EosbCertificateRegistrationResult> registerEosbCertificate(
     );
     cache[record.certificateId] = EosbRegisteredCertificateCacheEntry(
       verificationUrl: result.verificationUrl!,
-      cryptographicallySigned: result.record?.isCryptographicallySigned ?? false,
+      cryptographicallySigned:
+          result.record?.isCryptographicallySigned ?? false,
     );
     ref.read(eosbRegisteredVerificationUrlsProvider.notifier).state = cache;
   }
@@ -55,7 +71,8 @@ Future<EosbCertificateRegistrationResult> registerEosbCertificate(
 }
 
 String? registeredVerificationUrl(WidgetRef ref, String certificateId) {
-  return ref.read(eosbRegisteredVerificationUrlsProvider)[certificateId]
+  return ref
+      .read(eosbRegisteredVerificationUrlsProvider)[certificateId]
       ?.verificationUrl;
 }
 
@@ -72,6 +89,7 @@ Future<EosbCertificateRegistrationOutcome> registerEosbCertificateBundle({
   required EosbCertificateSnapshot snapshot,
   required String locale,
 }) async {
+  await requireEosbSalaryStorageConsent(ref);
   final certGen = ref.read(eosbCertificateGenerationServiceProvider);
   final record = EosbPublicVerificationRecord.fromSnapshot(
     snapshot,
@@ -86,11 +104,11 @@ Future<EosbCertificateRegistrationOutcome> registerEosbCertificateBundle({
     return const EosbCertificateRegistrationOutcome.failure('register_failed');
   }
   final bundle = certGen.buildRegistered(
-        snapshot: snapshot,
-        locale: locale,
-        verificationUrl: url,
-        cryptographicallySigned: result.record?.isCryptographicallySigned ?? false,
-      );
+    snapshot: snapshot,
+    locale: locale,
+    verificationUrl: url,
+    cryptographicallySigned: result.record?.isCryptographicallySigned ?? false,
+  );
   return EosbCertificateRegistrationOutcome.success(
     bundle,
     idempotent: result.idempotent,
@@ -112,7 +130,7 @@ class EosbCertificateRegistrationOutcome {
   }) : this._(success: true, bundle: bundle, idempotent: idempotent);
 
   const EosbCertificateRegistrationOutcome.failure(String? error)
-      : this._(success: false, error: error);
+    : this._(success: false, error: error);
 
   final bool success;
   final EosbCertificateBundle? bundle;

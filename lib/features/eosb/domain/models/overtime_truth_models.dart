@@ -127,24 +127,24 @@ class OvertimeEmployeeProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'employeeName': employeeName,
-        'employeeId': employeeId,
-        'companyName': companyName,
-        'normalizedEmployerKey': normalizedEmployerKey,
-        'jobTitle': jobTitle,
-        'project': project,
-        'countryCode': countryCode,
-        'employmentType': employmentType.name,
-        'joiningDate': joiningDate?.toIso8601String(),
-        'basicSalary': basicSalary,
-        'totalSalary': totalSalary,
-        'workingHoursPerDay': workingHoursPerDay,
-        'workingDaysPerWeek': workingDaysPerWeek,
-        'monthlyWorkingDays': monthlyWorkingDays,
-        'shiftType': shiftType.name,
-        'currency': currency,
-        'isRamadanPeriod': isRamadanPeriod,
-      };
+    'employeeName': employeeName,
+    'employeeId': employeeId,
+    'companyName': companyName,
+    'normalizedEmployerKey': normalizedEmployerKey,
+    'jobTitle': jobTitle,
+    'project': project,
+    'countryCode': countryCode,
+    'employmentType': employmentType.name,
+    'joiningDate': joiningDate?.toIso8601String(),
+    'basicSalary': basicSalary,
+    'totalSalary': totalSalary,
+    'workingHoursPerDay': workingHoursPerDay,
+    'workingDaysPerWeek': workingDaysPerWeek,
+    'monthlyWorkingDays': monthlyWorkingDays,
+    'shiftType': shiftType.name,
+    'currency': currency,
+    'isRamadanPeriod': isRamadanPeriod,
+  };
 
   factory OvertimeEmployeeProfile.fromJson(Map<String, dynamic> json) {
     return OvertimeEmployeeProfile(
@@ -266,21 +266,20 @@ class OvertimeDayEntry {
   }
 
   Map<String, dynamic> toJson() => {
-        'date': date.toIso8601String(),
-        'dayCategory': dayCategory.name,
-        'shiftType': shiftType.name,
-        'overtimeHours': overtimeHours,
-        'overtimeMinutes': overtimeMinutes,
-        'notes': notes,
-        'holidayName': holidayName,
-        if (userLoggedStartTime != null)
-          'userLoggedStartTime': userLoggedStartTime,
-        if (userLoggedEndTime != null) 'userLoggedEndTime': userLoggedEndTime,
-        if (employerReportedStartTime != null)
-          'employerReportedStartTime': employerReportedStartTime,
-        if (employerReportedEndTime != null)
-          'employerReportedEndTime': employerReportedEndTime,
-      };
+    'date': date.toIso8601String(),
+    'dayCategory': dayCategory.name,
+    'shiftType': shiftType.name,
+    'overtimeHours': overtimeHours,
+    'overtimeMinutes': overtimeMinutes,
+    'notes': notes,
+    'holidayName': holidayName,
+    if (userLoggedStartTime != null) 'userLoggedStartTime': userLoggedStartTime,
+    if (userLoggedEndTime != null) 'userLoggedEndTime': userLoggedEndTime,
+    if (employerReportedStartTime != null)
+      'employerReportedStartTime': employerReportedStartTime,
+    if (employerReportedEndTime != null)
+      'employerReportedEndTime': employerReportedEndTime,
+  };
 
   factory OvertimeDayEntry.fromJson(Map<String, dynamic> json) {
     return OvertimeDayEntry(
@@ -317,6 +316,7 @@ class OvertimeMonthlyRecord {
     this.isFavorite = false,
     this.createdAt,
     this.updatedAt,
+    this.salaryDetailsStored = true,
   });
 
   final String id;
@@ -330,6 +330,9 @@ class OvertimeMonthlyRecord {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// False when saved under salary-storage consent off (metadata-only history).
+  final bool salaryDetailsStored;
+
   DateTime get periodStart => DateTime(year, month);
   DateTime get periodEnd => DateTime(year, month + 1, 0);
 
@@ -337,8 +340,18 @@ class OvertimeMonthlyRecord {
 
   static String _monthName(int m) {
     const names = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return names[m - 1];
   }
@@ -354,6 +367,7 @@ class OvertimeMonthlyRecord {
     bool? isFavorite,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? salaryDetailsStored,
   }) {
     return OvertimeMonthlyRecord(
       id: id ?? this.id,
@@ -367,21 +381,23 @@ class OvertimeMonthlyRecord {
       isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      salaryDetailsStored: salaryDetailsStored ?? this.salaryDetailsStored,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'year': year,
-        'month': month,
-        'profile': profile.toJson(),
-        'days': days.map((d) => d.toJson()).toList(),
-        'employerPaidOvertime': employerPaidOvertime,
-        'employerReportedHours': employerReportedHours,
-        'isFavorite': isFavorite,
-        'createdAt': createdAt?.toIso8601String(),
-        'updatedAt': updatedAt?.toIso8601String(),
-      };
+    'id': id,
+    'year': year,
+    'month': month,
+    'profile': profile.toJson(),
+    'days': days.map((d) => d.toJson()).toList(),
+    'employerPaidOvertime': employerPaidOvertime,
+    'employerReportedHours': employerReportedHours,
+    'isFavorite': isFavorite,
+    'createdAt': createdAt?.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
+    'salaryDetailsStored': salaryDetailsStored,
+  };
 
   factory OvertimeMonthlyRecord.fromJson(Map<String, dynamic> json) {
     return OvertimeMonthlyRecord(
@@ -405,7 +421,21 @@ class OvertimeMonthlyRecord {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'] as String)
           : null,
+      salaryDetailsStored: _readSalaryDetailsStored(json),
     );
+  }
+
+  static bool _readSalaryDetailsStored(Map<String, dynamic> json) {
+    final explicit = json['salaryDetailsStored'];
+    if (explicit is bool) return explicit;
+    final profile = json['profile'];
+    if (profile is Map<String, dynamic>) {
+      final basic = (profile['basicSalary'] as num?)?.toDouble() ?? 0;
+      final company = profile['companyName'] as String? ?? '';
+      final paid = (json['employerPaidOvertime'] as num?)?.toDouble() ?? 0;
+      return basic > 0 || company.trim().isNotEmpty || paid > 0;
+    }
+    return true;
   }
 
   static OvertimeMonthlyRecord emptyForMonth(int year, int month) {
@@ -436,7 +466,8 @@ class OvertimeMonthlyRecord {
 
     final fullDays = List.generate(
       lastDay,
-      (i) => byDay[i + 1] ?? OvertimeDayEntry(date: DateTime(year, month, i + 1)),
+      (i) =>
+          byDay[i + 1] ?? OvertimeDayEntry(date: DateTime(year, month, i + 1)),
     );
 
     return copyWith(days: fullDays);
@@ -564,24 +595,24 @@ class OvertimeTruthInput {
   }
 
   Map<String, dynamic> toJson() => {
-        'companyName': companyName,
-        'normalizedEmployerKey': normalizedEmployerKey,
-        'basicSalary': basicSalary,
-        'periodStart': periodStart?.toIso8601String(),
-        'periodEnd': periodEnd?.toIso8601String(),
-        'workingDaysPerWeek': workingDaysPerWeek,
-        'standardHoursPerDay': standardHoursPerDay,
-        'isRamadanPeriod': isRamadanPeriod,
-        'inputMode': inputMode.name,
-        'totalHoursWorked': totalHoursWorked,
-        'weekdayOvertimeHours': weekdayOvertimeHours,
-        'restDayHours': restDayHours,
-        'publicHolidayHours': publicHolidayHours,
-        'employerPaidOvertime': employerPaidOvertime,
-        'employerReportedOvertimeHours': employerReportedOvertimeHours,
-        'notes': notes,
-        if (record != null) 'record': record!.toJson(),
-      };
+    'companyName': companyName,
+    'normalizedEmployerKey': normalizedEmployerKey,
+    'basicSalary': basicSalary,
+    'periodStart': periodStart?.toIso8601String(),
+    'periodEnd': periodEnd?.toIso8601String(),
+    'workingDaysPerWeek': workingDaysPerWeek,
+    'standardHoursPerDay': standardHoursPerDay,
+    'isRamadanPeriod': isRamadanPeriod,
+    'inputMode': inputMode.name,
+    'totalHoursWorked': totalHoursWorked,
+    'weekdayOvertimeHours': weekdayOvertimeHours,
+    'restDayHours': restDayHours,
+    'publicHolidayHours': publicHolidayHours,
+    'employerPaidOvertime': employerPaidOvertime,
+    'employerReportedOvertimeHours': employerReportedOvertimeHours,
+    'notes': notes,
+    if (record != null) 'record': record!.toJson(),
+  };
 
   factory OvertimeTruthInput.fromJson(Map<String, dynamic> json) {
     return OvertimeTruthInput(
@@ -605,8 +636,7 @@ class OvertimeTruthInput {
       weekdayOvertimeHours:
           (json['weekdayOvertimeHours'] as num?)?.toDouble() ?? 0,
       restDayHours: (json['restDayHours'] as num?)?.toDouble() ?? 0,
-      publicHolidayHours:
-          (json['publicHolidayHours'] as num?)?.toDouble() ?? 0,
+      publicHolidayHours: (json['publicHolidayHours'] as num?)?.toDouble() ?? 0,
       employerPaidOvertime:
           (json['employerPaidOvertime'] as num?)?.toDouble() ?? 0,
       employerReportedOvertimeHours:
@@ -756,8 +786,9 @@ class OvertimeAiReview {
       missingPayments: List<String>.from(json['missingPayments'] ?? []),
       potentialErrors: List<String>.from(json['potentialErrors'] ?? []),
       calculationExplanation: json['calculationExplanation'] as String? ?? '',
-      questionsForEmployer:
-          List<String>.from(json['questionsForEmployer'] ?? []),
+      questionsForEmployer: List<String>.from(
+        json['questionsForEmployer'] ?? [],
+      ),
       payrollTips: List<String>.from(json['payrollTips'] ?? []),
       nextSteps: List<String>.from(json['nextSteps'] ?? []),
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.7,
@@ -765,15 +796,15 @@ class OvertimeAiReview {
   }
 
   Map<String, dynamic> toJson() => {
-        'summary': summary,
-        'missingPayments': missingPayments,
-        'potentialErrors': potentialErrors,
-        'calculationExplanation': calculationExplanation,
-        'questionsForEmployer': questionsForEmployer,
-        'payrollTips': payrollTips,
-        'nextSteps': nextSteps,
-        'confidence': confidence,
-      };
+    'summary': summary,
+    'missingPayments': missingPayments,
+    'potentialErrors': potentialErrors,
+    'calculationExplanation': calculationExplanation,
+    'questionsForEmployer': questionsForEmployer,
+    'payrollTips': payrollTips,
+    'nextSteps': nextSteps,
+    'confidence': confidence,
+  };
 }
 
 class OvertimeTruthResult {
@@ -812,12 +843,12 @@ class OvertimeTruthResult {
   final String statusKey;
 
   Map<String, dynamic> toJson() => {
-        'record': record.toJson(),
-        'totalOvertimeHours': totalOvertimeHours,
-        'totalLegalOwed': totalLegalOwed,
-        'employerPaid': comparison.employerPaid,
-        'unpaidGap': comparison.unpaidGap,
-        'confidenceScore': confidenceScore,
-        'calculatedAt': calculatedAt.toIso8601String(),
-      };
+    'record': record.toJson(),
+    'totalOvertimeHours': totalOvertimeHours,
+    'totalLegalOwed': totalLegalOwed,
+    'employerPaid': comparison.employerPaid,
+    'unpaidGap': comparison.unpaidGap,
+    'confidenceScore': confidenceScore,
+    'calculatedAt': calculatedAt.toIso8601String(),
+  };
 }

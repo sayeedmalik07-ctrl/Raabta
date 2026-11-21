@@ -22,14 +22,14 @@ class EntitlementBreakdownItem {
   final bool isEstimated;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'titleKey': titleKey,
-        'amount': amount,
-        'formulaKey': formulaKey,
-        'ruleKey': ruleKey,
-        'exampleKey': exampleKey,
-        'isEstimated': isEstimated,
-      };
+    'id': id,
+    'titleKey': titleKey,
+    'amount': amount,
+    'formulaKey': formulaKey,
+    'ruleKey': ruleKey,
+    'exampleKey': exampleKey,
+    'isEstimated': isEstimated,
+  };
 
   factory EntitlementBreakdownItem.fromJson(Map<String, dynamic> json) {
     return EntitlementBreakdownItem(
@@ -60,12 +60,12 @@ class WarningItem {
   final String? readMoreKey;
 
   Map<String, dynamic> toJson() => {
-        'severity': severity.name,
-        'titleKey': titleKey,
-        'explanationKey': explanationKey,
-        'actionKey': actionKey,
-        'readMoreKey': readMoreKey,
-      };
+    'severity': severity.name,
+    'titleKey': titleKey,
+    'explanationKey': explanationKey,
+    'actionKey': actionKey,
+    'readMoreKey': readMoreKey,
+  };
 }
 
 class ViolationItem {
@@ -162,44 +162,47 @@ class EosbResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'totalEntitlement': totalEntitlement,
-        'breakdown': breakdown.map((e) => e.toJson()).toList(),
-        'warnings': warnings.map((e) => e.toJson()).toList(),
-        'explanation': {
-          'summaryKey': explanation.summaryKey,
-          'confidenceScore': explanation.confidenceScore,
-          'stepsKeys': explanation.stepsKeys,
-        },
-        'comparison': comparison == null
-            ? null
-            : {
-                'employerOffer': comparison!.employerOffer,
-                'legalEstimate': comparison!.legalEstimate,
-                'difference': comparison!.difference,
-                'isUnderpaid': comparison!.isUnderpaid,
-              },
-        'calculatedAt': calculatedAt.toIso8601String(),
-      };
+    'totalEntitlement': totalEntitlement,
+    'breakdown': breakdown.map((e) => e.toJson()).toList(),
+    'warnings': warnings.map((e) => e.toJson()).toList(),
+    'explanation': {
+      'summaryKey': explanation.summaryKey,
+      'confidenceScore': explanation.confidenceScore,
+      'stepsKeys': explanation.stepsKeys,
+    },
+    'comparison': comparison == null
+        ? null
+        : {
+            'employerOffer': comparison!.employerOffer,
+            'legalEstimate': comparison!.legalEstimate,
+            'difference': comparison!.difference,
+            'isUnderpaid': comparison!.isUnderpaid,
+          },
+    'calculatedAt': calculatedAt.toIso8601String(),
+  };
 
   factory EosbResult.fromJson(Map<String, dynamic> json) {
     return EosbResult(
       totalEntitlement: (json['totalEntitlement'] as num?)?.toDouble() ?? 0,
       breakdown: (json['breakdown'] as List<dynamic>? ?? [])
-          .map((e) =>
-              EntitlementBreakdownItem.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) => EntitlementBreakdownItem.fromJson(e as Map<String, dynamic>),
+          )
           .toList(),
       warnings: const [],
       violations: const [],
       explanation: CalculationExplanation(
-        summaryKey: (json['explanation'] as Map?)?['summaryKey'] as String? ??
+        summaryKey:
+            (json['explanation'] as Map?)?['summaryKey'] as String? ??
             'eosb_explanation_default',
         confidenceScore:
             ((json['explanation'] as Map?)?['confidenceScore'] as num?)
-                    ?.toDouble() ??
-                0.8,
+                ?.toDouble() ??
+            0.8,
         stepsKeys: const [],
       ),
-      calculatedAt: DateTime.tryParse(json['calculatedAt'] as String? ?? '') ??
+      calculatedAt:
+          DateTime.tryParse(json['calculatedAt'] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -212,6 +215,7 @@ class CalculationHistoryEntry {
     required this.result,
     required this.savedAt,
     this.label,
+    this.salaryDetailsStored = true,
   });
 
   final String id;
@@ -219,4 +223,26 @@ class CalculationHistoryEntry {
   final EosbResult result;
   final DateTime savedAt;
   final String? label;
+
+  /// When false, [input]/[result] salary fields were redacted at save time.
+  final bool salaryDetailsStored;
+}
+
+/// Result of a best-effort Firestore sync (distinct from local persistence).
+enum EosbCloudSyncOutcome { skipped, succeeded, failed }
+
+class EosbHistorySaveOutcome {
+  const EosbHistorySaveOutcome({
+    required this.saved,
+    required this.includesSalaryDetails,
+    this.cloudSync = EosbCloudSyncOutcome.skipped,
+    this.blockedByCorruptStorage = false,
+  });
+
+  final bool saved;
+  final bool includesSalaryDetails;
+  final EosbCloudSyncOutcome cloudSync;
+
+  /// When true, local history JSON was left untouched (OT corruption safeguard).
+  final bool blockedByCorruptStorage;
 }

@@ -4,7 +4,12 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:raabta/core/persistence/local_data_isolation_keys.dart';
+import 'package:raabta/core/persistence/uid_scoped_preferences.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_employee_draft_policy.dart';
+import 'package:raabta/features/eosb/domain/services/overtime_salary_storage_policy.dart';
 import 'package:raabta/services/drafts/draft_box_keys.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Local-only draft payload stored in Hive.
 class DraftRecord {
@@ -21,10 +26,10 @@ class DraftRecord {
   final int schemaVersion;
 
   Map<String, dynamic> toJson() => {
-        'data': data,
-        'savedAt': savedAt.toIso8601String(),
-        'schemaVersion': schemaVersion,
-      };
+    'data': data,
+    'savedAt': savedAt.toIso8601String(),
+    'schemaVersion': schemaVersion,
+  };
 
   static DraftRecord? fromJson(dynamic raw) {
     if (raw is! Map) return null;
@@ -114,26 +119,116 @@ class DraftService {
 
   /// `{uid}::{formId}` — anonymous users use `guest`.
   String storageKey(String formId) {
-    final uid = userIdResolver?.call() ??
+    final uid =
+        userIdResolver?.call() ??
         FirebaseAuth.instance.currentUser?.uid ??
         'guest';
     return '$uid::$formId';
   }
 
   Future<void> saveDraft(String formId, Map<String, dynamic> data) async {
+    var payload = data;
     if (data.isEmpty || _isEffectivelyEmpty(data)) return;
+    if (OvertimeSalaryStoragePolicy.isOvertimeSalaryDraftForm(formId) ||
+        EosbEmployeeDraftPolicy.isEosbEmployeeInfoDraft(formId)) {
+      final allowed = await _eosbSalaryStorageAllowed();
+      if (!allowed) {
+        if (OvertimeSalaryStoragePolicy.isOvertimeSalaryDraftForm(formId)) {
+          await clearDraft(formId);
+          return;
+        }
+        payload = EosbEmployeeDraftPolicy.stripSalaryFields(data);
+        if (_isEffectivelyEmpty(payload)) {
+          await clearDraft(formId);
+          return;
+        }
+      }
+    }
     await init();
     final box = _box;
     if (box == null) return;
     try {
-      final record = DraftRecord(
-        data: data,
-        savedAt: DateTime.now(),
-      );
+      final record = DraftRecord(data: payload, savedAt: DateTime.now());
       await box.put(storageKey(formId), record.toJson());
     } catch (e) {
       debugPrint('DraftService save failed ($formId): $e');
     }
+  }
+
+  Future<bool> _eosbSalaryStorageAllowed() async {
+    final uid =
+        userIdResolver?.call() ?? FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty || uid == 'guest') return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return UidScopedPreferences.getBool(
+            prefs,
+            LocalDataIsolationKeys.eosbSalaryConsent,
+            uid: uid,
+          ) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Clears overtime input/profile/calendar drafts for [uid] (consent revoked).
+  Future<void> clearOvertimeSalaryDraftsForUid(String uid) async {
+    await init();
+    final box = _box;
+    if (box == null) return;
+    final prefix = '$uid::';
+    final keysToDelete = <dynamic>[];
+    for (final key in box.keys) {
+      final keyStr = key.toString();
+      if (!keyStr.startsWith(prefix)) continue;
+      final formId = keyStr.substring(prefix.length);
+      if (OvertimeSalaryStoragePolicy.isOvertimeSalaryDraftForm(formId)) {
+        keysToDelete.add(key);
+      }
+    }
+    for (final key in keysToDelete) {
+      await box.delete(key);
+    }
+  }
+
+  /// Strips or removes EOSB employee drafts that contain salary after consent off.
+  Future<void> revokeConsentEosbEmployeeDraftForUid(String uid) async {
+    await init();
+    final box = _box;
+    if (box == null) return;
+    final storage = '$uid::${DraftBoxKeys.eosbEmployeeInfo}';
+    final raw = box.get(storage);
+    if (raw == null) return;
+    Map<String, dynamic>? parsed;
+    if (raw is Map) {
+      parsed = Map<String, dynamic>.from(raw);
+    } else if (raw is String) {
+      parsed = jsonDecode(raw) as Map<String, dynamic>?;
+    }
+    final record = DraftRecord.fromJson(parsed);
+    if (record == null) {
+      await box.delete(storage);
+      return;
+    }
+    if (!EosbEmployeeDraftPolicy.containsSalaryBearingValues(record.data)) {
+      return;
+    }
+    final stripped = EosbEmployeeDraftPolicy.stripSalaryFields(record.data);
+    if (_isEffectivelyEmpty(stripped)) {
+      await box.delete(storage);
+      return;
+    }
+    await box.put(
+      storage,
+      DraftRecord(data: stripped, savedAt: record.savedAt).toJson(),
+    );
+  }
+
+  /// Overtime + EOSB employee Hive drafts affected by salary-storage consent.
+  Future<void> clearSalarySensitiveEosbDraftsForUid(String uid) async {
+    await clearOvertimeSalaryDraftsForUid(uid);
+    await revokeConsentEosbEmployeeDraftForUid(uid);
   }
 
   Future<DraftRecord?> getDraft(String formId) async {
@@ -157,6 +252,35 @@ class DraftService {
       if (record.isExpired) {
         await clearDraft(formId);
         return null;
+      }
+      if (EosbEmployeeDraftPolicy.isEosbEmployeeInfoDraft(formId)) {
+        final allowed = await _eosbSalaryStorageAllowed();
+        if (!allowed) {
+          final stripped = EosbEmployeeDraftPolicy.stripSalaryFields(
+            record.data,
+          );
+          if (_isEffectivelyEmpty(stripped)) {
+            await clearDraft(formId);
+            return null;
+          }
+          if (EosbEmployeeDraftPolicy.containsSalaryBearingValues(
+            record.data,
+          )) {
+            await box.put(
+              storageKey(formId),
+              DraftRecord(
+                data: stripped,
+                savedAt: record.savedAt,
+                schemaVersion: record.schemaVersion,
+              ).toJson(),
+            );
+          }
+          return DraftRecord(
+            data: stripped,
+            savedAt: record.savedAt,
+            schemaVersion: record.schemaVersion,
+          );
+        }
       }
       return record;
     } catch (e) {
@@ -185,7 +309,8 @@ class DraftService {
     final box = _box;
     if (box == null) return const [];
 
-    final uid = userIdResolver?.call() ??
+    final uid =
+        userIdResolver?.call() ??
         FirebaseAuth.instance.currentUser?.uid ??
         'guest';
     final prefix = '$uid::';
@@ -211,9 +336,7 @@ class DraftService {
       results.add((formId: formId, record: record));
     }
 
-    results.sort(
-      (a, b) => b.record.savedAt.compareTo(a.record.savedAt),
-    );
+    results.sort((a, b) => b.record.savedAt.compareTo(a.record.savedAt));
     return results;
   }
 

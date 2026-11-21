@@ -1,20 +1,28 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:raabta/data/raabta_ai_brain.dart';
 import 'package:raabta/features/eosb/domain/services/overtime_rounding_pattern_analyzer.dart';
 import 'package:raabta/features/eosb/domain/models/overtime_truth_models.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
 import 'package:raabta/features/eosb/providers/eosb_providers.dart';
 import 'package:raabta/features/eosb/providers/overtime_truth_providers.dart';
 import 'package:raabta/features/eosb/services/overtime_review_template_service.dart';
 import 'package:raabta/features/truth_engine/domain/truth_package.dart';
 import 'package:raabta/services/ai/claude_ai_service.dart';
 
+/// Import failed (AI, network, or unparseable response) — no raw payload attached.
+class OvertimeAiImportFailure implements Exception {
+  const OvertimeAiImportFailure();
+}
+
 /// Claude is used ONLY for overtime document import — not for reviews.
 class OvertimeAiService {
-  OvertimeAiService(this._claude);
+  OvertimeAiService(this._claude, this._salaryConsent);
 
   final ClaudeAIService _claude;
+  final EosbSalaryClaudeConsentGuard _salaryConsent;
 
   static const _importSchema = '''
 Return ONLY valid JSON (no markdown):
@@ -41,10 +49,7 @@ Return ONLY valid JSON (no markdown):
     final langCode = _languageCode(language);
     final package = TruthPackage(
       engineType: TruthPackageCatalog.eosb,
-      facts: {
-        'documentKind': documentKind,
-        'documentText': documentText,
-      },
+      facts: {'documentKind': documentKind, 'documentText': documentText},
       calculation: const {},
       assumptions: TruthPackageCatalog.eosbAssumptions(),
       unknowns: TruthPackageCatalog.eosbUnknowns(),
@@ -63,26 +68,52 @@ Extract overtime-relevant payroll fields from facts.documentText.
 $_importSchema''',
     );
 
-    final raw = await _claude.sendMessage(
-      prompt,
-      language: language,
-      requestType: 'eosb_overtime_import',
-    );
-    return _parseJson(raw);
+    try {
+      final raw = await _salaryConsent.sendClaudeMessage(
+        _claude,
+        message: prompt,
+        language: language,
+        requestType: EosbSalarySensitiveClaudeRequestTypes.eosbOvertimeImport,
+      );
+      return _parseJson(raw);
+    } on EosbSalaryClaudeConsentRequired {
+      rethrow;
+    } on OvertimeAiImportFailure {
+      rethrow;
+    } catch (_) {
+      throw const OvertimeAiImportFailure();
+    }
   }
 
+  @visibleForTesting
+  Map<String, dynamic> parseImportJsonResponse(String raw) => _parseJson(raw);
+
   Map<String, dynamic> _parseJson(String raw) {
-    var text = raw.trim();
-    if (text.startsWith('```')) {
-      text = text.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
-      text = text.replaceFirst(RegExp(r'\s*```$'), '');
-    }
-    final start = text.indexOf('{');
-    final end = text.lastIndexOf('}');
-    if (start >= 0 && end > start) {
+    try {
+      var text = raw.trim();
+      if (text.isEmpty) {
+        throw const OvertimeAiImportFailure();
+      }
+      if (text.startsWith('```')) {
+        text = text.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
+        text = text.replaceFirst(RegExp(r'\s*```$'), '');
+      }
+      final start = text.indexOf('{');
+      final end = text.lastIndexOf('}');
+      if (start < 0 || end <= start) {
+        throw const OvertimeAiImportFailure();
+      }
       text = text.substring(start, end + 1);
+      final decoded = jsonDecode(text);
+      if (decoded is! Map) {
+        throw const OvertimeAiImportFailure();
+      }
+      return Map<String, dynamic>.from(decoded);
+    } on OvertimeAiImportFailure {
+      rethrow;
+    } on FormatException {
+      throw const OvertimeAiImportFailure();
     }
-    return jsonDecode(text) as Map<String, dynamic>;
   }
 
   static const requestTypeRoundingExplain = 'eosb_overtime_rounding_explain';
@@ -111,8 +142,9 @@ $_importSchema''',
       sourceRefs: TruthPackageCatalog.eosbSourceRefs(),
     );
 
-    final reply = await _claude.sendMessage(
-      TruthPackagePrompt.build(
+    final reply = await _salaryConsent.sendClaudeMessage(
+      _claude,
+      message: TruthPackagePrompt.build(
         package: package,
         locale: locale,
         trailingInstructions: '''
@@ -141,7 +173,10 @@ $_importSchema''',
 }
 
 final overtimeAiServiceProvider = Provider<OvertimeAiService>((ref) {
-  return OvertimeAiService(ref.watch(claudeAIServiceProvider));
+  return OvertimeAiService(
+    ref.watch(claudeAIServiceProvider),
+    ref.watch(eosbSalaryClaudeConsentGuardProvider),
+  );
 });
 
 class OvertimeAiReviewRequest {
@@ -159,19 +194,19 @@ class OvertimeAiReviewRequest {
   int get hashCode => forceRegenerate.hashCode;
 }
 
-final overtimeReviewTemplateProvider =
-    Provider((_) => const OvertimeReviewTemplateService());
+final overtimeReviewTemplateProvider = Provider(
+  (_) => const OvertimeReviewTemplateService(),
+);
 
 final overtimeAiReviewProvider =
     Provider.family<OvertimeAiReview?, OvertimeAiReviewRequest>((ref, request) {
-  final localeAsync = ref.watch(eosbLocaleProvider);
-  final result = ref.watch(overtimeTruthProvider).result;
-  final locale = localeAsync.valueOrNull ?? 'English';
+      final localeAsync = ref.watch(eosbLocaleProvider);
+      final result = ref.watch(overtimeTruthProvider).result;
+      final locale = localeAsync.valueOrNull ?? 'English';
 
-  if (result == null) return null;
+      if (result == null) return null;
 
-  return ref.watch(overtimeReviewTemplateProvider).generate(
-        result: result,
-        locale: locale,
-      );
-});
+      return ref
+          .watch(overtimeReviewTemplateProvider)
+          .generate(result: result, locale: locale);
+    });

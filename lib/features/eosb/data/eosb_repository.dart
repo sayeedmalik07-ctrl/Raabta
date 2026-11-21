@@ -2,19 +2,47 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:raabta/core/persistence/local_data_isolation_keys.dart';
 import 'package:raabta/core/persistence/uid_scoped_preferences.dart';
+import 'package:raabta/features/eosb/data/eosb_history_storage.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_employee_input.dart';
+import 'package:raabta/features/eosb/domain/models/eosb_history_load_outcome.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_result.dart';
 import 'package:raabta/features/eosb/domain/models/overtime_truth_models.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_storage_policy.dart';
+import 'package:raabta/features/eosb/domain/services/overtime_salary_storage_policy.dart';
 import 'package:raabta/features/eosb/domain/services/overtime_truth_engine.dart';
+import 'package:raabta/services/drafts/draft_service.dart';
 import 'package:raabta/features/legal_sources/data/legal_sources_seed_catalog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+typedef EosbCurrentAuthUserResolver = User? Function();
+
 class EosbRepository {
-  EosbRepository(this._prefs);
+  EosbRepository(
+    this._prefs, {
+    FirebaseFirestore? firestore,
+    @visibleForTesting this._currentAuthUser,
+  }) : _firestoreOverride = firestore;
 
   final SharedPreferences _prefs;
+  final FirebaseFirestore? _firestoreOverride;
+  @visibleForTesting
+  final EosbCurrentAuthUserResolver? _currentAuthUser;
+
+  FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+
+  User? _readCurrentAuthUser() {
+    final resolver = _currentAuthUser;
+    if (resolver != null) return resolver();
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// SharedPreferences keys — also read by Expat Score signal enrichment.
   static const calculationHistoryKey =
@@ -32,13 +60,17 @@ class EosbRepository {
     );
   }
 
+  Future<void> clearOfflineInputCache({String? uid}) async {
+    await UidScopedPreferences.remove(
+      _prefs,
+      LocalDataIsolationKeys.eosbOfflineCache,
+      uid: uid,
+    );
+  }
+
   Future<void> cacheInput(EosbEmployeeInput input, {String? uid}) async {
-    if (!input.storeSalaryWithConsent) {
-      await UidScopedPreferences.remove(
-        _prefs,
-        LocalDataIsolationKeys.eosbOfflineCache,
-        uid: uid,
-      );
+    if (!salaryConsent(uid: uid)) {
+      await clearOfflineInputCache(uid: uid);
       return;
     }
     await UidScopedPreferences.setString(
@@ -50,6 +82,7 @@ class EosbRepository {
   }
 
   EosbEmployeeInput? loadCachedInput({String? uid}) {
+    if (!salaryConsent(uid: uid)) return null;
     final raw = UidScopedPreferences.getString(
       _prefs,
       LocalDataIsolationKeys.eosbOfflineCache,
@@ -65,50 +98,41 @@ class EosbRepository {
     }
   }
 
-  Future<List<CalculationHistoryEntry>> loadHistory({String? uid}) async {
+  Future<EosbCalculationHistoryLoadOutcome> loadHistoryOutcome({
+    String? uid,
+  }) async {
     final raw = UidScopedPreferences.getString(
       _prefs,
       LocalDataIsolationKeys.eosbCalculationHistory,
       uid: uid,
     );
-    if (raw == null) return [];
-    try {
-      final list = jsonDecode(raw) as List<dynamic>;
-      return list.map((e) {
-        final map = e as Map<String, dynamic>;
-        return CalculationHistoryEntry(
-          id: map['id'] as String? ?? '',
-          input: EosbEmployeeInput.fromJson(
-            map['input'] as Map<String, dynamic>,
-          ),
-          result: EosbResult.fromJson(
-            map['result'] as Map<String, dynamic>,
-          ),
-          savedAt: DateTime.tryParse(map['savedAt'] as String? ?? '') ??
-              DateTime.now(),
-          label: map['label'] as String?,
-        );
-      }).toList();
-    } catch (_) {
-      return [];
-    }
+    return EosbHistoryStorage.parseCalculationHistory(raw);
   }
 
-  /// Persists locally under UID-scoped [calculationHistoryKey].
-  ///
-  /// Returns `false` when no UID is available or SharedPreferences write fails.
-  Future<bool> saveHistoryEntry(
+  Future<List<CalculationHistoryEntry>> loadHistory({String? uid}) async {
+    final outcome = await loadHistoryOutcome(uid: uid);
+    return outcome.records;
+  }
+
+  /// Returns [EosbHistorySaveOutcome.saved] false when no UID or write fails.
+  Future<EosbHistorySaveOutcome> saveHistoryEntry(
     CalculationHistoryEntry entry, {
     String? uid,
   }) async {
-    final persisted = CalculationHistoryEntry(
-      id: entry.id,
-      input: entry.input.forPersistence(),
-      result: entry.result,
-      savedAt: entry.savedAt,
-      label: entry.label,
+    final includeSalary = salaryConsent(uid: uid);
+    final persisted = EosbSalaryStoragePolicy.prepareHistoryEntry(
+      entry: entry,
+      includeSalaryDetails: includeSalary,
     );
-    final history = await loadHistory(uid: uid);
+    final loadOutcome = await loadHistoryOutcome(uid: uid);
+    if (loadOutcome.isStorageCorrupt) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+        blockedByCorruptStorage: true,
+      );
+    }
+    final history = List<CalculationHistoryEntry>.from(loadOutcome.records);
     history.insert(0, persisted);
     final trimmed = history.take(50).toList();
     final saved = await UidScopedPreferences.setString(
@@ -123,22 +147,47 @@ class EosbRepository {
                 'result': e.result.toJson(),
                 'savedAt': e.savedAt.toIso8601String(),
                 'label': e.label,
+                'salaryDetailsStored': e.salaryDetailsStored,
               },
             )
             .toList(),
       ),
       uid: uid,
     );
-    if (!saved) return false;
+    if (!saved) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+      );
+    }
 
-    await _syncToFirestore(persisted, uid: uid);
-    return true;
+    final cloudSync = await _syncToFirestore(
+      persisted,
+      uid: uid,
+      includeSalaryDetails: includeSalary,
+    );
+    return EosbHistorySaveOutcome(
+      saved: true,
+      includesSalaryDetails: includeSalary,
+      cloudSync: cloudSync,
+    );
   }
 
-  Future<void> deleteHistoryEntry(String id, {String? uid}) async {
-    final history = await loadHistory(uid: uid);
+  Future<EosbHistorySaveOutcome> deleteHistoryEntry(
+    String id, {
+    String? uid,
+  }) async {
+    final loadOutcome = await loadHistoryOutcome(uid: uid);
+    if (loadOutcome.isStorageCorrupt) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+        blockedByCorruptStorage: true,
+      );
+    }
+    final history = List<CalculationHistoryEntry>.from(loadOutcome.records);
     history.removeWhere((e) => e.id == id);
-    await UidScopedPreferences.setString(
+    final saved = await UidScopedPreferences.setString(
       _prefs,
       LocalDataIsolationKeys.eosbCalculationHistory,
       jsonEncode(
@@ -150,98 +199,109 @@ class EosbRepository {
                 'result': e.result.toJson(),
                 'savedAt': e.savedAt.toIso8601String(),
                 'label': e.label,
+                'salaryDetailsStored': e.salaryDetailsStored,
               },
             )
             .toList(),
       ),
       uid: uid,
     );
+    if (!saved) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+      );
+    }
+    return const EosbHistorySaveOutcome(
+      saved: true,
+      includesSalaryDetails: false,
+    );
   }
 
-  Future<void> _syncToFirestore(
+  Future<EosbCloudSyncOutcome> _syncToFirestore(
     CalculationHistoryEntry entry, {
     String? uid,
+    required bool includeSalaryDetails,
   }) async {
-    User? user;
-    try {
-      user = FirebaseAuth.instance.currentUser;
-    } catch (_) {
-      return;
-    }
+    final user = _readCurrentAuthUser();
     final resolvedUid = UidScopedPreferences.resolveUid(uid);
     if (user == null || resolvedUid == null || user.uid != resolvedUid) {
-      return;
+      return EosbCloudSyncOutcome.skipped;
     }
 
-    final history = await loadHistory(uid: uid);
-    final legalVerified =
-        LegalSourcesSeedCatalog.seedLatestVerified.toIso8601String();
+    final history = (await loadHistoryOutcome(uid: uid)).records;
+    final legalVerified = LegalSourcesSeedCatalog.seedLatestVerified
+        .toIso8601String();
 
     try {
-      final userRef =
-          FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final userRef = _firestore.collection('users').doc(user.uid);
 
-      await userRef.collection('eosb_calculations').doc(entry.id).set({
-        'companyName': entry.input.companyName,
-        'normalizedEmployerKey': entry.input.effectiveNormalizedEmployerKey,
-        'totalEntitlement': entry.result.totalEntitlement,
-        'calculatedAt': entry.result.calculatedAt.toIso8601String(),
-        'legalVersionVerifiedAt': legalVerified,
-        'contractType': entry.input.contractType.name,
-        'contractEndDate': entry.input.lastWorkingDate?.toIso8601String(),
-        'joiningDate': entry.input.joiningDate?.toIso8601String(),
-        'employerOffer': entry.input.employerOffer,
-        'label': entry.label,
-        'hasSalaryData': entry.input.storeSalaryWithConsent,
-        'violationRuleKeys':
-            entry.result.violations.map((v) => v.ruleKey).toList(),
-        'violationTitleKeys':
-            entry.result.violations.map((v) => v.titleKey).toList(),
-        'engineSource': 'eosb',
-      }, SetOptions(merge: true));
+      await userRef
+          .collection('eosb_calculations')
+          .doc(entry.id)
+          .set(
+            EosbSalaryStoragePolicy.firestoreCalculationDoc(
+              entry: entry,
+              legalVersionVerifiedAt: legalVerified,
+              includeSalaryDetails: includeSalaryDetails,
+            ),
+            SetOptions(merge: true),
+          );
 
       await userRef.set({
-        'eosbSummary': {
-          'calculationCount': history.length,
-          'latestCalculationId': entry.id,
-          'latestCalculatedAt': entry.result.calculatedAt.toIso8601String(),
-          'legalVersionVerifiedAt': legalVerified,
-          'contractEndDate': entry.input.lastWorkingDate?.toIso8601String(),
-          'contractType': entry.input.contractType.name,
-          'joiningDate': entry.input.joiningDate?.toIso8601String(),
-        },
+        'eosbSummary': EosbSalaryStoragePolicy.firestoreUserSummary(
+          calculationCount: history.length,
+          entry: entry,
+          legalVersionVerifiedAt: legalVerified,
+          includeSalaryDetails: includeSalaryDetails,
+        ),
       }, SetOptions(merge: true));
-    } catch (_) {}
+      return EosbCloudSyncOutcome.succeeded;
+    } catch (_) {
+      return EosbCloudSyncOutcome.failed;
+    }
   }
 
   /// Forward-only Firestore sync for Employer Track Record aggregation (Part B).
-  Future<void> syncOvertimeCalculation(OvertimeTruthResult result) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  Future<EosbCloudSyncOutcome> syncOvertimeCalculation(
+    OvertimeTruthResult result, {
+    String? uid,
+  }) async {
+    final user = _readCurrentAuthUser();
+    if (user == null) return EosbCloudSyncOutcome.skipped;
 
+    final resolvedUid = UidScopedPreferences.resolveUid(uid);
+    if (resolvedUid == null || user.uid != resolvedUid) {
+      return EosbCloudSyncOutcome.skipped;
+    }
+
+    final includeSalary = salaryConsent(uid: uid);
     final record = result.record.forPersistence();
     final profile = record.profile;
     final employerKey = profile.effectiveNormalizedEmployerKey;
-    if (employerKey.isEmpty) return;
+    if (includeSalary && employerKey.isEmpty) {
+      return EosbCloudSyncOutcome.skipped;
+    }
 
     try {
       final calculatedAt =
           record.updatedAt ?? record.createdAt ?? DateTime.now();
-      await FirebaseFirestore.instance
+      final payload = OvertimeSalaryStoragePolicy.firestoreOvertimeDoc(
+        record: record,
+        calculatedAt: calculatedAt,
+        violationFlagged: result.comparison.isUnderpaid,
+        includeSalaryDetails: includeSalary,
+      );
+      await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('overtime_calculations')
           .doc(record.id)
-          .set({
-        'companyName': profile.companyName,
-        'normalizedEmployerKey': employerKey,
-        'calculatedAt': calculatedAt.toIso8601String(),
-        'violationFlagged': result.comparison.isUnderpaid,
-        'engineSource': 'overtime',
-        'year': record.year,
-        'month': record.month,
-      }, SetOptions(merge: true));
-    } catch (_) {}
+          .set(payload, SetOptions(merge: true));
+      return EosbCloudSyncOutcome.succeeded;
+    } catch (_) {
+      return EosbCloudSyncOutcome.failed;
+    }
   }
 
   bool salaryConsent({String? uid}) =>
@@ -259,21 +319,139 @@ class EosbRepository {
       value,
       uid: uid,
     );
+    if (!value) {
+      await clearOfflineInputCache(uid: uid);
+      await clearOvertimeOfflineCaches(uid: uid);
+      final resolved = UidScopedPreferences.resolveUid(uid);
+      if (resolved != null) {
+        await DraftService.instance.clearSalarySensitiveEosbDraftsForUid(
+          resolved,
+        );
+      }
+      await _redactLocalSalaryHistories(uid: uid);
+      await _redactCloudSalaryFields(uid: uid);
+    }
   }
 
-  String locale({String? uid}) =>
-      UidScopedPreferences.getString(
+  Future<void> _redactLocalSalaryHistories({String? uid}) async {
+    final calcOutcome = await loadHistoryOutcome(uid: uid);
+    if (!calcOutcome.isStorageCorrupt &&
+        calcOutcome.records.any((e) => e.salaryDetailsStored)) {
+      final redacted = calcOutcome.records
+          .map(
+            (e) => EosbSalaryStoragePolicy.prepareHistoryEntry(
+              entry: e,
+              includeSalaryDetails: false,
+            ),
+          )
+          .toList();
+      await UidScopedPreferences.setString(
         _prefs,
-        LocalDataIsolationKeys.eosbLocale,
+        LocalDataIsolationKeys.eosbCalculationHistory,
+        jsonEncode(
+          redacted
+              .map(
+                (e) => {
+                  'id': e.id,
+                  'input': e.input.toJson(),
+                  'result': e.result.toJson(),
+                  'savedAt': e.savedAt.toIso8601String(),
+                  'label': e.label,
+                  'salaryDetailsStored': e.salaryDetailsStored,
+                },
+              )
+              .toList(),
+        ),
         uid: uid,
-      ) ??
-      '';
+      );
+    }
 
-  Future<void> setLocale(String locale, {String? uid}) async {
-    await UidScopedPreferences.setString(
+    final otOutcome = loadOvertimeHistoryOutcome(uid: uid);
+    if (!otOutcome.isStorageCorrupt &&
+        otOutcome.records.any((r) => r.salaryDetailsStored)) {
+      final redacted = otOutcome.records
+          .map(
+            (r) => OvertimeSalaryStoragePolicy.redactRecord(
+              r.forPersistence(),
+            ).copyWith(isFavorite: r.isFavorite, updatedAt: r.updatedAt),
+          )
+          .toList();
+      await UidScopedPreferences.setString(
+        _prefs,
+        LocalDataIsolationKeys.eosbOvertimeHistory,
+        jsonEncode(redacted.map((r) => r.toJson()).toList()),
+        uid: uid,
+      );
+    }
+  }
+
+  Future<void> _redactCloudSalaryFields({String? uid}) async {
+    final user = _readCurrentAuthUser();
+    final resolvedUid = UidScopedPreferences.resolveUid(uid);
+    if (user == null || resolvedUid == null || user.uid != resolvedUid) {
+      return;
+    }
+
+    final legalVerified = LegalSourcesSeedCatalog.seedLatestVerified
+        .toIso8601String();
+    final userRef = _firestore.collection('users').doc(user.uid);
+
+    final calcOutcome = await loadHistoryOutcome(uid: uid);
+    if (!calcOutcome.isStorageCorrupt && calcOutcome.records.isNotEmpty) {
+      try {
+        for (final entry in calcOutcome.records) {
+          await userRef
+              .collection('eosb_calculations')
+              .doc(entry.id)
+              .set(
+                EosbSalaryStoragePolicy.firestoreCalculationDoc(
+                  entry: entry,
+                  legalVersionVerifiedAt: legalVerified,
+                  includeSalaryDetails: false,
+                ),
+                SetOptions(merge: true),
+              );
+        }
+        await userRef.set({
+          'eosbSummary': EosbSalaryStoragePolicy.firestoreUserSummary(
+            calculationCount: calcOutcome.records.length,
+            entry: calcOutcome.records.first,
+            legalVersionVerifiedAt: legalVerified,
+            includeSalaryDetails: false,
+          ),
+        }, SetOptions(merge: true));
+      } catch (_) {
+        // Best-effort cloud redaction; local history already redacted.
+      }
+    }
+
+    final otOutcome = loadOvertimeHistoryOutcome(uid: uid);
+    if (!otOutcome.isStorageCorrupt && otOutcome.records.isNotEmpty) {
+      try {
+        for (final record in otOutcome.records) {
+          await userRef
+              .collection('overtime_calculations')
+              .doc(record.id)
+              .set(
+                OvertimeSalaryStoragePolicy.firestoreOvertimeSalaryRevocationPatch(),
+                SetOptions(merge: true),
+              );
+        }
+      } catch (_) {
+        // Best-effort cloud redaction.
+      }
+    }
+  }
+
+  Future<void> clearOvertimeOfflineCaches({String? uid}) async {
+    await UidScopedPreferences.remove(
       _prefs,
-      LocalDataIsolationKeys.eosbLocale,
-      locale,
+      LocalDataIsolationKeys.eosbOvertimeInput,
+      uid: uid,
+    );
+    await UidScopedPreferences.remove(
+      _prefs,
+      LocalDataIsolationKeys.eosbOvertimeResult,
       uid: uid,
     );
   }
@@ -282,6 +460,10 @@ class EosbRepository {
     OvertimeTruthInput input, {
     String? uid,
   }) async {
+    if (!salaryConsent(uid: uid)) {
+      await clearOvertimeOfflineCaches(uid: uid);
+      return;
+    }
     await UidScopedPreferences.setString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeInput,
@@ -291,6 +473,7 @@ class EosbRepository {
   }
 
   OvertimeTruthInput? loadCachedOvertimeInput({String? uid}) {
+    if (!salaryConsent(uid: uid)) return null;
     final raw = UidScopedPreferences.getString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeInput,
@@ -310,6 +493,14 @@ class EosbRepository {
     OvertimeTruthResult result, {
     String? uid,
   }) async {
+    if (!salaryConsent(uid: uid)) {
+      await UidScopedPreferences.remove(
+        _prefs,
+        LocalDataIsolationKeys.eosbOvertimeResult,
+        uid: uid,
+      );
+      return;
+    }
     await UidScopedPreferences.setString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeResult,
@@ -319,6 +510,7 @@ class EosbRepository {
   }
 
   OvertimeTruthResult? loadCachedOvertimeResult({String? uid}) {
+    if (!salaryConsent(uid: uid)) return null;
     final raw = UidScopedPreferences.getString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeResult,
@@ -341,32 +533,55 @@ class EosbRepository {
     }
   }
 
-  Future<void> saveOvertimeHistory(
+  /// Returns [EosbHistorySaveOutcome.saved] false when no UID or write fails.
+  Future<EosbHistorySaveOutcome> saveOvertimeHistory(
     List<OvertimeMonthlyRecord> records, {
     String? uid,
   }) async {
-    await UidScopedPreferences.setString(
+    final includeSalary = salaryConsent(uid: uid);
+    final existingOutcome = loadOvertimeHistoryOutcome(uid: uid);
+    if (existingOutcome.isStorageCorrupt) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+        blockedByCorruptStorage: true,
+      );
+    }
+    final existing = existingOutcome.records;
+    final existingById = {for (final r in existing) r.id: r};
+    final persisted = OvertimeSalaryStoragePolicy.prepareHistoryList(
+      records: records,
+      includeSalaryDetails: includeSalary,
+      existingById: existingById,
+    );
+    final saved = await UidScopedPreferences.setString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeHistory,
-      jsonEncode(records.map((r) => r.forPersistence().toJson()).toList()),
+      jsonEncode(persisted.map((r) => r.toJson()).toList()),
       uid: uid,
+    );
+    if (!saved) {
+      return const EosbHistorySaveOutcome(
+        saved: false,
+        includesSalaryDetails: false,
+      );
+    }
+    return EosbHistorySaveOutcome(
+      saved: true,
+      includesSalaryDetails: includeSalary,
     );
   }
 
-  List<OvertimeMonthlyRecord> loadOvertimeHistory({String? uid}) {
+  OvertimeHistoryLoadOutcome loadOvertimeHistoryOutcome({String? uid}) {
     final raw = UidScopedPreferences.getString(
       _prefs,
       LocalDataIsolationKeys.eosbOvertimeHistory,
       uid: uid,
     );
-    if (raw == null) return [];
-    try {
-      final list = jsonDecode(raw) as List<dynamic>;
-      return list
-          .map((e) => OvertimeMonthlyRecord.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return [];
-    }
+    return EosbHistoryStorage.parseOvertimeHistory(raw);
+  }
+
+  List<OvertimeMonthlyRecord> loadOvertimeHistory({String? uid}) {
+    return loadOvertimeHistoryOutcome(uid: uid).records;
   }
 }

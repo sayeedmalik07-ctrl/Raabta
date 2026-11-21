@@ -5,21 +5,32 @@ import 'package:http/http.dart' as http;
 import 'package:raabta/config/app_config.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_certificate_verification_result.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_public_verification_record.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
+
+/// UID-scoped salary storage consent reader for registration.
+typedef EosbSalaryStorageConsentReader = bool Function();
 
 /// Registers immutable public certificate records on Raabta server (Phase 2).
 ///
 /// Never sends PII — only [EosbPublicVerificationRecord] fields.
 class EosbCertificateRegistrationService {
-  EosbCertificateRegistrationService({http.Client? client})
-      : _client = client ?? http.Client();
+  EosbCertificateRegistrationService({
+    http.Client? client,
+    EosbSalaryStorageConsentReader? salaryConsent,
+  }) : _client = client ?? http.Client(),
+       _salaryConsent = salaryConsent ?? (() => false);
 
   static const _base = '${AppConfig.backendUrl}/api/eosb/certificates';
 
   final http.Client _client;
+  final EosbSalaryStorageConsentReader _salaryConsent;
 
   Future<EosbCertificateRegistrationResult> register(
     EosbPublicVerificationRecord record,
   ) async {
+    if (!_salaryConsent()) {
+      throw const EosbSalaryStorageConsentRequired();
+    }
     try {
       final res = await _client
           .post(
@@ -51,8 +62,10 @@ class EosbCertificateRegistrationService {
       }
 
       return EosbCertificateRegistrationResult.fromServerJson(data);
-    } catch (e, st) {
-      debugPrint('EOSB register error: $e\n$st');
+    } catch (_) {
+      if (kDebugMode) {
+        debugPrint('EOSB register failed: network_error');
+      }
       return const EosbCertificateRegistrationResult(
         success: false,
         error: 'network_error',

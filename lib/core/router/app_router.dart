@@ -202,7 +202,6 @@ import 'package:raabta/features/eosb/presentation/screens/legal_warnings_screen.
 import 'package:raabta/features/eosb/presentation/screens/ai_assistant_screen.dart';
 import 'package:raabta/features/eosb/presentation/screens/generate_documents_screen.dart';
 import 'package:raabta/features/eosb/presentation/screens/calculation_history_screen.dart';
-import 'package:raabta/features/eosb/presentation/screens/eosb_settings_screen.dart';
 import 'package:raabta/features/eosb/presentation/screens/contract_analysis_screen.dart';
 import 'package:raabta/features/eosb/presentation/screens/scenario_simulator_screen.dart';
 import 'package:raabta/features/eosb/presentation/screens/employment_timeline_screen.dart';
@@ -367,18 +366,12 @@ final GoRouter appRouter = GoRouter(
   refreshListenable: appLocaleRefreshListenable,
   redirect: (context, state) => _appRouteRedirect(state),
   routes: [
-    GoRoute(
-      path: '/splash',
-      builder: (context, state) => const SplashScreen(),
-    ),
+    GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(
       path: '/language',
       builder: (context, state) => const LanguageScreen(),
     ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/prospective',
       builder: (context, state) => const ProspectiveHubScreen(),
@@ -452,8 +445,9 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'post',
           builder: (context, state) {
-            final category =
-                PostFlowActions.categoryPathFromQuery(state.uri.queryParameters);
+            final category = PostFlowActions.categoryPathFromQuery(
+              state.uri.queryParameters,
+            );
             return PostJobFlowScreen(categoryPath: category);
           },
         ),
@@ -502,9 +496,8 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/jobs/cv-builder',
-      builder: (context, state) => CvBuilderScreen(
-        cvId: state.uri.queryParameters['id'],
-      ),
+      builder: (context, state) =>
+          CvBuilderScreen(cvId: state.uri.queryParameters['id']),
     ),
     GoRoute(
       path: '/jobs/cv-preview',
@@ -532,8 +525,9 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'post',
           builder: (context, state) {
-            final category =
-                PostFlowActions.categoryPathFromQuery(state.uri.queryParameters);
+            final category = PostFlowActions.categoryPathFromQuery(
+              state.uri.queryParameters,
+            );
             return PostFlowScreen(
               vertical: PostVertical.housing,
               categoryPath: category,
@@ -586,8 +580,7 @@ final GoRouter appRouter = GoRouter(
       path: '/businesses',
       builder: (context, state) {
         final params = SearchRouteBuilder.fromRouterState(state);
-        final tag = state.uri.queryParameters['tag'] ??
-            params?.businessTag;
+        final tag = state.uri.queryParameters['tag'] ?? params?.businessTag;
         return BusinessesScreen(
           initialTagFilter: tag,
           routeParameters: params,
@@ -612,8 +605,9 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'post',
           builder: (context, state) {
-            final category =
-                PostFlowActions.categoryPathFromQuery(state.uri.queryParameters);
+            final category = PostFlowActions.categoryPathFromQuery(
+              state.uri.queryParameters,
+            );
             return PostFlowScreen(
               vertical: PostVertical.business,
               categoryPath: category,
@@ -704,9 +698,8 @@ final GoRouter appRouter = GoRouter(
             ),
             GoRoute(
               path: 'chat/:threadId',
-              builder: (context, state) => BuddyChatScreen(
-                threadId: state.pathParameters['threadId']!,
-              ),
+              builder: (context, state) =>
+                  BuddyChatScreen(threadId: state.pathParameters['threadId']!),
             ),
           ],
         ),
@@ -716,17 +709,13 @@ final GoRouter appRouter = GoRouter(
       path: '/community/events',
       builder: (context, state) => const CommunityScreen(),
     ),
-    GoRoute(
-      path: '/news',
-      builder: (context, state) => const NewsScreen(),
-    ),
+    GoRoute(path: '/news', builder: (context, state) => const NewsScreen()),
     GoRoute(
       path: '/visa',
       redirect: (context, state) {
         if (state.uri.path != '/visa') return null;
         final params = SearchRouteBuilder.fromRouterState(state);
-        final topic =
-            params?.visaTopic ?? state.uri.queryParameters['topic'];
+        final topic = params?.visaTopic ?? state.uri.queryParameters['topic'];
         return SearchRouteParameterConsumer.visaGuideRouteForTopic(topic);
       },
       builder: (context, state) {
@@ -736,9 +725,8 @@ final GoRouter appRouter = GoRouter(
       routes: [
         GoRoute(
           path: 'guide/:categoryId',
-          builder: (context, state) => VisaGuideScreen(
-            categoryId: state.pathParameters['categoryId']!,
-          ),
+          builder: (context, state) =>
+              VisaGuideScreen(categoryId: state.pathParameters['categoryId']!),
         ),
       ],
     ),
@@ -829,16 +817,12 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: 'branch/:branchId',
-          builder: (context, state) => BranchDetailScreen(
-            branchId: state.pathParameters['branchId']!,
-          ),
+          builder: (context, state) =>
+              BranchDetailScreen(branchId: state.pathParameters['branchId']!),
         ),
       ],
     ),
-    GoRoute(
-      path: '/doctors',
-      redirect: (_, __) => '/health-insurance',
-    ),
+    GoRoute(path: '/doctors', redirect: (_, __) => '/health-insurance'),
     GoRoute(
       path: '/marketplace',
       builder: (context, state) => const MarketplaceScreen(),
@@ -846,8 +830,9 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'post',
           builder: (context, state) {
-            final category =
-                PostFlowActions.categoryPathFromQuery(state.uri.queryParameters);
+            final category = PostFlowActions.categoryPathFromQuery(
+              state.uri.queryParameters,
+            );
             return PostFlowScreen(
               vertical: PostVertical.marketplace,
               categoryPath: category,
@@ -964,15 +949,12 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: 'progressive-capture',
-          builder: (context, state) =>
-              const ProgressiveProfileCaptureScreen(),
+          builder: (context, state) => const ProgressiveProfileCaptureScreen(),
         ),
         GoRoute(
           path: 'appearance',
-          pageBuilder: (context, state) => _profileSubPage(
-            state: state,
-            child: const AppearanceScreen(),
-          ),
+          pageBuilder: (context, state) =>
+              _profileSubPage(state: state, child: const AppearanceScreen()),
         ),
         GoRoute(
           path: 'language',
@@ -1000,22 +982,18 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: 'blocked-users',
-          pageBuilder: (context, state) => _profileSubPage(
-            state: state,
-            child: const BlockedUsersScreen(),
-          ),
+          pageBuilder: (context, state) =>
+              _profileSubPage(state: state, child: const BlockedUsersScreen()),
         ),
         GoRoute(
           path: 'privacy-policy',
-          builder: (context, state) => const LegalDocumentScreen(
-            type: LegalDocumentType.privacy,
-          ),
+          builder: (context, state) =>
+              const LegalDocumentScreen(type: LegalDocumentType.privacy),
         ),
         GoRoute(
           path: 'terms',
-          builder: (context, state) => const LegalDocumentScreen(
-            type: LegalDocumentType.terms,
-          ),
+          builder: (context, state) =>
+              const LegalDocumentScreen(type: LegalDocumentType.terms),
         ),
       ],
     ),
@@ -1103,10 +1081,7 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) {
             final import = state.uri.queryParameters['import'] == '1';
             final source = state.uri.queryParameters['source'];
-            return DocScannerScreen(
-              autoImport: import,
-              scanSource: source,
-            );
+            return DocScannerScreen(autoImport: import, scanSource: source);
           },
         ),
         GoRoute(
@@ -1132,9 +1107,8 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/dietary-profile',
-      builder: (context, state) => DietaryProfileScreen(
-        onComplete: () => context.pop(),
-      ),
+      builder: (context, state) =>
+          DietaryProfileScreen(onComplete: () => context.pop()),
     ),
     GoRoute(
       path: '/arabic-companion',
@@ -1174,8 +1148,8 @@ final GoRouter appRouter = GoRouter(
             }
             if (extra is Map<String, dynamic>) {
               return ReceiptReviewScreen(
-                initialExtraction: extra['extraction']
-                    as ReceiptLineItemsExtractionResult,
+                initialExtraction:
+                    extra['extraction'] as ReceiptLineItemsExtractionResult,
                 people: (extra['people'] as List<SplitPerson>?) ?? const [],
               );
             }
@@ -1208,7 +1182,8 @@ final GoRouter appRouter = GoRouter(
             final extra = state.extra;
             if (extra is Map<String, dynamic>) {
               return WarrantyReviewScreen(
-                initialExtraction: extra['extraction'] as WarrantyExtractionResult,
+                initialExtraction:
+                    extra['extraction'] as WarrantyExtractionResult,
                 sourceImagePath: extra['imagePath'] as String? ?? '',
               );
             }
@@ -1264,11 +1239,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'in-call-assistant',
           builder: (context, state) {
-            final skip = state.uri.queryParameters['skipClaimed'] == '1' ||
+            final skip =
+                state.uri.queryParameters['skipClaimed'] == '1' ||
                 state.uri.queryParameters['skipClaimed'] == 'true';
-            return ScamShieldInCallAssistantScreen(
-              skipClaimedCallerStep: skip,
-            );
+            return ScamShieldInCallAssistantScreen(skipClaimedCallerStep: skip);
           },
         ),
         GoRoute(
@@ -1288,8 +1262,7 @@ final GoRouter appRouter = GoRouter(
           path: 'payment-check',
           builder: (context, state) {
             final extra = state.extra;
-            final prefill =
-                extra is PaymentCheckPrefill ? extra : null;
+            final prefill = extra is PaymentCheckPrefill ? extra : null;
             return ScamShieldPaymentCheckScreen(prefill: prefill);
           },
         ),
@@ -1357,8 +1330,7 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: 'investment-check',
-          builder: (context, state) =>
-              const ScamShieldInvestmentCheckScreen(),
+          builder: (context, state) => const ScamShieldInvestmentCheckScreen(),
         ),
         GoRoute(
           path: 'scam-types',
@@ -1430,7 +1402,8 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'loans/person',
           builder: (context, state) {
-            final personKey = state.extra as String? ??
+            final personKey =
+                state.extra as String? ??
                 state.uri.queryParameters['personKey'] ??
                 '';
             return PersonLoanDetailScreen(personKey: personKey);
@@ -1447,7 +1420,8 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: TelecomDecoderScreen.route,
-      redirect: (_, _) => KnowQatarScreen.route(sectionKey: 'telecom_contracts'),
+      redirect: (_, _) =>
+          KnowQatarScreen.route(sectionKey: 'telecom_contracts'),
     ),
     GoRoute(
       path: BuyingCarScreen.route,
@@ -1530,18 +1504,14 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/document-vault',
-      builder: (context, state) =>
-          const DocumentVaultScreen(),
+      builder: (context, state) => const DocumentVaultScreen(),
     ),
     GoRoute(
       path: '/document-vault/:id',
       builder: (context, state) {
         final id = state.pathParameters['id']!;
         final data = state.extra as Map<String, dynamic>? ?? {};
-        return DocumentDetailScreen(
-          documentId:   id,
-          documentData: data,
-        );
+        return DocumentDetailScreen(documentId: id, documentData: data);
       },
     ),
     GoRoute(
@@ -1678,9 +1648,8 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/trip-planner/readiness/:id',
-      builder: (context, state) => TripReadinessScreen(
-        tripId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          TripReadinessScreen(tripId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/trip-planner/emergency',
@@ -1724,8 +1693,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/trip-planner/guide/transport',
-      redirect: (context, state) =>
-          '/trip-planner/local-life/getting_around',
+      redirect: (context, state) => '/trip-planner/local-life/getting_around',
     ),
     GoRoute(
       path: '/prayer-mosque',
@@ -1764,8 +1732,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/prayer-mosque/notifications',
-      builder: (context, state) =>
-          const PrayerNotificationSettingsScreen(),
+      builder: (context, state) => const PrayerNotificationSettingsScreen(),
     ),
     GoRoute(
       path: '/prayer-mosque/history',
@@ -1862,7 +1829,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/eosb/settings',
-      builder: (context, state) => const EosbSettingsScreen(),
+      redirect: (context, state) => '/profile/privacy',
     ),
     GoRoute(
       path: '/eosb/contract-analysis',
@@ -1953,9 +1920,7 @@ final GoRouter appRouter = GoRouter(
                     if (entry == null) {
                       return const InsuranceComplianceHistoryScreen();
                     }
-                    return InsuranceComplianceHistoryDetailScreen(
-                      entry: entry,
-                    );
+                    return InsuranceComplianceHistoryDetailScreen(entry: entry);
                   },
                 ),
               ],
@@ -1989,7 +1954,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/case-timeline/:engine/:caseId',
       builder: (context, state) {
-        final engine = CaseTimelineEngineTypeX.fromStorage(
+        final engine =
+            CaseTimelineEngineTypeX.fromStorage(
               state.pathParameters['engine'],
             ) ??
             CaseTimelineEngineType.eosb;
@@ -2060,8 +2026,7 @@ final GoRouter appRouter = GoRouter(
             ),
             GoRoute(
               path: 'report',
-              builder: (context, state) =>
-                  const TenancyConditionReportScreen(),
+              builder: (context, state) => const TenancyConditionReportScreen(),
             ),
           ],
         ),
@@ -2124,9 +2089,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/dev/post-schema-preview',
       builder: (context, state) {
-        final vertical = PostVertical.fromId(
-              state.uri.queryParameters['vertical'],
-            ) ??
+        final vertical =
+            PostVertical.fromId(state.uri.queryParameters['vertical']) ??
             PostVertical.marketplace;
         final categoryPath =
             state.uri.queryParameters['category'] ?? 'other.miscellaneous';

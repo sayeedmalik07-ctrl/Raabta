@@ -5,15 +5,18 @@ import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
-import 'package:raabta/core/widgets/glass_primary_button.dart';
 import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/features/eosb/presentation/widgets/eosb_hub_primary_button.dart';
 import 'package:raabta/features/case_timeline/domain/case_timeline_engine_type.dart';
 import 'package:raabta/features/case_timeline/domain/case_timeline_entry_type.dart';
 import 'package:raabta/features/case_timeline/presentation/navigation/case_timeline_navigation.dart';
 import 'package:raabta/features/case_timeline/presentation/providers/case_timeline_providers.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
 import 'package:raabta/features/eosb/domain/services/overtime_rounding_pattern_analyzer.dart';
 import 'package:raabta/features/eosb/presentation/l10n/eosb_strings.dart';
 import 'package:raabta/features/eosb/presentation/widgets/eosb_disclaimer_banner.dart';
+import 'package:raabta/features/eosb/presentation/widgets/shared/eosb_locale_load_error_scaffold.dart';
+import 'package:raabta/features/eosb/presentation/widgets/eosb_salary_claude_consent_feedback.dart';
 import 'package:raabta/features/eosb/providers/eosb_providers.dart';
 import 'package:raabta/features/eosb/providers/overtime_rounding_providers.dart';
 import 'package:raabta/features/eosb/providers/overtime_truth_providers.dart';
@@ -33,28 +36,33 @@ class OvertimeRoundingPatternScreen extends ConsumerStatefulWidget {
 
 class _OvertimeRoundingPatternScreenState
     extends ConsumerState<OvertimeRoundingPatternScreen> {
-  String? _aiExplanation;
   bool _aiLoading = false;
 
   Future<void> _explainPattern(String locale) async {
     final pattern = ref.read(overtimeRoundingPatternProvider);
     if (!pattern.hasEnoughData) return;
 
-    setState(() {
-      _aiLoading = true;
-      _aiExplanation = null;
-    });
+    final consent = await ref.read(eosbSalaryConsentProvider.future);
+    if (!consent) {
+      if (mounted) showEosbSalaryClaudeConsentSnackBar(context, locale);
+      return;
+    }
+
+    ref.read(overtimeRoundingAiExplanationProvider.notifier).state = null;
+    setState(() => _aiLoading = true);
 
     try {
-      final text = await ref.read(overtimeAiServiceProvider).explainRoundingPattern(
-            pattern: pattern,
-            locale: locale,
-          );
+      final text = await ref
+          .read(overtimeAiServiceProvider)
+          .explainRoundingPattern(pattern: pattern, locale: locale);
       if (mounted) {
-        setState(() {
-          _aiExplanation = text;
-          _aiLoading = false;
-        });
+        ref.read(overtimeRoundingAiExplanationProvider.notifier).state = text;
+        setState(() => _aiLoading = false);
+      }
+    } on EosbSalaryClaudeConsentRequired {
+      if (mounted) {
+        showEosbSalaryClaudeConsentSnackBar(context, locale);
+        setState(() => _aiLoading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _aiLoading = false);
@@ -76,7 +84,9 @@ class _OvertimeRoundingPatternScreenState
       'avgMin': pattern.avgTotalMinutesLostPerShift.toStringAsFixed(1),
     });
 
-    await ref.read(caseTimelineServiceProvider).addEntry(
+    await ref
+        .read(caseTimelineServiceProvider)
+        .addEntry(
           userId: uid,
           engineType: CaseTimelineEngineType.eosb,
           caseId: caseId,
@@ -98,14 +108,20 @@ class _OvertimeRoundingPatternScreenState
   @override
   Widget build(BuildContext context) {
     final localeAsync = ref.watch(eosbLocaleProvider);
+
+    final presentationLocale = ref.watch(eosbPresentationLocaleProvider);
     final pattern = ref.watch(overtimeRoundingPatternProvider);
+    final aiExplanation = ref.watch(overtimeRoundingAiExplanationProvider);
     final comparison = ref.watch(overtimeTruthProvider).result?.comparison;
 
     return localeAsync.when(
       loading: () => const GlassScreenScaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => EosbLocaleLoadErrorScaffold(
+        scaffoldTitle: EosbStrings.t('ot_rounding_title', presentationLocale),
+        descriptionSubtitleKey: 'ot_subtitle',
+      ),
       data: (locale) {
         return GlassScreenScaffold(
           title: EosbStrings.t('ot_rounding_title', locale),
@@ -147,11 +163,12 @@ class _OvertimeRoundingPatternScreenState
                         style: AppTypography.caption,
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      GlassPrimaryButton(
+                      EosbHubPrimaryButton(
                         label: EosbStrings.t('ot_calendar_mode', locale),
                         icon: Icons.calendar_month_outlined,
                         expand: true,
-                        onPressed: () => context.push('/eosb/overtime/calendar'),
+                        onPressed: () =>
+                            context.push('/eosb/overtime/calendar'),
                       ),
                     ],
                   ),
@@ -160,7 +177,10 @@ class _OvertimeRoundingPatternScreenState
                 TruthConfidenceBanner(
                   locale: locale,
                   state: TruthConfidenceState.known,
-                  text: TruthPackageCatalog.eosbOvertimeAssumptionDisplay(0, locale),
+                  text: TruthPackageCatalog.eosbOvertimeAssumptionDisplay(
+                    0,
+                    locale,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _PatternSummaryCard(pattern: pattern, locale: locale),
@@ -198,21 +218,27 @@ class _OvertimeRoundingPatternScreenState
                         : EosbStrings.t('ot_rounding_explain', locale),
                   ),
                 ),
-                if (_aiExplanation != null) ...[
+                if (aiExplanation != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   TruthConfidenceBanner(
                     locale: locale,
                     state: TruthConfidenceState.possible,
-                    text: TruthPackageCatalog.eosbOvertimeAssumptionDisplay(0, locale),
+                    text: TruthPackageCatalog.eosbOvertimeAssumptionDisplay(
+                      0,
+                      locale,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   TruthConfidenceBanner(
                     locale: locale,
                     state: TruthConfidenceState.unknown,
-                    text: TruthPackageCatalog.eosbOvertimeUnknownDisplay(0, locale),
+                    text: TruthPackageCatalog.eosbOvertimeUnknownDisplay(
+                      0,
+                      locale,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  Text(_aiExplanation!, style: AppTypography.bodySmall),
+                  Text(aiExplanation, style: AppTypography.bodySmall),
                 ],
                 const SizedBox(height: AppSpacing.sm),
                 TextButton(
@@ -231,10 +257,7 @@ class _OvertimeRoundingPatternScreenState
 }
 
 class _PatternSummaryCard extends StatelessWidget {
-  const _PatternSummaryCard({
-    required this.pattern,
-    required this.locale,
-  });
+  const _PatternSummaryCard({required this.pattern, required this.locale});
 
   final OvertimeRoundingPatternResult pattern;
   final String locale;
@@ -245,20 +268,16 @@ class _PatternSummaryCard extends StatelessWidget {
         ? AppColors.accentGold
         : AppColors.cyanGlow;
 
-    final summary = EosbStrings.format(
-      pattern.primaryPatternKey,
-      locale,
-      {
-        'clockInCount': pattern.clockInEmployerFavorCount.toString(),
-        'clockOutCount': pattern.clockOutEmployerFavorCount.toString(),
-        'total': pattern.dualShiftCount.toString(),
-        'avgIn': pattern.avgClockInLossMinutes.toStringAsFixed(1),
-        'avgOut': pattern.avgClockOutLossMinutes.toStringAsFixed(1),
-        'avgTotal': pattern.avgTotalMinutesLostPerShift.toStringAsFixed(1),
-        'qar': pattern.estimatedQarImpact.toStringAsFixed(2),
-        'currency': pattern.currency,
-      },
-    );
+    final summary = EosbStrings.format(pattern.primaryPatternKey, locale, {
+      'clockInCount': pattern.clockInEmployerFavorCount.toString(),
+      'clockOutCount': pattern.clockOutEmployerFavorCount.toString(),
+      'total': pattern.dualShiftCount.toString(),
+      'avgIn': pattern.avgClockInLossMinutes.toStringAsFixed(1),
+      'avgOut': pattern.avgClockOutLossMinutes.toStringAsFixed(1),
+      'avgTotal': pattern.avgTotalMinutesLostPerShift.toStringAsFixed(1),
+      'qar': pattern.estimatedQarImpact.toStringAsFixed(2),
+      'currency': pattern.currency,
+    });
 
     return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.lg),

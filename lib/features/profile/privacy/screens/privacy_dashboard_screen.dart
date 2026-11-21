@@ -18,6 +18,8 @@ import 'package:raabta/features/profile/privacy/l10n/privacy_strings.dart';
 import 'package:raabta/features/profile/privacy/models/privacy_settings.dart';
 import 'package:raabta/features/profile/privacy/providers/privacy_providers.dart';
 import 'package:raabta/features/profile/privacy/services/vault_lock_service.dart';
+import 'package:raabta/features/eosb/providers/eosb_providers.dart';
+import 'package:raabta/features/eosb/providers/eosb_salary_consent_revocation.dart';
 import 'package:raabta/models/intelligence/permission_level.dart';
 import 'package:raabta/providers/auth_providers.dart';
 import 'package:raabta/providers/visa_providers.dart';
@@ -36,7 +38,8 @@ class PrivacyDashboardScreen extends ConsumerStatefulWidget {
       _PrivacyDashboardScreenState();
 }
 
-class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen> {
+class _PrivacyDashboardScreenState
+    extends ConsumerState<PrivacyDashboardScreen> {
   bool _busy = false;
 
   String _locale() => AppLocale.normalize(ref.read(userLanguageProvider));
@@ -49,6 +52,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     final summaryAsync = ref.watch(userDataSummaryProvider);
     final permissionsAsync = ref.watch(permissionStatusProvider);
     final vaultLockAsync = ref.watch(vaultLockServiceProvider);
+    final eosbSalaryConsentAsync = ref.watch(eosbSalaryConsentProvider);
 
     return ProfileTabScaffold(
       child: Scaffold(
@@ -103,9 +107,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                       error: (_, _) => const SizedBox.shrink(),
                       data: (lock) => SwitchListTile(
                         secondary: const Icon(Icons.lock_outline),
-                        title: Text(
-                          PrivacyStrings.t('vault_pin_lock', locale),
-                        ),
+                        title: Text(PrivacyStrings.t('vault_pin_lock', locale)),
                         subtitle: Text(
                           PrivacyStrings.t('vault_pin_lock_subtitle', locale),
                         ),
@@ -114,6 +116,12 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                             ? null
                             : (value) => _toggleVaultLock(lock, value),
                       ),
+                    ),
+                    const Divider(height: 1, indent: 52),
+                    _eosbSalaryStorageTile(
+                      locale: locale,
+                      user: user,
+                      consentAsync: eosbSalaryConsentAsync,
                     ),
                     const Divider(height: 1, indent: 52),
                     permissionsAsync.when(
@@ -183,9 +191,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _SectionHeader(
-              title: PrivacyStrings.t('section_privacy', locale),
-            ),
+            _SectionHeader(title: PrivacyStrings.t('section_privacy', locale)),
             settingsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) => Text(
@@ -200,23 +206,17 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                     children: [
                       summaryAsync.when(
                         loading: () => ListTile(
-                          title: Text(
-                            PrivacyStrings.t('ai_history', locale),
-                          ),
+                          title: Text(PrivacyStrings.t('ai_history', locale)),
                           subtitle: Text(PrivacyStrings.t('loading', locale)),
                         ),
                         error: (_, _) => ListTile(
-                          title: Text(
-                            PrivacyStrings.t('ai_history', locale),
-                          ),
+                          title: Text(PrivacyStrings.t('ai_history', locale)),
                           subtitle: Text(
                             PrivacyStrings.t('ai_history_count_error', locale),
                           ),
                         ),
                         data: (summary) => ListTile(
-                          title: Text(
-                            PrivacyStrings.t('ai_history', locale),
-                          ),
+                          title: Text(PrivacyStrings.t('ai_history', locale)),
                           subtitle: Text(
                             summary.aiConversationCount == 0
                                 ? PrivacyStrings.t('ai_history_none', locale)
@@ -224,17 +224,14 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                                     'ai_history_summary',
                                     locale,
                                     params: {
-                                      'count':
-                                          '${summary.aiConversationCount}',
-                                      'msgCount':
-                                          '${summary.aiMessageCount}',
+                                      'count': '${summary.aiConversationCount}',
+                                      'msgCount': '${summary.aiMessageCount}',
                                     },
                                   ),
                           ),
                           trailing: summary.aiConversationCount > 0
                               ? TextButton(
-                                  onPressed:
-                                      _busy ? null : _deleteAiHistory,
+                                  onPressed: _busy ? null : _deleteAiHistory,
                                   child: Text(
                                     PrivacyStrings.t('action_delete', locale),
                                   ),
@@ -255,10 +252,8 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                         onChanged: _busy
                             ? null
                             : (v) => _updateSettings(
-                                  settings.copyWith(
-                                    aiPersonalizationEnabled: v,
-                                  ),
-                                ),
+                                settings.copyWith(aiPersonalizationEnabled: v),
+                              ),
                       ),
                       const Divider(height: 1, indent: 52),
                       SwitchListTile(
@@ -276,16 +271,12 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                         onChanged: _busy
                             ? null
                             : (v) => _updateSettings(
-                                  settings.copyWith(
-                                    profileVisibilityPublic: v,
-                                  ),
-                                ),
+                                settings.copyWith(profileVisibilityPublic: v),
+                              ),
                       ),
                       SwitchListTile(
                         secondary: const Icon(Icons.mail_outline),
-                        title: Text(
-                          PrivacyStrings.t('allow_contact', locale),
-                        ),
+                        title: Text(PrivacyStrings.t('allow_contact', locale)),
                         subtitle: Text(
                           PrivacyStrings.t('allow_contact_sub', locale),
                         ),
@@ -293,10 +284,8 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                         onChanged: _busy
                             ? null
                             : (v) => _updateSettings(
-                                  settings.copyWith(
-                                    allowContactFromOthers: v,
-                                  ),
-                                ),
+                                settings.copyWith(allowContactFromOthers: v),
+                              ),
                       ),
                       const Divider(height: 1, indent: 52),
                       GlassSettingsTile(
@@ -326,9 +315,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
               loading: () => GlassCard(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Text(
-                    PrivacyStrings.t('data_summary_loading', locale),
-                  ),
+                  child: Text(PrivacyStrings.t('data_summary_loading', locale)),
                 ),
               ),
               error: (_, _) => GlassCard(
@@ -365,9 +352,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                               : PrivacyStrings.format(
                                   'data_documents_count',
                                   locale,
-                                  params: {
-                                    'count': '${summary.documentCount}',
-                                  },
+                                  params: {'count': '${summary.documentCount}'},
                                 ),
                         ),
                         _DataRow(
@@ -387,7 +372,8 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                         ),
                         _DataRow(
                           label: PrivacyStrings.t('data_eosb_device', locale),
-                          value: summary.eosbHistoryCount +
+                          value:
+                              summary.eosbHistoryCount +
                                       summary.overtimeHistoryCount ==
                                   0
                               ? PrivacyStrings.t('data_none', locale)
@@ -395,8 +381,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
                                   'data_eosb_summary',
                                   locale,
                                   params: {
-                                    'eosbCount':
-                                        '${summary.eosbHistoryCount}',
+                                    'eosbCount': '${summary.eosbHistoryCount}',
                                     'overtimeCount':
                                         '${summary.overtimeHistoryCount}',
                                   },
@@ -509,24 +494,28 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     return switch (permission) {
       Permission.camera => PrivacyStrings.t('perm_camera', locale),
       Permission.location => PrivacyStrings.t('perm_location', locale),
-      Permission.notification =>
-        PrivacyStrings.t('perm_notifications', locale),
+      Permission.notification => PrivacyStrings.t('perm_notifications', locale),
       _ => permission.toString(),
     };
   }
 
   String _permissionStatusLabel(PermissionStatus status, String locale) {
     return switch (status) {
-      PermissionStatus.granted =>
-        PrivacyStrings.t('perm_allowed', locale),
+      PermissionStatus.granted => PrivacyStrings.t('perm_allowed', locale),
       PermissionStatus.denied => PrivacyStrings.t('perm_denied', locale),
-      PermissionStatus.restricted =>
-        PrivacyStrings.t('perm_restricted', locale),
+      PermissionStatus.restricted => PrivacyStrings.t(
+        'perm_restricted',
+        locale,
+      ),
       PermissionStatus.limited => PrivacyStrings.t('perm_limited', locale),
-      PermissionStatus.permanentlyDenied =>
-        PrivacyStrings.t('perm_blocked', locale),
-      PermissionStatus.provisional =>
-        PrivacyStrings.t('perm_provisional', locale),
+      PermissionStatus.permanentlyDenied => PrivacyStrings.t(
+        'perm_blocked',
+        locale,
+      ),
+      PermissionStatus.provisional => PrivacyStrings.t(
+        'perm_provisional',
+        locale,
+      ),
     };
   }
 
@@ -537,6 +526,47 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
       Permission.notification => Icons.notifications_outlined,
       _ => Icons.shield_outlined,
     };
+  }
+
+  Widget _eosbSalaryStorageTile({
+    required String locale,
+    required User? user,
+    required AsyncValue<bool> consentAsync,
+  }) {
+    return consentAsync.when(
+      loading: () => ListTile(
+        leading: const Icon(Icons.savings_outlined),
+        title: Text(PrivacyStrings.t('eosb_salary_storage', locale)),
+        subtitle: Text(PrivacyStrings.t('loading', locale)),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (consent) {
+        final signedIn = user?.uid != null;
+        return SwitchListTile(
+          secondary: const Icon(Icons.savings_outlined),
+          title: Text(PrivacyStrings.t('eosb_salary_storage', locale)),
+          subtitle: Text(
+            signedIn
+                ? PrivacyStrings.t('eosb_salary_storage_subtitle', locale)
+                : PrivacyStrings.t('eosb_salary_storage_sign_in', locale),
+          ),
+          value: signedIn && consent,
+          onChanged: !signedIn || _busy
+              ? null
+              : (value) => _setEosbSalaryConsent(value),
+        );
+      },
+    );
+  }
+
+  Future<void> _setEosbSalaryConsent(bool value) async {
+    final container = ProviderScope.containerOf(context);
+    setState(() => _busy = true);
+    try {
+      await persistEosbSalaryConsentChange(container, value);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _toggleVaultLock(VaultLockService lock, bool enable) async {
@@ -662,9 +692,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     final locale = _locale();
     final uid = ref.read(privacyUserIdProvider);
     if (uid == null) return;
-    final ok = await _confirm(
-      PrivacyStrings.t('confirm_delete_ai', locale),
-    );
+    final ok = await _confirm(PrivacyStrings.t('confirm_delete_ai', locale));
     if (!ok) return;
     setState(() => _busy = true);
     try {
@@ -684,8 +712,9 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     if (uid == null) return;
     setState(() => _busy = true);
     try {
-      final payload =
-          await ref.read(userDataServiceProvider).exportUserData(uid);
+      final payload = await ref
+          .read(userDataServiceProvider)
+          .exportUserData(uid);
       final json = const JsonEncoder.withIndent('  ').convert(payload);
       await Share.share(
         json,
@@ -788,9 +817,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     final locale = _locale();
     final uid = ref.read(privacyUserIdProvider);
     if (uid == null) return;
-    if (!await _confirm(
-      PrivacyStrings.t('confirm_delete_documents', locale),
-    )) {
+    if (!await _confirm(PrivacyStrings.t('confirm_delete_documents', locale))) {
       return;
     }
     setState(() => _busy = true);
@@ -807,9 +834,7 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
 
   Future<void> _deleteEosbLocal() async {
     final locale = _locale();
-    if (!await _confirm(
-      PrivacyStrings.t('confirm_delete_eosb', locale),
-    )) {
+    if (!await _confirm(PrivacyStrings.t('confirm_delete_eosb', locale))) {
       return;
     }
     setState(() => _busy = true);
@@ -838,7 +863,9 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
     setState(() => _busy = true);
     try {
       await ref.read(userDataServiceProvider).deleteAdvancedProfile(uid);
-      await ref.read(userAIProfileProvider.notifier).revokeAdvancedProfileConsent();
+      await ref
+          .read(userAIProfileProvider.notifier)
+          .revokeAdvancedProfileConsent();
       ref.invalidate(userDataSummaryProvider);
       _snack(PrivacyStrings.t('snack_advanced_profile_deleted', locale));
     } catch (_) {
@@ -898,7 +925,9 @@ class _PrivacyDashboardScreenState extends ConsumerState<PrivacyDashboardScreen>
 
     setState(() => _busy = true);
     try {
-      await ref.read(userDataServiceProvider).deleteAccount(
+      await ref
+          .read(userDataServiceProvider)
+          .deleteAccount(
             uid: user.uid,
             phoneConfirmation: phoneController.text.trim(),
           );

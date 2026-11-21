@@ -8,8 +8,11 @@ import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/core/widgets/glass_primary_button.dart';
 import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
 import 'package:raabta/features/eosb/domain/models/overtime_truth_models.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
 import 'package:raabta/features/eosb/presentation/l10n/eosb_strings.dart';
 import 'package:raabta/features/eosb/presentation/widgets/eosb_disclaimer_banner.dart';
+import 'package:raabta/features/eosb/presentation/widgets/shared/eosb_shared_widgets.dart';
+import 'package:raabta/features/eosb/presentation/widgets/eosb_salary_claude_consent_feedback.dart';
 import 'package:raabta/features/eosb/providers/eosb_providers.dart';
 import 'package:raabta/features/eosb/providers/overtime_truth_providers.dart';
 import 'package:raabta/features/eosb/services/overtime_ai_service.dart';
@@ -50,6 +53,12 @@ class _OvertimeImportScreenState extends ConsumerState<OvertimeImportScreen> {
       return;
     }
 
+    final consent = await ref.read(eosbSalaryConsentProvider.future);
+    if (!consent) {
+      if (mounted) showEosbSalaryClaudeConsentSnackBar(context, locale);
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final ai = ref.read(overtimeAiServiceProvider);
@@ -60,99 +69,9 @@ class _OvertimeImportScreenState extends ConsumerState<OvertimeImportScreen> {
       );
 
       final record = ref.read(overtimeTruthProvider).record;
+      final updatedRecord = _recordWithImportData(record, data);
 
-      var profile = record.profile;
-      if (data['employeeName'] != null) {
-        profile = profile.copyWith(
-          employeeName: data['employeeName'] as String? ?? profile.employeeName,
-        );
-      }
-      if (data['basicSalary'] != null) {
-        profile = profile.copyWith(
-          basicSalary: (data['basicSalary'] as num?)?.toDouble() ?? profile.basicSalary,
-        );
-      }
-      if (data['totalSalary'] != null) {
-        profile = profile.copyWith(
-          totalSalary: (data['totalSalary'] as num?)?.toDouble() ?? profile.totalSalary,
-        );
-      }
-      if (data['workingHoursPerDay'] != null) {
-        profile = profile.copyWith(
-          workingHoursPerDay:
-              (data['workingHoursPerDay'] as num?)?.toInt() ?? profile.workingHoursPerDay,
-        );
-      }
-      if (data['workingDaysPerWeek'] != null) {
-        profile = profile.copyWith(
-          workingDaysPerWeek:
-              (data['workingDaysPerWeek'] as num?)?.toInt() ?? profile.workingDaysPerWeek,
-        );
-      }
-
-      var days = List<OvertimeDayEntry>.from(record.days);
-      final entries = data['overtimeEntries'] as List<dynamic>? ?? [];
-      for (final raw in entries) {
-        if (raw is! Map<String, dynamic>) continue;
-        final dateStr = raw['date'] as String?;
-        final hours = (raw['hours'] as num?)?.toDouble() ?? 0;
-        if (dateStr == null || hours <= 0) continue;
-        final date = DateTime.tryParse(dateStr);
-        if (date == null) continue;
-        final idx = days.indexWhere(
-          (d) =>
-              d.date.year == date.year &&
-              d.date.month == date.month &&
-              d.date.day == date.day,
-        );
-        if (idx < 0) continue;
-        final catName = raw['category'] as String? ?? 'regularDay';
-        final cat = OvertimeDayCategory.values.firstWhere(
-          (c) => c.name == catName,
-          orElse: () => OvertimeDayCategory.regularDay,
-        );
-        days[idx] = days[idx].copyWith(
-          dayCategory: cat,
-          overtimeHours: hours.floor(),
-          overtimeMinutes: ((hours - hours.floor()) * 60).round(),
-        );
-      }
-
-      final employerShifts =
-          data['employerShiftEntries'] as List<dynamic>? ?? [];
-      for (final raw in employerShifts) {
-        if (raw is! Map<String, dynamic>) continue;
-        final dateStr = raw['date'] as String?;
-        if (dateStr == null) continue;
-        final date = DateTime.tryParse(dateStr);
-        if (date == null) continue;
-        final idx = days.indexWhere(
-          (d) =>
-              d.date.year == date.year &&
-              d.date.month == date.month &&
-              d.date.day == date.day,
-        );
-        if (idx < 0) continue;
-        final start = raw['startTime'] as String?;
-        final end = raw['endTime'] as String?;
-        days[idx] = days[idx].copyWith(
-          employerReportedStartTime: start,
-          employerReportedEndTime: end,
-        );
-      }
-
-      ref.read(overtimeTruthProvider.notifier).updateRecord(
-            record.copyWith(
-              profile: profile,
-              days: days,
-              employerPaidOvertime:
-                  (data['employerPaidOvertime'] as num?)?.toDouble() ??
-                      record.employerPaidOvertime,
-              employerReportedHours:
-                  (data['employerReportedHours'] as num?)?.toDouble() ??
-                      record.employerReportedHours,
-            ),
-          );
+      ref.read(overtimeTruthProvider.notifier).updateRecord(updatedRecord);
       await ref.read(overtimeTruthProvider.notifier).calculate();
 
       if (mounted) {
@@ -164,20 +83,150 @@ class _OvertimeImportScreenState extends ConsumerState<OvertimeImportScreen> {
         );
         context.push('/eosb/overtime/calendar');
       }
+    } on EosbSalaryClaudeConsentRequired {
+      if (mounted) showEosbSalaryClaudeConsentSnackBar(context, locale);
+    } on OvertimeAiImportFailure {
+      _showImportFailureSnackBar(locale);
+    } catch (_) {
+      _showImportFailureSnackBar(locale);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _showImportFailureSnackBar(String locale) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(EosbStrings.t('ot_import_error', locale))),
+    );
+  }
+
+  OvertimeMonthlyRecord _recordWithImportData(
+    OvertimeMonthlyRecord record,
+    Map<String, dynamic> data,
+  ) {
+    var profile = record.profile;
+    if (data['employeeName'] != null) {
+      profile = profile.copyWith(
+        employeeName: data['employeeName'] as String? ?? profile.employeeName,
+      );
+    }
+    if (data['basicSalary'] != null) {
+      profile = profile.copyWith(
+        basicSalary:
+            (data['basicSalary'] as num?)?.toDouble() ?? profile.basicSalary,
+      );
+    }
+    if (data['totalSalary'] != null) {
+      profile = profile.copyWith(
+        totalSalary:
+            (data['totalSalary'] as num?)?.toDouble() ?? profile.totalSalary,
+      );
+    }
+    if (data['workingHoursPerDay'] != null) {
+      profile = profile.copyWith(
+        workingHoursPerDay:
+            (data['workingHoursPerDay'] as num?)?.toInt() ??
+            profile.workingHoursPerDay,
+      );
+    }
+    if (data['workingDaysPerWeek'] != null) {
+      profile = profile.copyWith(
+        workingDaysPerWeek:
+            (data['workingDaysPerWeek'] as num?)?.toInt() ??
+            profile.workingDaysPerWeek,
+      );
+    }
+
+    var days = List<OvertimeDayEntry>.from(record.days);
+    final entries = data['overtimeEntries'] as List<dynamic>? ?? [];
+    for (final raw in entries) {
+      if (raw is! Map<String, dynamic>) continue;
+      final dateStr = raw['date'] as String?;
+      final hours = (raw['hours'] as num?)?.toDouble() ?? 0;
+      if (dateStr == null || hours <= 0) continue;
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) continue;
+      final idx = days.indexWhere(
+        (d) =>
+            d.date.year == date.year &&
+            d.date.month == date.month &&
+            d.date.day == date.day,
+      );
+      if (idx < 0) continue;
+      final catName = raw['category'] as String? ?? 'regularDay';
+      final cat = OvertimeDayCategory.values.firstWhere(
+        (c) => c.name == catName,
+        orElse: () => OvertimeDayCategory.regularDay,
+      );
+      days[idx] = days[idx].copyWith(
+        dayCategory: cat,
+        overtimeHours: hours.floor(),
+        overtimeMinutes: ((hours - hours.floor()) * 60).round(),
+      );
+    }
+
+    final employerShifts = data['employerShiftEntries'] as List<dynamic>? ?? [];
+    for (final raw in employerShifts) {
+      if (raw is! Map<String, dynamic>) continue;
+      final dateStr = raw['date'] as String?;
+      if (dateStr == null) continue;
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) continue;
+      final idx = days.indexWhere(
+        (d) =>
+            d.date.year == date.year &&
+            d.date.month == date.month &&
+            d.date.day == date.day,
+      );
+      if (idx < 0) continue;
+      final start = raw['startTime'] as String?;
+      final end = raw['endTime'] as String?;
+      days[idx] = days[idx].copyWith(
+        employerReportedStartTime: start,
+        employerReportedEndTime: end,
+      );
+    }
+
+    return record.copyWith(
+      profile: profile,
+      days: days,
+      employerPaidOvertime:
+          (data['employerPaidOvertime'] as num?)?.toDouble() ??
+          record.employerPaidOvertime,
+      employerReportedHours:
+          (data['employerReportedHours'] as num?)?.toDouble() ??
+          record.employerReportedHours,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final localeAsync = ref.watch(eosbLocaleProvider);
 
+    final presentationLocale = ref.watch(eosbPresentationLocaleProvider);
+
     return localeAsync.when(
       loading: () => const GlassScreenScaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => GlassScreenScaffold(
+        title: EosbStrings.t('ot_import_docs', presentationLocale),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: EosbEmptyState(
+              icon: Icons.error_outline,
+              title: EosbStrings.t('ot_locale_load_error', presentationLocale),
+              description: EosbStrings.t('ot_subtitle', presentationLocale),
+            ),
+          ),
+        ),
+      ),
       data: (locale) {
         return GlassScreenScaffold(
           title: EosbStrings.t('ot_import_docs', locale),
@@ -204,7 +253,8 @@ class _OvertimeImportScreenState extends ConsumerState<OvertimeImportScreen> {
                 items: _kinds
                     .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                     .toList(),
-                onChanged: (v) => setState(() => _documentKind = v ?? _documentKind),
+                onChanged: (v) =>
+                    setState(() => _documentKind = v ?? _documentKind),
               ),
               const SizedBox(height: AppSpacing.md),
               Row(

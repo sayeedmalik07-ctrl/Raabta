@@ -4,9 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:raabta/features/eosb/data/eosb_repository.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_contract_analysis.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_employee_input.dart';
+import 'package:raabta/features/eosb/domain/models/eosb_history_load_outcome.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_result.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_scenario.dart';
 import 'package:raabta/features/eosb/domain/services/eosb_calculation_service.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_storage_policy.dart';
 import 'package:raabta/features/eosb/domain/services/eosb_scenario_service.dart';
 import 'package:raabta/features/eosb/presentation/l10n/eosb_strings.dart';
 import 'package:raabta/features/eosb/services/reengagement_session.dart';
@@ -20,21 +23,41 @@ import 'package:raabta/features/home/providers/home_truth_chip_invalidation.dart
 import 'package:raabta/providers/auth_scoped_storage_providers.dart';
 import 'package:raabta/providers/visa_providers.dart';
 
-/// Shown when UID-scoped history could not be written ([saveHistory] path).
-const eosbHistoryPersistenceFailedMessage =
-    'Could not save calculation history. Sign in and try again.';
+/// When UID-scoped history could not be written ([saveHistory] path).
+const eosbHistoryPersistenceFailedErrorCode = 'eosb_history_save_failed';
+
+/// Local history JSON is corrupt; writes must not overwrite salvaged data.
+const eosbHistoryCorruptWriteBlockedErrorCode =
+    'eosb_history_corrupt_write_blocked';
+
+/// Delete blocked while local history JSON remains corrupt.
+const eosbHistoryCorruptDeleteBlockedErrorCode =
+    'eosb_history_corrupt_delete_blocked';
+
+/// Non-blocking notice after local save when Firestore sync failed.
+const eosbCloudSyncFailedNoticeKey = 'eosb_cloud_sync_failed';
+
+/// Stable provider error code — map to [EosbStrings] in UI; never raw exceptions.
+const eosbCalculationFailedErrorCode = 'eosb_calculation_failed';
+
+/// Maps [EosbState.error] codes to localized UI text.
+String eosbStateErrorMessage(String? errorCode, String locale) {
+  if (errorCode == null || errorCode.isEmpty) return '';
+  return EosbStrings.t(errorCode, locale);
+}
 
 @visibleForTesting
-Future<bool> persistEosbCalculationHistory({
+Future<EosbHistorySaveOutcome> persistEosbCalculationHistory({
   required dynamic ref,
   required EosbRepository repository,
   required CalculationHistoryEntry entry,
   String? uid,
 }) async {
-  final saved = await repository.saveHistoryEntry(entry, uid: uid);
-  if (!saved) return false;
-  invalidateHomeTruthChips(ref);
-  return true;
+  final outcome = await repository.saveHistoryEntry(entry, uid: uid);
+  if (outcome.saved) {
+    invalidateHomeTruthChips(ref);
+  }
+  return outcome;
 }
 
 final eosbRepositoryProvider = FutureProvider<EosbRepository>((ref) async {
@@ -48,11 +71,38 @@ final eosbCalculationServiceProvider = Provider<EosbCalculationService>(
 
 final eosbLocaleProvider = FutureProvider<String>((ref) async {
   ref.watch(currentAuthUidProvider);
-  final repo = await ref.watch(eosbRepositoryProvider.future);
-  final userLang = ref.watch(userLanguageProvider);
-  final stored = repo.locale().isNotEmpty ? repo.locale() : userLang;
-  return AppLocale.normalize(stored);
+  return AppLocale.normalize(ref.watch(userLanguageProvider));
 });
+
+/// Locale for EOSB loading/error gates — prefer resolved [eosbLocaleProvider],
+/// else last-known [userLanguageProvider].
+final eosbPresentationLocaleProvider = Provider<String>((ref) {
+  final eosbAsync = ref.watch(eosbLocaleProvider);
+  return eosbAsync.when(
+    data: (locale) => locale,
+    loading: () => AppLocale.normalize(ref.watch(userLanguageProvider)),
+    error: (_, __) => AppLocale.normalize(ref.watch(userLanguageProvider)),
+  );
+});
+
+final eosbSalaryConsentProvider = FutureProvider<bool>((ref) async {
+  final uid = ref.watch(currentAuthUidProvider);
+  final repo = await ref.watch(eosbRepositoryProvider.future);
+  return repo.salaryConsent(uid: uid);
+});
+
+/// Persists [EosbRepository.salaryConsent] — authoritative for salary-bearing Claude calls.
+final eosbSalaryClaudeConsentGuardProvider =
+    Provider<EosbSalaryClaudeConsentGuard>((ref) {
+      ref.watch(currentAuthUidProvider);
+      ref.watch(eosbSalaryConsentProvider);
+      return EosbSalaryClaudeConsentGuard(() {
+        final repo = ref.read(eosbRepositoryProvider).valueOrNull;
+        if (repo == null) return false;
+        final uid = ref.read(currentAuthUidProvider);
+        return repo.salaryConsent(uid: uid);
+      });
+    });
 
 class EosbState {
   const EosbState({
@@ -60,26 +110,40 @@ class EosbState {
     this.result,
     this.isCalculating = false,
     this.error,
+    this.lastHistoryNoticeKey,
+    this.cloudSyncNoticePending = false,
   });
 
   final EosbEmployeeInput input;
   final EosbResult? result;
   final bool isCalculating;
   final String? error;
+  final String? lastHistoryNoticeKey;
+  final bool cloudSyncNoticePending;
 
   EosbState copyWith({
     EosbEmployeeInput? input,
     EosbResult? result,
     bool? isCalculating,
     String? error,
+    String? lastHistoryNoticeKey,
+    bool? cloudSyncNoticePending,
     bool clearResult = false,
     bool clearError = false,
+    bool clearHistoryNotice = false,
+    bool clearCloudSyncNotice = false,
   }) {
     return EosbState(
       input: input ?? this.input,
       result: clearResult ? null : (result ?? this.result),
       isCalculating: isCalculating ?? this.isCalculating,
       error: clearError ? null : (error ?? this.error),
+      lastHistoryNoticeKey: clearHistoryNotice
+          ? null
+          : (lastHistoryNoticeKey ?? this.lastHistoryNoticeKey),
+      cloudSyncNoticePending: clearCloudSyncNotice
+          ? false
+          : (cloudSyncNoticePending ?? this.cloudSyncNoticePending),
     );
   }
 }
@@ -113,8 +177,43 @@ class EosbNotifier extends StateNotifier<EosbState> {
     _repo?.cacheInput(input);
   }
 
+  void clearHistoryNotice() {
+    if (state.lastHistoryNoticeKey == null) return;
+    state = state.copyWith(clearHistoryNotice: true);
+  }
+
+  void clearCloudSyncNotice() {
+    if (!state.cloudSyncNoticePending) return;
+    state = state.copyWith(clearCloudSyncNotice: true);
+  }
+
+  void clearError() {
+    if (state.error == null) return;
+    state = state.copyWith(clearError: true);
+  }
+
+  /// Strips salary-bearing fields from in-memory EOSB state after consent off.
+  void applySalaryConsentRevocation() {
+    final redactedInput = EosbSalaryStoragePolicy.redactInput(state.input);
+    final redactedResult = state.result != null
+        ? EosbSalaryStoragePolicy.redactResult(state.result!)
+        : null;
+    state = state.copyWith(
+      input: redactedInput,
+      result: redactedResult,
+      clearError: true,
+      clearHistoryNotice: true,
+      clearCloudSyncNotice: true,
+    );
+  }
+
   Future<EosbResult?> calculate({bool saveHistory = true}) async {
-    state = state.copyWith(isCalculating: true, clearError: true);
+    state = state.copyWith(
+      isCalculating: true,
+      clearError: true,
+      clearHistoryNotice: true,
+      clearCloudSyncNotice: true,
+    );
     try {
       await _repo?.cacheInput(state.input);
       final result = _calc.calculate(state.input);
@@ -130,18 +229,29 @@ class EosbNotifier extends StateNotifier<EosbState> {
           label: formatEosbCurrency(result.totalEntitlement),
         );
         final uid = _ref.read(currentAuthUidProvider);
-        final persisted = await persistEosbCalculationHistory(
+        final outcome = await persistEosbCalculationHistory(
           ref: _ref,
           repository: repository,
           entry: entry,
           uid: uid,
         );
-        if (!persisted) {
+        if (!outcome.saved) {
           state = state.copyWith(
             result: result,
-            error: eosbHistoryPersistenceFailedMessage,
+            error: outcome.blockedByCorruptStorage
+                ? eosbHistoryCorruptWriteBlockedErrorCode
+                : eosbHistoryPersistenceFailedErrorCode,
           );
           return result;
+        }
+        if (!outcome.includesSalaryDetails) {
+          state = state.copyWith(
+            result: result,
+            lastHistoryNoticeKey: 'eosb_history_consent_limited',
+          );
+        }
+        if (outcome.cloudSync == EosbCloudSyncOutcome.failed) {
+          state = state.copyWith(result: result, cloudSyncNoticePending: true);
         }
         try {
           final trigger = await ReengagementSession.consumeIfActive();
@@ -156,10 +266,10 @@ class EosbNotifier extends StateNotifier<EosbState> {
       }
 
       return result;
-    } catch (e) {
+    } catch (_) {
       state = state.copyWith(
         isCalculating: false,
-        error: e.toString(),
+        error: eosbCalculationFailedErrorCode,
       );
       return null;
     }
@@ -173,28 +283,56 @@ final eosbProvider = StateNotifierProvider<EosbNotifier, EosbState>((ref) {
   return EosbNotifier(calc, repoAsync.valueOrNull, ref);
 });
 
-final eosbHistoryProvider = FutureProvider<List<CalculationHistoryEntry>>(
-  (ref) async {
-    ref.watch(currentAuthUidProvider);
-    final repo = await ref.watch(eosbRepositoryProvider.future);
-    return repo.loadHistory();
-  },
-);
+final eosbHistoryLoadProvider =
+    FutureProvider<EosbCalculationHistoryLoadOutcome>((ref) async {
+      ref.watch(currentAuthUidProvider);
+      final uid = ref.watch(currentAuthUidProvider);
+      final repo = await ref.watch(eosbRepositoryProvider.future);
+      return repo.loadHistoryOutcome(uid: uid);
+    });
+
+final eosbHistoryProvider = FutureProvider<List<CalculationHistoryEntry>>((
+  ref,
+) async {
+  final outcome = await ref.watch(eosbHistoryLoadProvider.future);
+  return outcome.records;
+});
+
+final eosbHistoryIsStorageCorruptProvider = Provider<bool>((ref) {
+  final async = ref.watch(eosbHistoryLoadProvider);
+  return async.maybeWhen(
+    data: (outcome) => outcome.isStorageCorrupt,
+    orElse: () => false,
+  );
+});
+
+final eosbHistoryIsGenuinelyEmptyProvider = Provider<bool>((ref) {
+  final async = ref.watch(eosbHistoryLoadProvider);
+  return async.maybeWhen(
+    data: (outcome) => outcome.isGenuinelyEmpty,
+    orElse: () => false,
+  );
+});
 
 final eosbContractAnalysisServiceProvider =
     Provider<EosbContractAnalysisService>((ref) {
-  return EosbContractAnalysisService(ref.watch(claudeAIServiceProvider));
-});
+      return EosbContractAnalysisService(
+        ref.watch(claudeAIServiceProvider),
+        ref.watch(eosbSalaryClaudeConsentGuardProvider),
+      );
+    });
 
-final eosbDocumentImportServiceProvider =
-    Provider<EosbDocumentImportService>((ref) {
+final eosbDocumentImportServiceProvider = Provider<EosbDocumentImportService>((
+  ref,
+) {
   return EosbDocumentImportService(
     ref.watch(eosbContractAnalysisServiceProvider),
   );
 });
 
-final eosbContractAnalysisProvider =
-    StateProvider<EosbContractAnalysis?>((ref) => null);
+final eosbContractAnalysisProvider = StateProvider<EosbContractAnalysis?>(
+  (ref) => null,
+);
 
 final eosbScenarioServiceProvider = Provider<EosbScenarioService>((ref) {
   return EosbScenarioService(ref.watch(eosbCalculationServiceProvider));
@@ -220,24 +358,26 @@ class EosbLegalReviewRequest {
   int get hashCode => forceRegenerate.hashCode;
 }
 
-final eosbLegalReviewTemplateProvider =
-    Provider((_) => const EosbLegalReviewTemplateService());
+final eosbLegalReviewTemplateProvider = Provider(
+  (_) => const EosbLegalReviewTemplateService(),
+);
 
 final eosbLegalReviewProvider =
-    Provider.family<EosbLegalReview?, EosbLegalReviewRequest>(
-        (ref, request) {
-  final localeAsync = ref.watch(eosbLocaleProvider);
-  final state = ref.watch(eosbProvider);
-  final result = state.result;
-  final locale = localeAsync.valueOrNull ?? 'English';
+    Provider.family<EosbLegalReview?, EosbLegalReviewRequest>((ref, request) {
+      final localeAsync = ref.watch(eosbLocaleProvider);
+      final state = ref.watch(eosbProvider);
+      final result = state.result;
+      final locale = localeAsync.valueOrNull ?? 'English';
 
-  if (result == null) return null;
+      if (result == null) return null;
 
-  final analysis = ref.watch(eosbContractAnalysisProvider);
-  return ref.watch(eosbLegalReviewTemplateProvider).generate(
-        input: state.input,
-        result: result,
-        locale: locale,
-        contractAnalysis: analysis,
-      );
-});
+      final analysis = ref.watch(eosbContractAnalysisProvider);
+      return ref
+          .watch(eosbLegalReviewTemplateProvider)
+          .generate(
+            input: state.input,
+            result: result,
+            locale: locale,
+            contractAnalysis: analysis,
+          );
+    });

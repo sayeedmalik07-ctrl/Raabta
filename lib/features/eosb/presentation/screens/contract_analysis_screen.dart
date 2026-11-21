@@ -5,15 +5,20 @@ import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/glass/glass_card.dart';
 import 'package:raabta/core/spacing/app_spacing.dart';
 import 'package:raabta/core/typography/app_typography.dart';
-import 'package:raabta/core/widgets/glass_primary_button.dart';
 import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/features/eosb/presentation/widgets/eosb_hub_primary_button.dart';
+import 'package:raabta/core/widgets/hub/hub_typography.dart';
 import 'package:raabta/features/eosb/domain/models/eosb_contract_analysis.dart';
+import 'package:raabta/features/eosb/domain/services/eosb_salary_claude_consent.dart';
 import 'package:raabta/features/eosb/presentation/l10n/eosb_strings.dart';
 import 'package:raabta/features/eosb/presentation/widgets/calculator_form_widgets.dart';
 import 'package:raabta/features/eosb/presentation/widgets/eosb_disclaimer_banner.dart';
+import 'package:raabta/features/eosb/presentation/widgets/shared/eosb_locale_load_error_scaffold.dart';
+import 'package:raabta/features/eosb/presentation/widgets/eosb_salary_claude_consent_feedback.dart';
 import 'package:raabta/features/eosb/providers/eosb_providers.dart';
 import 'package:raabta/core/widgets/truth_confidence_banner.dart';
 import 'package:raabta/features/eosb/services/eosb_document_import_service.dart';
+import 'package:raabta/features/eosb/services/eosb_contract_analysis_service.dart';
 import 'package:raabta/features/truth_engine/domain/truth_package.dart';
 import 'package:raabta/features/contract_scam_patterns/contract_scam_pattern_engine.dart';
 import 'package:raabta/features/contract_scam_patterns/presentation/contract_scam_pattern_checks_section.dart';
@@ -26,7 +31,8 @@ class ContractAnalysisScreen extends ConsumerStatefulWidget {
       _ContractAnalysisScreenState();
 }
 
-class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen> {
+class _ContractAnalysisScreenState
+    extends ConsumerState<ContractAnalysisScreen> {
   final _textController = TextEditingController();
   String _documentKind = EosbDocumentImportService.supportedDocumentKinds.first;
   bool _loading = false;
@@ -55,7 +61,7 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
           .map(
             (k) => CalculatorPickerOption(
               value: k,
-              label: k.replaceAll('_', ' '),
+              label: EosbDocumentImportService.documentKindLabel(k, locale),
             ),
           )
           .toList(),
@@ -71,6 +77,12 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
           content: Text(EosbStrings.t('eosb_contract_text_short', locale)),
         ),
       );
+      return;
+    }
+
+    final consent = await ref.read(eosbSalaryConsentProvider.future);
+    if (!consent) {
+      if (mounted) showEosbSalaryClaudeConsentSnackBar(context, locale);
       return;
     }
 
@@ -102,10 +114,9 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
 
       ref.read(eosbContractAnalysisProvider.notifier).state = analysis;
 
-      final updated = ref.read(eosbContractAnalysisServiceProvider).applyAnalysisToInput(
-            ref.read(eosbProvider).input,
-            analysis,
-          );
+      final updated = ref
+          .read(eosbContractAnalysisServiceProvider)
+          .applyAnalysisToInput(ref.read(eosbProvider).input, analysis);
       ref.read(eosbProvider.notifier).updateInput(updated);
 
       if (mounted) {
@@ -116,6 +127,8 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
           ),
         );
       }
+    } on EosbSalaryClaudeConsentRequired {
+      if (mounted) showEosbSalaryClaudeConsentSnackBar(context, locale);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -135,15 +148,24 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
   @override
   Widget build(BuildContext context) {
     final localeAsync = ref.watch(eosbLocaleProvider);
+
+    final presentationLocale = ref.watch(eosbPresentationLocaleProvider);
     final analysis = ref.watch(eosbContractAnalysisProvider);
 
     return localeAsync.when(
       loading: () => const GlassScreenScaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => EosbLocaleLoadErrorScaffold(
+        scaffoldTitle: EosbStrings.t(
+          'eosb_contract_analysis',
+          presentationLocale,
+        ),
+        titleStyle: HubTypography.hubTitle,
+      ),
       data: (locale) => GlassScreenScaffold(
         title: EosbStrings.t('eosb_contract_analysis', locale),
+        titleStyle: HubTypography.hubTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -158,9 +180,9 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
               style: AppTypography.bodySmall,
             ),
             const SizedBox(height: AppSpacing.xl),
-            const CalculatorSectionHeader(
-              title: 'Document input',
-              subtitle: 'Paste contract text or scan a document',
+            CalculatorSectionHeader(
+              title: EosbStrings.t('eosb_contract_input_title', locale),
+              subtitle: EosbStrings.t('eosb_contract_input_sub', locale),
               icon: Icons.description_outlined,
               accentColor: AppColors.cyanGlow,
             ),
@@ -171,7 +193,10 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                 children: [
                   CalculatorPickerField(
                     label: EosbStrings.t('eosb_document_type', locale),
-                    valueLabel: _documentKind.replaceAll('_', ' '),
+                    valueLabel: EosbDocumentImportService.documentKindLabel(
+                      _documentKind,
+                      locale,
+                    ),
                     onTap: () => _pickDocumentKind(locale),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -185,12 +210,16 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                     maxLines: 8,
                     style: AppTypography.body,
                     decoration: InputDecoration(
-                      hintText: EosbStrings.t('eosb_contract_paste_hint', locale),
+                      hintText: EosbStrings.t(
+                        'eosb_contract_paste_hint',
+                        locale,
+                      ),
                       filled: true,
                       fillColor: AppColors.glassSurface,
                       border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusSm,
+                        ),
                         borderSide: BorderSide(color: AppColors.glassBorder),
                       ),
                     ),
@@ -204,7 +233,7 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                 Expanded(
                   child: CalculatorFeatureAction(
                     title: EosbStrings.t('eosb_scan_document', locale),
-                    subtitle: 'Camera OCR',
+                    subtitle: EosbStrings.t('eosb_scan_document_sub', locale),
                     icon: Icons.document_scanner_outlined,
                     accentColor: AppColors.purpleGlow,
                     onTap: () => context.push('/scanner/capture'),
@@ -214,7 +243,7 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                 Expanded(
                   child: CalculatorFeatureAction(
                     title: EosbStrings.t('eosb_import_vault', locale),
-                    subtitle: 'Saved docs',
+                    subtitle: EosbStrings.t('eosb_import_vault_sub', locale),
                     icon: Icons.folder_outlined,
                     accentColor: AppColors.accentGold,
                     onTap: () => context.push('/document-vault'),
@@ -223,12 +252,12 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            GlassPrimaryButton(
+            EosbHubPrimaryButton(
               label: _loading
                   ? EosbStrings.t('eosb_analyzing', locale)
                   : EosbStrings.t('eosb_analyze_contract', locale),
               expand: true,
-              accentColor: AppColors.cyanGlow,
+              icon: Icons.fact_check_outlined,
               onPressed: _loading ? null : () => _analyze(locale),
             ),
             if (_textController.text.trim().length >= 20) ...[
@@ -244,12 +273,14 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
               const SizedBox(height: AppSpacing.xl),
               TruthConfidenceBanner(
                 locale: locale,
-                state: analysis.confidence >= 0.7 &&
+                state:
+                    analysis.confidence >= 0.7 &&
                         (analysis.basicSalary != null ||
                             analysis.joiningDate != null)
                     ? TruthConfidenceState.known
                     : TruthConfidenceState.possible,
-                text: analysis.confidence >= 0.7 &&
+                text:
+                    analysis.confidence >= 0.7 &&
                         (analysis.basicSalary != null ||
                             analysis.joiningDate != null)
                     ? TruthPackageCatalog.eosbAssumptionDisplay(1, locale)
@@ -262,6 +293,21 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                 text: TruthPackageCatalog.eosbUnknownDisplay(0, locale),
               ),
               const SizedBox(height: AppSpacing.md),
+              if (analysis.warnings.contains(
+                eosbContractAiParseWarningKey,
+              )) ...[
+                GlassCard(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  glowColor: AppColors.warning,
+                  child: Text(
+                    EosbStrings.t(eosbContractAiParseWarningKey, locale),
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
               if (analysis.rawSummary != null)
                 GlassCard(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -297,10 +343,10 @@ class _ContractAnalysisScreenState extends ConsumerState<ContractAnalysisScreen>
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
-              GlassPrimaryButton(
+              EosbHubPrimaryButton(
                 label: EosbStrings.t('eosb_continue_employee_info', locale),
                 expand: true,
-                accentColor: AppColors.emeraldGlow,
+                icon: Icons.arrow_forward,
                 onPressed: () => context.push('/eosb/employee-info'),
               ),
             ],
