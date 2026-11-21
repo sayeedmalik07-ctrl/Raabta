@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:raabta/core/colors/app_colors.dart';
-import 'package:raabta/core/glass/glass_card.dart';
-import 'package:raabta/core/spacing/app_spacing.dart';
-import 'package:raabta/core/typography/app_typography.dart';
 import 'package:raabta/features/global_search/domain/search_ask_ai_result.dart';
-import 'package:raabta/features/global_search/presentation/global_search_directional_icons.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_result_row.dart';
+import 'package:raabta/features/home/widgets/home_card_tiers.dart';
 
 /// ASK RAABTA AI card — explicit user action only (S9).
 class GlobalSearchAskAiView extends StatelessWidget {
@@ -19,56 +18,22 @@ class GlobalSearchAskAiView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semantics = '${offer.displayTitle}. ${offer.displaySubtitle}';
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Semantics(
-        button: true,
-        label: '${offer.displayTitle}. ${offer.displaySubtitle}',
-        child: GlassCard(
-          onTap: onTap,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.auto_awesome_outlined,
-                size: 24,
-                color: AppColors.cyanGlow,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      offer.displayTitle,
-                      style: AppTypography.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (offer.displaySubtitle.isNotEmpty)
-                      Text(
-                        offer.displaySubtitle,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-              Icon(
-                GlobalSearchDirectionalIcons.chevronForward(context),
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
+      padding: const EdgeInsets.only(
+        bottom: GlobalSearchPresentationTokens.sectionBottomGap,
+      ),
+      child: GlobalSearchResultRow(
+        icon: Icons.auto_awesome_outlined,
+        accent: AppColors.brandFamilyMain,
+        glowColor: AppColors.brandFamilyMain,
+        glowIntensity: HomeCardTier.contextualGlowIntensity,
+        title: offer.displayTitle,
+        subtitle:
+            offer.displaySubtitle.isNotEmpty ? offer.displaySubtitle : null,
+        semanticLabel: semantics,
+        onTap: onTap,
       ),
     );
   }

@@ -8,6 +8,7 @@ class StaticSearchEntry {
     required this.id,
     this.titleKey,
     this.subtitleKey,
+    this.subtitleFormatParams,
     this.title,
     this.subtitle,
     required this.keywords,
@@ -15,13 +16,14 @@ class StaticSearchEntry {
     required this.category,
   }) : assert(
           (titleKey != null && subtitleKey != null) ||
-              (title != null && subtitle != null),
-          'Provide either titleKey/subtitleKey or title/subtitle',
+              (title != null && (subtitle != null || subtitleKey != null)),
+          'Provide titleKey+subtitleKey, or title with subtitle/subtitleKey',
         );
 
   final String id;
   final String? titleKey;
   final String? subtitleKey;
+  final Map<String, String>? subtitleFormatParams;
   final String? title;
   final String? subtitle;
   final List<String> keywords;
@@ -37,6 +39,14 @@ class StaticSearchEntry {
 
   String localizedSubtitle(String locale) {
     if (subtitleKey != null) {
+      final params = subtitleFormatParams;
+      if (params != null && params.isNotEmpty) {
+        return GlobalSearchIndexStrings.format(
+          subtitleKey!,
+          locale,
+          params: params,
+        );
+      }
       return GlobalSearchIndexStrings.t(subtitleKey!, locale);
     }
     return subtitle!;

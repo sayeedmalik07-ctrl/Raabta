@@ -27,6 +27,7 @@ import 'package:raabta/features/global_search/presentation/widgets/global_search
 import 'package:raabta/features/global_search/presentation/widgets/global_search_loading_indicator.dart';
 import 'package:raabta/features/global_search/presentation/widgets/global_search_notice_banners.dart';
 import 'package:raabta/features/global_search/presentation/widgets/global_search_voice_button.dart';
+import 'package:raabta/features/global_search/presentation/widgets/global_search_presentation_tokens.dart';
 import 'package:raabta/features/global_search/presentation/widgets/global_search_result_group.dart';
 import 'package:raabta/features/home/widgets/home_section_header.dart';
 import 'package:raabta/providers/visa_providers.dart';
@@ -167,7 +168,13 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                   GlassIconButton(
                     icon: Icons.arrow_back_rounded,
                     tooltip: AppShellStrings.t('global_search_back', locale),
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -332,12 +339,19 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
           offer: response.askAiOffer!,
           onTap: () => _openAskAi(response),
         ),
-      Semantics(
-        label: AppShellStrings.t('global_search_no_results', locale),
-        child: GlassEmptyState(
-          icon: Icons.search_off_rounded,
-          title: AppShellStrings.t('global_search_no_results', locale),
-          description: AppShellStrings.t('global_search_empty_desc', locale),
+      Padding(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: GlobalSearchPresentationTokens.sectionBottomGap,
+        ),
+        child: Semantics(
+          label: AppShellStrings.t('global_search_no_results', locale),
+          child: GlassEmptyState(
+            accent: GlassEmptyStateAccent.brand,
+            icon: Icons.search_off_rounded,
+            title: AppShellStrings.t('global_search_no_results', locale),
+            description: AppShellStrings.t('global_search_empty_desc', locale),
+          ),
         ),
       ),
     ];

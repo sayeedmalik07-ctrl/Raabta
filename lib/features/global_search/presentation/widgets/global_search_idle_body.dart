@@ -30,6 +30,7 @@ class GlobalSearchIdleBody extends StatelessWidget {
           Semantics(
             label: AppShellStrings.t('global_search_idle_hint', locale),
             child: GlassEmptyState(
+              accent: GlassEmptyStateAccent.brand,
               icon: Icons.manage_search_rounded,
               title: AppShellStrings.t('global_search_title', locale),
               description: AppShellStrings.t('global_search_idle_hint', locale),

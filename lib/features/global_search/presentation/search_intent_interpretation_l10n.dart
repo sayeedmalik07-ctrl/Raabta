@@ -68,6 +68,9 @@ abstract final class SearchIntentInterpretationL10n {
     };
   }
 
+  static String intentLabel(SearchIntent intent, String locale) =>
+      _intentLabel(intent, locale);
+
   static String _intentLabel(SearchIntent intent, String locale) {
     final key = switch (intent) {
       SearchIntent.findJob => 'global_search_intent_label_jobs',
