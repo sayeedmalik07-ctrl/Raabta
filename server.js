@@ -655,7 +655,7 @@ app.post('/listings/:id/report', (req, res) => {
 
 app.patch('/listings/:id/verify', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+  if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -1173,7 +1173,7 @@ app.post('/api/notifications/register-token', async (req, res) => {
 app.post('/api/notifications/send', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
-    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+    if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -1230,7 +1230,7 @@ app.post('/api/notifications/job-match', async (req, res) => {
 app.post('/api/notifications/admin-announcement', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
-    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+    if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const { userIds, title, body, route } = req.body;
@@ -1244,7 +1244,7 @@ app.post('/api/notifications/admin-announcement', async (req, res) => {
 app.post('/api/notifications/trigger-daily', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
-    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+    if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const result = await runDailyNotificationJobs();
@@ -1257,7 +1257,7 @@ app.post('/api/notifications/trigger-daily', async (req, res) => {
 app.post('/api/notifications/trigger-weekly', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
-    if (adminKey !== process.env.ADMIN_KEY && adminKey !== 'raabta-admin-dev') {
+    if (!process.env.ADMIN_KEY || adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     const result = await runWeeklyDigest();

@@ -1,0 +1,24 @@
+{
+  "id": "one_ring_callback",
+  "verified": false,
+  "localFlag": "ss_flag_one_ring",
+  "evidenceKind": "oneRingCallback",
+  "minGroups": 1,
+  "sourceLabel": "Pattern check",
+  "evidenceTextKey": "ss_evidence_one_ring",
+  "groups": [
+    {
+      "id": "callback_bait",
+      "patterns": [
+        "missed call from",
+        "call back this number",
+        "prize missed call",
+        "international number missed",
+        "one ring",
+        "مكالمة فائتة",
+        "回拨",
+        "missed call prize"
+      ]
+    }
+  ]
+}

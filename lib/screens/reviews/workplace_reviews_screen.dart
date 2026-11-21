@@ -1,27 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/reviews/l10n/workplace_review_strings.dart';
 import 'package:raabta/screens/reviews/write_review_screen.dart';
 
-class WorkplaceReviewsScreen extends StatefulWidget {
+class WorkplaceReviewsScreen extends ConsumerStatefulWidget {
   const WorkplaceReviewsScreen({super.key});
 
   @override
-  State<WorkplaceReviewsScreen> createState() => _WorkplaceReviewsScreenState();
+  ConsumerState<WorkplaceReviewsScreen> createState() =>
+      _WorkplaceReviewsScreenState();
 }
 
-class _WorkplaceReviewsScreenState extends State<WorkplaceReviewsScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
+class _WorkplaceReviewsScreenState extends ConsumerState<WorkplaceReviewsScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  static const List<String> _filters = [
-    'All',
-    'Companies',
-    'Accommodation',
-    'Agencies',
-  ];
+  static const _filterKeys = ['all', 'companies', 'accommodation', 'agencies'];
+
+  String _filterLabel(String key, String locale) {
+    switch (key) {
+      case 'all':
+        return WorkplaceReviewStrings.t('filter_all', locale);
+      case 'companies':
+        return WorkplaceReviewStrings.t('filter_companies', locale);
+      case 'accommodation':
+        return WorkplaceReviewStrings.t('filter_accommodation', locale);
+      case 'agencies':
+        return WorkplaceReviewStrings.t('filter_agencies', locale);
+      default:
+        return key;
+    }
+  }
+
+  String? _filterTypeForKey(String key) {
+    switch (key) {
+      case 'companies':
+        return 'Companies';
+      case 'accommodation':
+        return 'Accommodation';
+      case 'agencies':
+        return 'Agencies';
+      default:
+        return null;
+    }
+  }
 
   int _selectedFilter = 0;
 
@@ -110,8 +140,10 @@ class _WorkplaceReviewsScreenState extends State<WorkplaceReviewsScreen> {
     final query = _searchController.text.trim().toLowerCase();
     var list = _companies;
     if (_selectedFilter > 0) {
-      final filter = _filters[_selectedFilter];
-      list = list.where((c) => c.type == filter).toList();
+      final filter = _filterTypeForKey(_filterKeys[_selectedFilter]);
+      if (filter != null) {
+        list = list.where((c) => c.type == filter).toList();
+      }
     }
     if (query.isNotEmpty) {
       list = list
@@ -129,124 +161,132 @@ class _WorkplaceReviewsScreenState extends State<WorkplaceReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(userLanguageProvider);
     final companies = _filteredCompanies;
 
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        backgroundColor: _backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+    return GlassScreenScaffold(
+      leading: GlassIconButton(
+        icon: Icons.arrow_back_ios_rounded,
+        tooltip: CommonActionStrings.t('action_back', locale),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      actions: [
+        GlassCard(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const WriteReviewScreen()),
+            );
+          },
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          borderRadius: AppSpacing.radiusFull,
+          glowColor: AppColors.cyanGlow,
+          glowIntensity: 0.15,
+          margin: const EdgeInsets.only(right: AppSpacing.sm),
+          child: Text(
+            WorkplaceReviewStrings.t('write_review', locale),
+            style: AppTypography.link,
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WriteReviewScreen()),
-              );
-            },
-            child: const Text(
-              'Write Review',
-              style: TextStyle(
-                color: _cyanColor,
+      ],
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+      body: ListView(
+        children: [
+          Text(
+            WorkplaceReviewStrings.t('screen_title', locale),
+            style: AppTypography.headline2,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            WorkplaceReviewStrings.t('screen_subtitle', locale),
+            style: AppTypography.body,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          GlassContainer(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            borderRadius: AppSpacing.radiusSm,
+            glowColor: AppColors.cyanGlow,
+            glowIntensity: 0.12,
+            child: Text(
+              WorkplaceReviewStrings.t('anon_banner', locale),
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.cyanGlow,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          children: [
-            const Text(
-              '📝 Workplace Reviews',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Anonymous honest reviews from expats',
-              style: TextStyle(color: _subtitleColor, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _cyanColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _cyanColor.withValues(alpha: 0.3)),
-              ),
-              child: const Text(
-                '🔒 100% Anonymous · Your identity is never revealed',
-                style: TextStyle(
-                  color: _cyanColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
+          const SizedBox(height: AppSpacing.md),
+          GlassContainer(
+            padding: EdgeInsets.zero,
+            borderRadius: AppSpacing.radiusSm,
+            child: TextField(
               controller: _searchController,
               onChanged: (_) => setState(() {}),
-              style: const TextStyle(color: Colors.white),
+              style: AppTypography.body.copyWith(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search company name...',
-                hintStyle: const TextStyle(color: _subtitleColor),
-                prefixIcon: const Icon(Icons.search, color: _subtitleColor),
-                filled: true,
-                fillColor: _surfaceColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                hintText: WorkplaceReviewStrings.t('search_hint', locale),
+                hintStyle: AppTypography.body.copyWith(
+                  color: AppColors.textTertiary,
                 ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: AppColors.textSecondary,
+                  size: AppSpacing.iconMd,
+                ),
+                border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _filters.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final isSelected = _selectedFilter == index;
-                  return FilterChip(
-                    label: Text(_filters[index]),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedFilter = index),
-                    backgroundColor: _surfaceColor,
-                    selectedColor: _cyanColor.withValues(alpha: 0.2),
-                    labelStyle: TextStyle(
-                      color: isSelected ? _cyanColor : _subtitleColor,
-                      fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _filterKeys.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final isSelected = _selectedFilter == index;
+                return GlassCard(
+                  onTap: () => setState(() => _selectedFilter = index),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  borderRadius: AppSpacing.radiusFull,
+                  glowColor: isSelected ? AppColors.cyanGlow : null,
+                  glowIntensity: isSelected ? 0.2 : 0,
+                  child: Text(
+                    _filterLabel(_filterKeys[index], locale),
+                    style: AppTypography.chipLabel.copyWith(
+                      color: isSelected
+                          ? AppColors.cyanGlow
+                          : AppColors.textSecondary,
                     ),
-                    side: BorderSide(
-                      color: isSelected ? _cyanColor : Colors.transparent,
-                    ),
-                    showCheckmark: false,
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 20),
-            ...companies.map((company) => _CompanyCard(company: company)),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (companies.isEmpty)
+            GlassEmptyState(
+              icon: Icons.search_off_outlined,
+              title: WorkplaceReviewStrings.t('empty_title', locale),
+              description: WorkplaceReviewStrings.t('empty_description', locale),
+            )
+          else
+            ...companies.map(
+              (company) => _CompanyCard(company: company, locale: locale),
+            ),
+        ],
       ),
     );
   }
@@ -281,14 +321,10 @@ class _CompanyReview {
 }
 
 class _CompanyCard extends StatelessWidget {
-  const _CompanyCard({required this.company});
+  const _CompanyCard({required this.company, required this.locale});
 
   final _CompanyReview company;
-
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-  static const Color _starColor = Color(0xFFF59E0B);
+  final String locale;
 
   String _stars(double rating) {
     final full = rating.floor().clamp(0, 5);
@@ -299,121 +335,97 @@ class _CompanyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: const Color(0xFF1A2535),
+              GlassContainer(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                borderRadius: AppSpacing.radiusFull,
                 child: Text(
                   company.initials,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: AppTypography.subtitle.copyWith(
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      company.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      company.industry,
-                      style: const TextStyle(
-                        color: _subtitleColor,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(company.name, style: AppTypography.title),
+                    Text(company.industry, style: AppTypography.bodySmall),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Text(
                 _stars(company.overallRating),
-                style: const TextStyle(color: _starColor, fontSize: 16),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.amberGlow,
+                  fontSize: 16,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 company.overallRating.toStringAsFixed(1),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: AppTypography.subtitle.copyWith(
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            '💰 Salary: ⭐${company.salaryRating.toStringAsFixed(1)}  '
-            '🏠 Housing: ⭐${company.housingRating.toStringAsFixed(1)}',
-            style: const TextStyle(color: _subtitleColor, fontSize: 12),
+            '${WorkplaceReviewStrings.t('rating_salary', locale)} ⭐${company.salaryRating.toStringAsFixed(1)}  '
+            '${WorkplaceReviewStrings.t('rating_housing', locale)} ⭐${company.housingRating.toStringAsFixed(1)}',
+            style: AppTypography.caption,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            '👔 Management: ⭐${company.managementRating.toStringAsFixed(1)}  '
-            '📅 Work-Life: ⭐${company.workLifeRating.toStringAsFixed(1)}',
-            style: const TextStyle(color: _subtitleColor, fontSize: 12),
+            '${WorkplaceReviewStrings.t('rating_management', locale)} ⭐${company.managementRating.toStringAsFixed(1)}  '
+            '${WorkplaceReviewStrings.t('rating_work_life', locale)} ⭐${company.workLifeRating.toStringAsFixed(1)}',
+            style: AppTypography.caption,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            '${company.reviewCount} reviews',
-            style: const TextStyle(
-              color: _cyanColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            WorkplaceReviewStrings.format(
+              'reviews_count',
+              locale,
+              params: {'count': '${company.reviewCount}'},
             ),
+            style: AppTypography.link.copyWith(fontSize: 13),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             '"${company.snippet}"',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _subtitleColor,
-              fontSize: 13,
-              fontStyle: FontStyle.italic,
-            ),
+            style: AppTypography.bodySmall.copyWith(fontStyle: FontStyle.italic),
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _cyanColor,
-                side: const BorderSide(color: _cyanColor),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Read Reviews',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+          const SizedBox(height: AppSpacing.md),
+          GlassCard(
+            onTap: () {},
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            borderRadius: AppSpacing.radiusSm,
+            glowColor: AppColors.cyanGlow,
+            glowIntensity: 0.15,
+            child: Text(
+              WorkplaceReviewStrings.t('read_reviews', locale),
+              style: AppTypography.button.copyWith(color: AppColors.cyanGlow),
+              textAlign: TextAlign.center,
             ),
           ),
         ],

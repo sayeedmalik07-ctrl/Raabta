@@ -1,0 +1,1026 @@
+/// Privacy dashboard localized strings — 9 locales via [l10nEntry].
+import 'package:flutter/foundation.dart';
+import 'package:raabta/core/l10n/app_locale.dart';
+import 'package:raabta/core/l10n/locale_catalog_coverage.dart';
+import 'package:raabta/core/l10n/locale_catalog_entry.dart';
+
+Map<String, String> _e(
+  String english, {
+  String? arabic,
+  String? hindi,
+  String? urdu,
+  String? bengali,
+  String? filipino,
+  String? malayalam,
+  String? nepali,
+  String? tamil,
+}) =>
+    l10nEntry(
+      english: english,
+      arabic: arabic,
+      hindi: hindi,
+      urdu: urdu,
+      bengali: bengali,
+      filipino: filipino,
+      malayalam: malayalam,
+      nepali: nepali,
+      tamil: tamil,
+    );
+
+abstract final class PrivacyStrings {
+  static const supportedLocales = AppLocale.supportedLocales;
+
+  /// Tamil / Malayalam / Nepali ship English until native review (docs/L10N.md).
+  static const keysNeedingProfessionalReview = <String>{
+    'privacy_title',
+    'section_account_security',
+    'phone_verification',
+    'phone_not_verified',
+    'phone_verified',
+    'vault_pin_lock_loading',
+    'loading',
+    'vault_pin_lock',
+    'vault_pin_lock_subtitle',
+    'app_permissions',
+    'checking',
+    'perm_status_read_error',
+    'perm_camera',
+    'perm_location',
+    'perm_notifications',
+    'perm_allowed',
+    'perm_denied',
+    'perm_restricted',
+    'perm_limited',
+    'perm_blocked',
+    'perm_provisional',
+    'manage_phone_settings',
+    'manage_phone_settings_sub',
+    'sign_out',
+    'section_privacy',
+    'privacy_settings_load_error',
+    'ai_history',
+    'ai_history_count_error',
+    'ai_history_none',
+    'ai_history_summary',
+    'action_delete',
+    'ai_personalization',
+    'ai_personalization_sub',
+    'public_profile_visibility',
+    'public_profile_visibility_sub',
+    'allow_contact',
+    'allow_contact_sub',
+    'sensitive_ai_notice',
+    'sensitive_ai_acknowledged',
+    'sensitive_ai_read_before',
+    'section_your_data',
+    'data_summary_loading',
+    'data_summary_error',
+    'what_raabta_stores',
+    'data_profile',
+    'data_stored',
+    'data_not_stored',
+    'data_documents',
+    'data_none',
+    'data_documents_count',
+    'data_ai_conversations',
+    'data_ai_threads',
+    'data_eosb_device',
+    'data_eosb_summary',
+    'data_no_personal',
+    'view_my_data',
+    'view_my_data_sub',
+    'download_my_data',
+    'download_my_data_sub',
+    'delete_selected_data',
+    'delete_selected_data_sub',
+    'delete_my_account',
+    'delete_account_warning',
+    'snack_vault_enabled',
+    'snack_vault_disabled',
+    'snack_vault_disable_error',
+    'pin_setup_title',
+    'pin_digit_label',
+    'pin_confirm_label',
+    'pin_enter_title',
+    'action_confirm',
+    'snack_ai_deleted',
+    'snack_delete_failed',
+    'export_subject',
+    'snack_export_failed',
+    'sheet_profile',
+    'sheet_document_vault',
+    'sheet_ai_assistant',
+    'sheet_delete_ai',
+    'sheet_delete_documents',
+    'sheet_delete_eosb',
+    'confirm_delete_documents',
+    'snack_documents_deleted',
+    'confirm_delete_eosb',
+    'snack_eosb_deleted',
+    'delete_account_title',
+    'delete_account_body',
+    'phone_number_label',
+    'phone_hint',
+    'delete_forever',
+    'snack_account_delete_failed',
+    'sensitive_ai_title',
+    'sensitive_ai_body',
+    'action_close',
+    'action_understand',
+    'confirm_sign_out',
+    'confirm_delete_ai',
+  };
+
+  static String t(String key, [String locale = 'English']) {
+    final normalized = AppLocale.normalize(locale);
+    final map = _catalog[key];
+    if (map == null) return key;
+    return map[normalized] ?? map['English'] ?? key;
+  }
+
+  static String format(
+    String key,
+    String locale, {
+    required Map<String, String> params,
+  }) {
+    var value = t(key, locale);
+    params.forEach((placeholder, replacement) {
+      value = value.replaceAll('{$placeholder}', replacement);
+    });
+    return value;
+  }
+
+  @visibleForTesting
+  static Map<String, Set<String>> get localeCoverageReport =>
+      buildLocaleCoverageReport(
+        catalog: _catalog,
+        supportedLocales: supportedLocales,
+      );
+
+  static final _catalog = <String, Map<String, String>>{
+    'privacy_title': _e(
+      'Privacy',
+      arabic: 'الخصوصية',
+      hindi: 'गोपनीयता',
+      urdu: 'رازداری',
+      bengali: 'গোপনীয়তা',
+      filipino: 'Privacy',
+    ),
+    'section_account_security': _e(
+      'Account & Security',
+      arabic: 'الحساب والأمان',
+      hindi: 'खाता और सुरक्षा',
+      urdu: 'اکاؤنٹ اور سیکیورٹی',
+      bengali: 'অ্যাকাউন্ট ও নিরাপত্তা',
+      filipino: 'Account at Seguridad',
+    ),
+    'phone_verification': _e(
+      'Phone verification',
+      arabic: 'التحقق من الهاتف',
+      hindi: 'फ़ोन सत्यापन',
+      urdu: 'فون تصدیق',
+      bengali: 'ফোন যাচাই',
+      filipino: 'Phone verification',
+    ),
+    'phone_not_verified': _e(
+      'Not verified',
+      arabic: 'غير مُتحقّق',
+      hindi: 'सत्यापित नहीं',
+      urdu: 'تصدیق نہیں',
+      bengali: 'যাচাই হয়নি',
+      filipino: 'Hindi pa verified',
+    ),
+    'phone_verified': _e(
+      'Verified · {phone}',
+      arabic: 'مُتحقّق · {phone}',
+      hindi: 'सत्यापित · {phone}',
+      urdu: 'تصدیق شدہ · {phone}',
+      bengali: 'যাচাইকৃত · {phone}',
+      filipino: 'Verified · {phone}',
+    ),
+    'vault_pin_lock_loading': _e(
+      'Vault PIN lock',
+      arabic: 'قفل PIN للخزنة',
+      hindi: 'वॉल्ट PIN लॉक',
+      urdu: 'والٹ PIN لاک',
+      bengali: 'ভল্ট PIN লক',
+      filipino: 'Vault PIN lock',
+    ),
+    'loading': _e(
+      'Loading…',
+      arabic: 'جاري التحميل…',
+      hindi: 'लोड हो रहा है…',
+      urdu: 'لوڈ ہو رہا ہے…',
+      bengali: 'লোড হচ্ছে…',
+      filipino: 'Naglo-load…',
+    ),
+    'vault_pin_lock': _e(
+      'Document Vault PIN lock',
+      arabic: 'قفل PIN لخزنة المستندات',
+      hindi: 'Document Vault PIN लॉक',
+      urdu: 'Document Vault PIN لاک',
+      bengali: 'Document Vault PIN লক',
+      filipino: 'Document Vault PIN lock',
+    ),
+    'vault_pin_lock_subtitle': _e(
+      'One shared lock for Document Vault (not a second lock).',
+      arabic: 'قفل واحد مشترك لخزنة المستندات (ليس قفلاً ثانياً).',
+      hindi: 'Document Vault के लिए एक साझा लॉक (दूसरा लॉक नहीं)।',
+      urdu: 'Document Vault کے لیے ایک مشترکہ لاک (دوسرا لاک نہیں)۔',
+      bengali: 'Document Vault-এর জন্য একটি ভাগ করা লক (দ্বিতীয় লক নয়)।',
+      filipino:
+          'Isang shared lock para sa Document Vault (hindi pangalawang lock).',
+    ),
+    'app_permissions': _e(
+      'App permissions',
+      arabic: 'أذونات التطبيق',
+      hindi: 'ऐप अनुमतियाँ',
+      urdu: 'ایپ اجازتیں',
+      bengali: 'অ্যাপ অনুমতি',
+      filipino: 'App permissions',
+    ),
+    'checking': _e(
+      'Checking…',
+      arabic: 'جاري الفحص…',
+      hindi: 'जाँच हो रही है…',
+      urdu: 'جانچ ہو رہی ہے…',
+      bengali: 'যাচাই হচ্ছে…',
+      filipino: 'Sinusuri…',
+    ),
+    'perm_status_read_error': _e(
+      'Could not read permission status',
+      arabic: 'تعذّر قراءة حالة الإذن',
+      hindi: 'अनुमति स्थिति नहीं पढ़ सके',
+      urdu: 'اجازت کی حالت نہیں پڑھ سکے',
+      bengali: 'অনুমতির অবস্থা পড়া যায়নি',
+      filipino: 'Hindi mabasa ang permission status',
+    ),
+    'perm_camera': _e(
+      'Camera',
+      arabic: 'الكاميرا',
+      hindi: 'कैमरा',
+      urdu: 'کیمرہ',
+      bengali: 'ক্যামেরা',
+      filipino: 'Camera',
+    ),
+    'perm_location': _e(
+      'Location',
+      arabic: 'الموقع',
+      hindi: 'स्थान',
+      urdu: 'مقام',
+      bengali: 'অবস্থান',
+      filipino: 'Location',
+    ),
+    'perm_notifications': _e(
+      'Notifications',
+      arabic: 'الإشعارات',
+      hindi: 'सूचनाएँ',
+      urdu: 'اطلاعات',
+      bengali: 'বিজ্ঞপ্তি',
+      filipino: 'Notifications',
+    ),
+    'perm_allowed': _e(
+      'Allowed',
+      arabic: 'مسموح',
+      hindi: 'अनुमत',
+      urdu: 'اجازت ہے',
+      bengali: 'অনুমোদিত',
+      filipino: 'Allowed',
+    ),
+    'perm_denied': _e(
+      'Denied',
+      arabic: 'مرفوض',
+      hindi: 'अस्वीकृत',
+      urdu: 'مسترد',
+      bengali: 'প্রত্যাখ্যাত',
+      filipino: 'Denied',
+    ),
+    'perm_restricted': _e(
+      'Restricted',
+      arabic: 'مقيّد',
+      hindi: 'प्रतिबंधित',
+      urdu: 'محدود',
+      bengali: 'সীমাবদ্ধ',
+      filipino: 'Restricted',
+    ),
+    'perm_limited': _e(
+      'Limited',
+      arabic: 'محدود',
+      hindi: 'सीमित',
+      urdu: 'محدود',
+      bengali: 'সীমিত',
+      filipino: 'Limited',
+    ),
+    'perm_blocked': _e(
+      'Blocked',
+      arabic: 'محظور',
+      hindi: 'अवरुद्ध',
+      urdu: 'بلاک',
+      bengali: 'ব্লক করা',
+      filipino: 'Blocked',
+    ),
+    'perm_provisional': _e(
+      'Provisional',
+      arabic: 'مؤقت',
+      hindi: 'अनंतिम',
+      urdu: 'عارضی',
+      bengali: 'অস্থায়ী',
+      filipino: 'Provisional',
+    ),
+    'manage_phone_settings': _e(
+      'Manage in Phone Settings',
+      arabic: 'إدارة في إعدادات الهاتف',
+      hindi: 'फ़ोन सेटिंग्स में प्रबंधित करें',
+      urdu: 'فون سیٹنگز میں منظم کریں',
+      bengali: 'ফোন সেটিংসে পরিচালনা করুন',
+      filipino: 'Pamahalaan sa Phone Settings',
+    ),
+    'manage_phone_settings_sub': _e(
+      'Opens system settings for Raabta',
+      arabic: 'يفتح إعدادات النظام لرابطت',
+      hindi: 'Raabta के लिए सिस्टम सेटिंग्स खोलता है',
+      urdu: 'Raabta کے لیے سسٹم سیٹنگز کھولتا ہے',
+      bengali: 'Raabta-এর জন্য সিস্টেম সেটিংস খোলে',
+      filipino: 'Binubuksan ang system settings para sa Raabta',
+    ),
+    'sign_out': _e(
+      'Sign out',
+      arabic: 'تسجيل الخروج',
+      hindi: 'साइन आउट',
+      urdu: 'سائن آؤٹ',
+      bengali: 'সাইন আউট',
+      filipino: 'Mag-sign out',
+    ),
+    'section_privacy': _e(
+      'Privacy',
+      arabic: 'الخصوصية',
+      hindi: 'गोपनीयता',
+      urdu: 'رازداری',
+      bengali: 'গোপনীয়তা',
+      filipino: 'Privacy',
+    ),
+    'privacy_settings_load_error': _e(
+      'Could not load privacy settings',
+      arabic: 'تعذّر تحميل إعدادات الخصوصية',
+      hindi: 'गोपनीयता सेटिंग्स लोड नहीं हो सकीं',
+      urdu: 'رازداری کی سیٹنگز لوڈ نہیں ہو سکیں',
+      bengali: 'গোপনীয়তা সেটিংস লোড করা যায়নি',
+      filipino: 'Hindi ma-load ang privacy settings',
+    ),
+    'ai_history': _e(
+      'AI conversation history',
+      arabic: 'سجل محادثات الذكاء الاصطناعي',
+      hindi: 'AI वार्तालाप इतिहास',
+      urdu: 'AI گفتگو کی تاریخ',
+      bengali: 'AI কথোপকথনের ইতিহাস',
+      filipino: 'Kasaysayan ng AI conversation',
+    ),
+    'ai_history_count_error': _e(
+      'Could not load count',
+      arabic: 'تعذّر تحميل العدد',
+      hindi: 'गिनती लोड नहीं हो सकी',
+      urdu: 'گنتی لوڈ نہیں ہو سکی',
+      bengali: 'সংখ্যা লোড করা যায়নি',
+      filipino: 'Hindi ma-load ang bilang',
+    ),
+    'ai_history_none': _e(
+      'No conversations stored yet',
+      arabic: 'لا توجد محادثات مخزّنة بعد',
+      hindi: 'अभी कोई वार्तालाप संग्रहीत नहीं',
+      urdu: 'ابھی کوئی گفتگو محفوظ نہیں',
+      bengali: 'এখনও কোনো কথোপকথন সংরক্ষিত নয়',
+      filipino: 'Wala pang naka-store na conversation',
+    ),
+    'ai_history_summary': _e(
+      '{count} conversations · {msgCount} messages (Firestore)',
+      arabic: '{count} محادثات · {msgCount} رسائل (Firestore)',
+      hindi: '{count} वार्तालाप · {msgCount} संदेश (Firestore)',
+      urdu: '{count} گفتگو · {msgCount} پیغامات (Firestore)',
+      bengali: '{count} কথোপকথন · {msgCount} বার্তা (Firestore)',
+      filipino: '{count} conversations · {msgCount} messages (Firestore)',
+    ),
+    'action_delete': _e(
+      'Delete',
+      arabic: 'حذف',
+      hindi: 'हटाएँ',
+      urdu: 'حذف کریں',
+      bengali: 'মুছুন',
+      filipino: 'Delete',
+    ),
+    'ai_personalization': _e(
+      'AI personalization',
+      arabic: 'تخصيص الذكاء الاصطناعي',
+      hindi: 'AI वैयक्तिकरण',
+      urdu: 'AI ذاتی نوعیت',
+      bengali: 'AI ব্যক্তিগতকরণ',
+      filipino: 'AI personalization',
+    ),
+    'ai_personalization_sub': _e(
+      'When off, Raabta stops learning from your activity and omits profile context from AI chat.',
+      arabic:
+          'عند الإيقاف، تتوقف رابطت عن التعلّم من نشاطك وتستبعد سياق الملف من محادثة الذكاء الاصطناعي.',
+      hindi:
+          'बंद होने पर Raabta आपकी गतिविधि से सीखना बंद कर देती है और AI चैट से प्रोफ़ाइल संदर्भ हटा देती है।',
+      urdu:
+          'بند ہونے پر Raabta آپ کی سرگرمی سے سیکھنا بند کر دیتی ہے اور AI chat سے profile context ہٹا دیتی ہے۔',
+      bengali:
+          'বন্ধ থাকলে Raabta আপনার কার্যকলাপ থেকে শেখা বন্ধ করে এবং AI chat থেকে profile context বাদ দেয়।',
+      filipino:
+          'Kapag off, titigil ang Raabta sa pag-aaral mula sa activity mo at aalisin ang profile context sa AI chat.',
+    ),
+    'public_profile_visibility': _e(
+      'Public profile visibility',
+      arabic: 'ظهور الملف العام',
+      hindi: 'सार्वजनिक प्रोफ़ाइल दृश्यता',
+      urdu: 'عوامی پروفائل نظر آنا',
+      bengali: 'পাবলিক প্রোফাইল দৃশ্যমানতা',
+      filipino: 'Public profile visibility',
+    ),
+    'public_profile_visibility_sub': _e(
+      'Saved to your account. Community and Marketplace do not enforce this yet — flagged gap.',
+      arabic:
+          'محفوظ في حسابك. المجتمع والسوق لا يطبّقان هذا بعد — فجوة مُعلَمة.',
+      hindi:
+          'आपके खाते में सहेजा गया। Community और Marketplace अभी इसे लागू नहीं करते — flagged gap।',
+      urdu:
+          'آپ کے اکاؤنٹ میں محفوظ۔ Community اور Marketplace ابھی نافذ نہیں کرتے — flagged gap۔',
+      bengali:
+          'আপনার অ্যাকাউন্টে সংরক্ষিত। Community ও Marketplace এখনও এটি প্রয়োগ করে না — flagged gap।',
+      filipino:
+          'Naka-save sa account mo. Hindi pa ipinapatupad ng Community at Marketplace — flagged gap.',
+    ),
+    'allow_contact': _e(
+      'Allow contact from others',
+      arabic: 'السماح بالتواصل من الآخرين',
+      hindi: 'दूसरों से संपर्क की अनुमति',
+      urdu: 'دوسروں سے رابطے کی اجازت',
+      bengali: 'অন্যদের থেকে যোগাযোগের অনুমতি',
+      filipino: 'Payagan ang contact mula sa iba',
+    ),
+    'allow_contact_sub': _e(
+      'Saved to your account. Messaging features do not enforce this yet — flagged gap.',
+      arabic:
+          'محفوظ في حسابك. ميزات المراسلة لا تطبّق هذا بعد — فجوة مُعلَمة.',
+      hindi:
+          'आपके खाते में सहेजा गया। Messaging features अभी इसे लागू नहीं करते — flagged gap।',
+      urdu:
+          'آپ کے اکاؤنٹ میں محفوظ۔ Messaging features ابھی نافذ نہیں کرتے — flagged gap۔',
+      bengali:
+          'আপনার অ্যাকাউন্টে সংরক্ষিত। Messaging features এখনও এটি প্রয়োগ করে না — flagged gap।',
+      filipino:
+          'Naka-save sa account mo. Hindi pa ipinapatupad ng messaging features — flagged gap.',
+    ),
+    'sensitive_ai_notice': _e(
+      'Sensitive AI features notice',
+      arabic: 'إشعار ميزات الذكاء الاصطناعي الحساسة',
+      hindi: 'संवेदनशील AI सुविधाओं की सूचना',
+      urdu: 'حساس AI فیچرز کا نوٹس',
+      bengali: 'সংবেদনশীল AI বৈশিষ্ট্যের নোটিশ',
+      filipino: 'Paunawa sa sensitive AI features',
+    ),
+    'sensitive_ai_acknowledged': _e(
+      'Acknowledged',
+      arabic: 'تم الإقرار',
+      hindi: 'स्वीकृत',
+      urdu: 'تسلیم شدہ',
+      bengali: 'স্বীকৃত',
+      filipino: 'Acknowledged',
+    ),
+    'sensitive_ai_read_before': _e(
+      'Read before using EOSB / legal AI tools',
+      arabic: 'اقرأ قبل استخدام EOSB / أدوات الذكاء الاصطناعي القانونية',
+      hindi: 'EOSB / कानूनी AI उपकरण उपयोग से पहले पढ़ें',
+      urdu: 'EOSB / legal AI tools استعمال سے پہلے پڑھیں',
+      bengali: 'EOSB / legal AI tools ব্যবহারের আগে পড়ুন',
+      filipino: 'Basahin bago gamitin ang EOSB / legal AI tools',
+    ),
+    'section_your_data': _e(
+      'Your Data',
+      arabic: 'بياناتك',
+      hindi: 'आपका डेटा',
+      urdu: 'آپ کا ڈیٹا',
+      bengali: 'আপনার ডেটা',
+      filipino: 'Iyong Data',
+    ),
+    'data_summary_loading': _e(
+      'Loading your data summary…',
+      arabic: 'جاري تحميل ملخص بياناتك…',
+      hindi: 'आपका डेटा सारांश लोड हो रहा है…',
+      urdu: 'آپ کے ڈیٹا کا خلاصہ لوڈ ہو رہا ہے…',
+      bengali: 'আপনার ডেটার সারাংশ লোড হচ্ছে…',
+      filipino: 'Naglo-load ng data summary mo…',
+    ),
+    'data_summary_error': _e(
+      'Could not load data summary. Pull to retry from Profile.',
+      arabic: 'تعذّر تحميل ملخص البيانات. اسحب للتحديث من الملف الشخصي.',
+      hindi:
+          'डेटा सारांश लोड नहीं हो सका। Profile से retry के लिए pull करें।',
+      urdu:
+          'ڈیٹا خلاصہ لوڈ نہیں ہو سکا۔ Profile سے retry کے لیے کھینچیں۔',
+      bengali:
+          'ডেটার সারাংশ লোড করা যায়নি। Profile থেকে retry করতে টানুন।',
+      filipino:
+          'Hindi ma-load ang data summary. Pull to retry mula sa Profile.',
+    ),
+    'what_raabta_stores': _e(
+      'What Raabta stores',
+      arabic: 'ما تخزّنه رابطت',
+      hindi: 'Raabta क्या संग्रहीत करती है',
+      urdu: 'Raabta کیا محفوظ کرتی ہے',
+      bengali: 'Raabta কী সংরক্ষণ করে',
+      filipino: 'Ano ang ini-store ng Raabta',
+    ),
+    'data_profile': _e(
+      'Profile',
+      arabic: 'الملف الشخصي',
+      hindi: 'प्रोफ़ाइल',
+      urdu: 'پروفائل',
+      bengali: 'প্রোফাইল',
+      filipino: 'Profile',
+    ),
+    'data_stored': _e(
+      'Stored',
+      arabic: 'مخزّن',
+      hindi: 'संग्रहीत',
+      urdu: 'محفوظ',
+      bengali: 'সংরক্ষিত',
+      filipino: 'Naka-store',
+    ),
+    'data_not_stored': _e(
+      'Not stored',
+      arabic: 'غير مخزّن',
+      hindi: 'संग्रहीत नहीं',
+      urdu: 'محفوظ نہیں',
+      bengali: 'সংরক্ষিত নয়',
+      filipino: 'Hindi naka-store',
+    ),
+    'data_documents': _e(
+      'Documents',
+      arabic: 'المستندات',
+      hindi: 'दस्तावेज़',
+      urdu: 'دستاویزات',
+      bengali: 'নথি',
+      filipino: 'Documents',
+    ),
+    'data_none': _e(
+      'None',
+      arabic: 'لا شيء',
+      hindi: 'कोई नहीं',
+      urdu: 'کچھ نہیں',
+      bengali: 'কিছু নয়',
+      filipino: 'Wala',
+    ),
+    'data_documents_count': _e(
+      '{count} in Document Vault',
+      arabic: '{count} في خزنة المستندات',
+      hindi: 'Document Vault में {count}',
+      urdu: 'Document Vault میں {count}',
+      bengali: 'Document Vault-এ {count}',
+      filipino: '{count} sa Document Vault',
+    ),
+    'data_ai_conversations': _e(
+      'AI conversations',
+      arabic: 'محادثات الذكاء الاصطناعي',
+      hindi: 'AI वार्तालाप',
+      urdu: 'AI گفتگو',
+      bengali: 'AI কথোপকথন',
+      filipino: 'AI conversations',
+    ),
+    'data_ai_threads': _e(
+      '{count} threads',
+      arabic: '{count} سلاسل',
+      hindi: '{count} threads',
+      urdu: '{count} threads',
+      bengali: '{count} threads',
+      filipino: '{count} threads',
+    ),
+    'data_eosb_device': _e(
+      'EOSB / overtime (device)',
+      arabic: 'EOSB / العمل الإضافي (الجهاز)',
+      hindi: 'EOSB / overtime (device)',
+      urdu: 'EOSB / overtime (device)',
+      bengali: 'EOSB / overtime (device)',
+      filipino: 'EOSB / overtime (device)',
+    ),
+    'data_eosb_summary': _e(
+      '{eosbCount} EOSB · {overtimeCount} overtime',
+      arabic: '{eosbCount} EOSB · {overtimeCount} عمل إضافي',
+      hindi: '{eosbCount} EOSB · {overtimeCount} overtime',
+      urdu: '{eosbCount} EOSB · {overtimeCount} overtime',
+      bengali: '{eosbCount} EOSB · {overtimeCount} overtime',
+      filipino: '{eosbCount} EOSB · {overtimeCount} overtime',
+    ),
+    'data_no_personal': _e(
+      'No personal data stored yet beyond your sign-in.',
+      arabic: 'لا توجد بيانات شخصية مخزّنة بعد بخلاف تسجيل الدخول.',
+      hindi: 'साइन-इन के अलावा अभी कोई व्यक्तिगत डेटा संग्रहीत नहीं।',
+      urdu: 'سائن ان کے علاوہ ابھی کوئی ذاتی ڈیٹا محفوظ نہیں۔',
+      bengali: 'সাইন-ইন ছাড়া এখনও কোনো ব্যক্তিগত ডেটা সংরক্ষিত নয়।',
+      filipino:
+          'Wala pang personal data na naka-store bukod sa sign-in mo.',
+    ),
+    'view_my_data': _e(
+      'View my data',
+      arabic: 'عرض بياناتي',
+      hindi: 'मेरा डेटा देखें',
+      urdu: 'میرا ڈیٹا دیکھیں',
+      bengali: 'আমার ডেটা দেখুন',
+      filipino: 'Tingnan ang data ko',
+    ),
+    'view_my_data_sub': _e(
+      'Open screens where your data lives',
+      arabic: 'افتح الشاشات التي توجد فيها بياناتك',
+      hindi: 'वे स्क्रीन खोलें जहाँ आपका डेटा है',
+      urdu: 'وہ اسکرینز کھولیں جہاں آپ کا ڈیٹا ہے',
+      bengali: 'যেখানে আপনার ডেটা আছে সেই স্ক্রিন খুলুন',
+      filipino: 'Buksan ang mga screen kung saan nandoon ang data mo',
+    ),
+    'download_my_data': _e(
+      'Download my data',
+      arabic: 'تنزيل بياناتي',
+      hindi: 'मेरा डेटा डाउनलोड करें',
+      urdu: 'میرا ڈیٹا ڈاؤن لوڈ کریں',
+      bengali: 'আমার ডেটা ডাউনলোড করুন',
+      filipino: 'I-download ang data ko',
+    ),
+    'download_my_data_sub': _e(
+      'Export JSON you can save or share',
+      arabic: 'تصدير JSON يمكنك حفظه أو مشاركته',
+      hindi: 'JSON निर्यात जिसे आप सहेज या साझा कर सकते हैं',
+      urdu: 'JSON برآمد جو آپ محفوظ یا شیئر کر سکتے ہیں',
+      bengali: 'JSON এক্সপোর্ট যা সংরক্ষণ বা শেয়ার করতে পারবেন',
+      filipino: 'I-export ang JSON na maaari mong i-save o i-share',
+    ),
+    'delete_selected_data': _e(
+      'Delete selected data',
+      arabic: 'حذف البيانات المحددة',
+      hindi: 'चयनित डेटा हटाएँ',
+      urdu: 'منتخب ڈیٹا حذف کریں',
+      bengali: 'নির্বাচিত ডেটা মুছুন',
+      filipino: 'Delete selected data',
+    ),
+    'delete_selected_data_sub': _e(
+      'AI history, documents, or EOSB records',
+      arabic: 'سجل الذكاء الاصطناعي أو المستندات أو سجلات EOSB',
+      hindi: 'AI इतिहास, दस्तावेज़, या EOSB रिकॉर्ड',
+      urdu: 'AI history، documents، یا EOSB records',
+      bengali: 'AI history, documents, বা EOSB records',
+      filipino: 'AI history, documents, o EOSB records',
+    ),
+    'delete_my_account': _e(
+      'Delete my account',
+      arabic: 'حذف حسابي',
+      hindi: 'मेरा खाता हटाएँ',
+      urdu: 'میرا اکاؤنٹ حذف کریں',
+      bengali: 'আমার অ্যাকাউন্ট মুছুন',
+      filipino: 'Delete my account',
+    ),
+    'delete_account_warning': _e(
+      'Irreversible. Community posts are anonymized (not deleted) so replies stay intact — confirm with Sayeed if policy should change.',
+      arabic:
+          'لا رجعة فيه. منشورات المجتمع تُ anonymize (لا تُحذف) لتبقى الردود — أكّد مع Sayeed إن تغيّرت السياسة.',
+      hindi:
+          'अपरिवर्तनीय। Community posts anonymized हैं (हटाई नहीं जातीं) ताकि replies बनी रहें — policy बदलनी हो तो Sayeed से confirm करें।',
+      urdu:
+          'ناقابل واپسی۔ Community posts anonymized ہیں (delete نہیں) تاکہ replies برقرار رہیں — policy بدلنی ہو تو Sayeed سے confirm کریں۔',
+      bengali:
+          'অপরিবর্তনীয়। Community posts anonymized (মুছে ফেলা হয় না) যাতে replies intact থাকে — policy বদলাতে হলে Sayeed-এর সাথে confirm করুন।',
+      filipino:
+          'Hindi na mababawi. Anonymized ang community posts (hindi deleted) para intact ang replies — kumpirmahin kay Sayeed kung dapat baguhin ang policy.',
+    ),
+    'snack_vault_enabled': _e(
+      'Vault PIN lock enabled',
+      arabic: 'تم تفعيل قفل PIN للخزنة',
+      hindi: 'वॉल्ट PIN लॉक सक्षम',
+      urdu: 'والٹ PIN لاک فعال',
+      bengali: 'ভল্ট PIN লক সক্রিয়',
+      filipino: 'Naka-enable ang Vault PIN lock',
+    ),
+    'snack_vault_disabled': _e(
+      'Vault PIN lock disabled',
+      arabic: 'تم تعطيل قفل PIN للخزنة',
+      hindi: 'वॉल्ट PIN लॉक अक्षम',
+      urdu: 'والٹ PIN لاک غیر فعال',
+      bengali: 'ভল্ট PIN লক নিষ্ক্রিয়',
+      filipino: 'Na-disable ang Vault PIN lock',
+    ),
+    'snack_vault_disable_error': _e(
+      'Could not disable lock — check your PIN',
+      arabic: 'تعذّر تعطيل القفل — تحقق من PIN',
+      hindi: 'लॉक अक्षम नहीं हो सका — अपना PIN जाँचें',
+      urdu: 'لاک غیر فعال نہیں ہو سکا — اپنا PIN چیک کریں',
+      bengali: 'লক নিষ্ক্রিয় করা যায়নি — PIN যাচাই করুন',
+      filipino: 'Hindi ma-disable ang lock — tingnan ang PIN mo',
+    ),
+    'pin_setup_title': _e(
+      'Set Vault PIN',
+      arabic: 'تعيين PIN للخزنة',
+      hindi: 'वॉल्ट PIN सेट करें',
+      urdu: 'والٹ PIN سیٹ کریں',
+      bengali: 'ভল্ট PIN সেট করুন',
+      filipino: 'Set Vault PIN',
+    ),
+    'pin_digit_label': _e(
+      '4+ digit PIN',
+      arabic: 'PIN من 4+ أرقام',
+      hindi: '4+ अंकों का PIN',
+      urdu: '4+ ہندسوں کا PIN',
+      bengali: '৪+ অঙ্কের PIN',
+      filipino: '4+ digit PIN',
+    ),
+    'pin_confirm_label': _e(
+      'Confirm PIN',
+      arabic: 'تأكيد PIN',
+      hindi: 'PIN की पुष्टि करें',
+      urdu: 'PIN کی تصدیق',
+      bengali: 'PIN নিশ্চিত করুন',
+      filipino: 'Confirm PIN',
+    ),
+    'pin_enter_title': _e(
+      'Enter Vault PIN',
+      arabic: 'أدخل PIN الخزنة',
+      hindi: 'वॉल्ट PIN दर्ज करें',
+      urdu: 'والٹ PIN درج کریں',
+      bengali: 'ভল্ট PIN লিখুন',
+      filipino: 'Enter Vault PIN',
+    ),
+    'action_confirm': _e(
+      'Confirm',
+      arabic: 'تأكيد',
+      hindi: 'पुष्टि करें',
+      urdu: 'تصدیق',
+      bengali: 'নিশ্চিত করুন',
+      filipino: 'Confirm',
+    ),
+    'snack_ai_deleted': _e(
+      'AI history deleted',
+      arabic: 'تم حذف سجل الذكاء الاصطناعي',
+      hindi: 'AI इतिहास हटाया गया',
+      urdu: 'AI history حذف ہو گئی',
+      bengali: 'AI history মুছে ফেলা হয়েছে',
+      filipino: 'Na-delete ang AI history',
+    ),
+    'snack_delete_failed': _e(
+      'Delete failed — try again',
+      arabic: 'فشل الحذف — حاول مرة أخرى',
+      hindi: 'हटाना विफल — पुनः प्रयास करें',
+      urdu: 'حذف ناکام — دوبارہ کوشش کریں',
+      bengali: 'মুছে ফেলা ব্যর্থ — আবার চেষ্টা করুন',
+      filipino: 'Nabigo ang delete — subukan muli',
+    ),
+    'export_subject': _e(
+      'Raabta data export',
+      arabic: 'تصدير بيانات رابطت',
+      hindi: 'Raabta डेटा निर्यात',
+      urdu: 'Raabta ڈیٹا برآمد',
+      bengali: 'Raabta ডেটা এক্সপোর্ট',
+      filipino: 'Raabta data export',
+    ),
+    'snack_export_failed': _e(
+      'Export failed — try again',
+      arabic: 'فشل التصدير — حاول مرة أخرى',
+      hindi: 'निर्यात विफल — पुनः प्रयास करें',
+      urdu: 'برآمد ناکام — دوبارہ کوشش کریں',
+      bengali: 'এক্সপোর্ট ব্যর্থ — আবার চেষ্টা করুন',
+      filipino: 'Nabigo ang export — subukan muli',
+    ),
+    'sheet_profile': _e(
+      'Profile',
+      arabic: 'الملف الشخصي',
+      hindi: 'प्रोफ़ाइल',
+      urdu: 'پروفائل',
+      bengali: 'প্রোফাইল',
+      filipino: 'Profile',
+    ),
+    'sheet_document_vault': _e(
+      'Document Vault',
+      arabic: 'خزنة المستندات',
+      hindi: 'Document Vault',
+      urdu: 'Document Vault',
+      bengali: 'Document Vault',
+      filipino: 'Document Vault',
+    ),
+    'sheet_ai_assistant': _e(
+      'AI Assistant',
+      arabic: 'مساعد الذكاء الاصطناعي',
+      hindi: 'AI Assistant',
+      urdu: 'AI Assistant',
+      bengali: 'AI Assistant',
+      filipino: 'AI Assistant',
+    ),
+    'sheet_delete_ai': _e(
+      'Delete AI history',
+      arabic: 'حذف سجل الذكاء الاصطناعي',
+      hindi: 'AI इतिहास हटाएँ',
+      urdu: 'AI history حذف کریں',
+      bengali: 'AI history মুছুন',
+      filipino: 'Delete AI history',
+    ),
+    'sheet_delete_documents': _e(
+      'Delete all documents',
+      arabic: 'حذف جميع المستندات',
+      hindi: 'सभी दस्तावेज़ हटाएँ',
+      urdu: 'تمام documents حذف کریں',
+      bengali: 'সব নথি মুছুন',
+      filipino: 'Delete all documents',
+    ),
+    'sheet_delete_eosb': _e(
+      'Delete EOSB / overtime (this device)',
+      arabic: 'حذف EOSB / العمل الإضافي (هذا الجهاز)',
+      hindi: 'EOSB / overtime हटाएँ (यह device)',
+      urdu: 'EOSB / overtime حذف کریں (یہ device)',
+      bengali: 'EOSB / overtime মুছুন (এই device)',
+      filipino: 'Delete EOSB / overtime (this device)',
+    ),
+    'confirm_delete_documents': _e(
+      'Delete all documents in your vault?',
+      arabic: 'حذف جميع المستندات في خزنتك؟',
+      hindi: 'अपनी vault के सभी दस्तावेज़ हटाएँ?',
+      urdu: 'اپنی vault کے تمام documents حذف کریں؟',
+      bengali: 'আপনার vault-এর সব নথি মুছবেন?',
+      filipino: 'Delete all documents sa vault mo?',
+    ),
+    'snack_documents_deleted': _e(
+      'Documents deleted',
+      arabic: 'تم حذف المستندات',
+      hindi: 'दस्तावेज़ हटाए गए',
+      urdu: 'documents حذف ہو گئیں',
+      bengali: 'নথি মুছে ফেলা হয়েছে',
+      filipino: 'Na-delete ang documents',
+    ),
+    'confirm_delete_eosb': _e(
+      'Delete EOSB and overtime data on this device?',
+      arabic: 'حذف بيانات EOSB والعمل الإضافي على هذا الجهاز؟',
+      hindi: 'इस device पर EOSB और overtime डेटा हटाएँ?',
+      urdu: 'اس device پر EOSB اور overtime ڈیٹا حذف کریں؟',
+      bengali: 'এই device-এ EOSB ও overtime ডেটা মুছবেন?',
+      filipino: 'Delete EOSB at overtime data sa device na ito?',
+    ),
+    'snack_eosb_deleted': _e(
+      'Local EOSB data deleted',
+      arabic: 'تم حذف بيانات EOSB المحلية',
+      hindi: 'स्थानीय EOSB डेटा हटाया गया',
+      urdu: 'مقامی EOSB ڈیٹا حذف ہو گیا',
+      bengali: 'স্থানীয় EOSB ডেটা মুছে ফেলা হয়েছে',
+      filipino: 'Na-delete ang local EOSB data',
+    ),
+    'delete_account_title': _e(
+      'Delete account permanently?',
+      arabic: 'حذف الحساب نهائياً؟',
+      hindi: 'खाता स्थायी रूप से हटाएँ?',
+      urdu: 'اکاؤنٹ مستقل طور پر حذف کریں؟',
+      bengali: 'অ্যাকাউন্ট স্থায়ীভাবে মুছবেন?',
+      filipino: 'Permanenteng i-delete ang account?',
+    ),
+    'delete_account_body': _e(
+      'This removes your profile, documents, and AI history. '
+      'Re-enter your phone number to confirm.',
+      arabic:
+          'سيُزيل ملفك ومستنداتك وسجل الذكاء الاصطناعي. '
+          'أعد إدخال رقم هاتفك للتأكيد.',
+      hindi:
+          'यह आपकी प्रोफ़ाइल, दस्तावेज़ और AI इतिहास हटा देगा। '
+          'पुष्टि के लिए फ़ोन नंबर फिर दर्ज करें।',
+      urdu:
+          'یہ آپ کا profile، documents اور AI history ہٹا دے گا۔ '
+          'تصدیق کے لیے فون نمبر دوبارہ درج کریں۔',
+      bengali:
+          'এটি আপনার profile, documents ও AI history সরিয়ে দেবে। '
+          'নিশ্চিত করতে ফোন নম্বর আবার লিখুন।',
+      filipino:
+          'Aalisin nito ang profile, documents, at AI history mo. '
+          'Ilagay muli ang phone number para kumpirmahin.',
+    ),
+    'phone_number_label': _e(
+      'Phone number',
+      arabic: 'رقم الهاتف',
+      hindi: 'फ़ोन नंबर',
+      urdu: 'فون نمبر',
+      bengali: 'ফোন নম্বর',
+      filipino: 'Phone number',
+    ),
+    'phone_hint': _e(
+      '+974…',
+      arabic: '+974…',
+      hindi: '+974…',
+      urdu: '+974…',
+      bengali: '+974…',
+      filipino: '+974…',
+    ),
+    'delete_forever': _e(
+      'Delete forever',
+      arabic: 'حذف نهائي',
+      hindi: 'हमेशा के लिए हटाएँ',
+      urdu: 'ہمیشہ کے لیے حذف',
+      bengali: 'চিরতরে মুছুন',
+      filipino: 'Delete forever',
+    ),
+    'snack_account_delete_failed': _e(
+      'Account deletion failed. You may need to sign in again recently, then retry.',
+      arabic:
+          'فشل حذف الحساب. قد تحتاج لتسجيل الدخول مؤخراً ثم إعادة المحاولة.',
+      hindi:
+          'खाता हटाना विफल। हाल ही में फिर साइन-इन करके retry करें।',
+      urdu:
+          'اکاؤنٹ حذف ناکام۔ حال ہی میں دوبارہ سائن ان کر کے retry کریں۔',
+      bengali:
+          'অ্যাকাউন্ট মুছে ফেলা ব্যর্থ। সম্প্রতি আবার সাইন ইন করে retry করুন।',
+      filipino:
+          'Nabigo ang pag-delete ng account. Maaaring kailangan mong mag-sign in ulit kamakailan, then retry.',
+    ),
+    'sensitive_ai_title': _e(
+      'Sensitive AI features',
+      arabic: 'ميزات الذكاء الاصطناعي الحساسة',
+      hindi: 'संवेदनशील AI सुविधाएँ',
+      urdu: 'حساس AI فیچرز',
+      bengali: 'সংবেদনশীল AI বৈশিষ্ট্য',
+      filipino: 'Sensitive AI features',
+    ),
+    'sensitive_ai_body': _e(
+      'EOSB, overtime, and legal AI tools may store conversation content '
+      'so Raabta can continue assisting you. Data stays in your account '
+      'and can be deleted from Your Data.',
+      arabic:
+          'قد تخزّن أدوات EOSB والعمل الإضافي والذكاء الاصطناعي القانوني محتوى المحادثة '
+          'لتستمر رابطت في مساعدتك. تبقى البيانات في حسابك ويمكن حذفها من بياناتك.',
+      hindi:
+          'EOSB, overtime और legal AI tools वार्तालाप सामग्री संग्रहीत कर सकते हैं '
+          'ताकि Raabta आपकी सहायता जारी रख सके। डेटा आपके खाते में रहता है '
+          'और Your Data से हटाया जा सकता है।',
+      urdu:
+          'EOSB، overtime اور legal AI tools گفتگو کا مواد محفوظ کر سکتے ہیں '
+          'تاکہ Raabta مدد جاری رکھے۔ ڈیٹا آپ کے اکاؤنٹ میں رہتا ہے '
+          'اور Your Data سے حذف کیا جا سکتا ہے۔',
+      bengali:
+          'EOSB, overtime ও legal AI tools কথোপকথনের বিষয়বস্তু সংরক্ষণ করতে পারে '
+          'যাতে Raabta সহায়তা চালিয়ে যেতে পারে। ডেটা আপনার অ্যাকাউন্টে থাকে '
+          'এবং Your Data থেকে মুছে ফেলা যায়।',
+      filipino:
+          'Maaaring i-store ng EOSB, overtime, at legal AI tools ang conversation content '
+          'para magpatuloy ang tulong ng Raabta. Nasa account mo ang data '
+          'at maaaring i-delete mula sa Your Data.',
+    ),
+    'action_close': _e(
+      'Close',
+      arabic: 'إغلاق',
+      hindi: 'बंद करें',
+      urdu: 'بند کریں',
+      bengali: 'বন্ধ করুন',
+      filipino: 'Isara',
+    ),
+    'action_understand': _e(
+      'I understand',
+      arabic: 'أفهم',
+      hindi: 'मैं समझता/समझती हूँ',
+      urdu: 'میں سمجھ گیا/گئی',
+      bengali: 'আমি বুঝেছি',
+      filipino: 'Naiintindihan ko',
+    ),
+    'confirm_sign_out': _e(
+      'Sign out of Raabta?',
+      arabic: 'تسجيل الخروج من رابطت؟',
+      hindi: 'Raabta से साइन आउट करें?',
+      urdu: 'Raabta سے سائن آؤٹ کریں؟',
+      bengali: 'Raabta থেকে সাইন আউট করবেন?',
+      filipino: 'Mag-sign out sa Raabta?',
+    ),
+    'confirm_delete_ai': _e(
+      'Delete all AI conversations?',
+      arabic: 'حذف جميع محادثات الذكاء الاصطناعي؟',
+      hindi: 'सभी AI वार्तालाप हटाएँ?',
+      urdu: 'تمام AI گفتگو حذف کریں؟',
+      bengali: 'সব AI কথোপকথন মুছবেন?',
+      filipino: 'Delete all AI conversations?',
+    ),
+    'data_advanced_profile': _e(
+      'Advanced Profile (optional)',
+      arabic: 'الملف المتقدم (اختياري)',
+      hindi: 'Advanced Profile (optional)',
+      urdu: 'Advanced Profile (optional)',
+    ),
+    'data_advanced_fields_count': _e(
+      '{count} optional fields',
+      arabic: '{count} حقول اختيارية',
+      hindi: '{count} optional fields',
+      urdu: '{count} optional fields',
+    ),
+    'sheet_delete_advanced_profile': _e(
+      'Delete Advanced Profile data',
+      arabic: 'حذف بيانات الملف المتقدم',
+      hindi: 'Delete Advanced Profile data',
+      urdu: 'Delete Advanced Profile data',
+    ),
+    'confirm_delete_advanced_profile': _e(
+      'Delete all optional Advanced Profile data?',
+      arabic: 'حذف جميع بيانات الملف المتقدم الاختيارية؟',
+      hindi: 'Delete all optional Advanced Profile data?',
+      urdu: 'Delete all optional Advanced Profile data?',
+    ),
+    'snack_advanced_profile_deleted': _e(
+      'Advanced Profile data deleted',
+      arabic: 'تم حذف بيانات الملف المتقدم',
+      hindi: 'Advanced Profile data deleted',
+      urdu: 'Advanced Profile data deleted',
+    ),
+  };
+}

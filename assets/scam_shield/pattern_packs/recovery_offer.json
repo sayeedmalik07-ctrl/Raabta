@@ -1,0 +1,85 @@
+{
+  "id": "recovery_offer",
+  "verified": true,
+  "localFlag": "ss_flag_recovery_offer",
+  "evidenceKind": "recoveryOffer",
+  "minGroups": 2,
+  "sourceLabel": "CFTC recovery fraud advisory; FTC Aug 2026 consumer alert (Sayeed to verify URLs)",
+  "sourceUrl": "https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/RecoveryFrauds.html",
+  "evidenceTextKey": "ss_evidence_recovery_offer",
+  "groups": [
+    {
+      "id": "recover_lost_funds",
+      "patterns": [
+        "recover your lost",
+        "recover your stolen",
+        "retrieve your funds",
+        "get your money back",
+        "asset recovery",
+        "recovery agent",
+        "we have recovered your",
+        "compensation is available",
+        "refund your loss",
+        "استرداد أموالك",
+        "استرجاع أموال",
+        "وكيل استرداد",
+        "पैसे वापस",
+        "धन वापसी"
+      ]
+    },
+    {
+      "id": "fee_to_release",
+      "patterns": [
+        "processing fee",
+        "release charge",
+        "retainer fee",
+        "tax before release",
+        "pay a fee to receive",
+        "upfront fee to recover",
+        "recovery fee",
+        "refund processing fee",
+        "chargeback service fee",
+        "رسوم الإفراج",
+        "رسوم استرداد",
+        "फीस भुगतान",
+        "रिलीज़ शुल्क"
+      ]
+    },
+    {
+      "id": "bank_for_deposit",
+      "patterns": [
+        "bank details to deposit",
+        "account number to send recovered",
+        "deposit recovered funds",
+        "share your iban",
+        "card details to release",
+        "تفاصيل البنك",
+        "iban",
+        "खाता विवरण"
+      ]
+    },
+    {
+      "id": "fake_check",
+      "patterns": [
+        "deposit this check first",
+        "cash this check",
+        "send back the difference",
+        "إيداع الشيك",
+        "चेक जमा"
+      ]
+    },
+    {
+      "id": "impersonated_recovery",
+      "patterns": [
+        "recovery unit",
+        "fraud department calling",
+        "law firm recovery",
+        "regulator refund team",
+        "police refund",
+        "وحدة الاسترداد",
+        "قسم الاحتيال",
+        "recovery department"
+      ]
+    }
+  ]
+}

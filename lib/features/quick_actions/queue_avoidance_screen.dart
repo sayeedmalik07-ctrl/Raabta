@@ -1,40 +1,56 @@
+// ─────────────────────────────────────────────────────
+// SETUP REQUIRED: Google Places API Key
+// 1. Go to https://console.cloud.google.com
+// 2. Create a project or select existing
+// 3. Enable "Places API" and "Maps JavaScript API"
+// 4. Create an API key under Credentials
+// 5. Replace 'YOUR_GOOGLE_PLACES_API_KEY' below
+// ─────────────────────────────────────────────────────
+
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:raabta/core/constants/strings/common_strings.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/services/sharing/models/shareable_card_data.dart';
+import 'package:raabta/services/sharing/widgets/share_card_sheet.dart';
+
+import 'package:raabta/core/widgets/animated_background.dart';
+import 'package:raabta/features/quick_actions/l10n/quick_actions_strings.dart';
+import 'package:raabta/providers/visa_providers.dart';
 import 'package:raabta/services/ai/claude_ai_service.dart';
 
 // ─── MODELS ─────────────────────────────────────────────
 
-class ServiceLocation {
-  final String id;
+class PlaceResult {
+  const PlaceResult({
+    required this.placeId,
+    required this.name,
+    required this.address,
+    required this.category,
+    required this.emoji,
+    this.area = 'Qatar',
+    this.types = const [],
+  });
+
+  final String placeId;
   final String name;
+  final String address;
   final String category;
   final String emoji;
   final String area;
-  final String address;
+  final List<String> types;
 
-  const ServiceLocation({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.emoji,
-    required this.area,
-    required this.address,
-  });
+  String get id => placeId;
 }
 
 class WaitPrediction {
-  final int estimatedMinutes;
-  final String confidence;
-  final String reason;
-  final String bestTimeToVisit;
-  final String worstTimeToVisit;
-  final String currentStatus;
-  final Color statusColor;
-  final List<String> tips;
-
   const WaitPrediction({
     required this.estimatedMinutes,
     required this.confidence,
@@ -45,108 +61,100 @@ class WaitPrediction {
     required this.statusColor,
     required this.tips,
   });
+
+  final int estimatedMinutes;
+  final String confidence;
+  final String reason;
+  final String bestTimeToVisit;
+  final String worstTimeToVisit;
+  final String currentStatus;
+  final Color statusColor;
+  final List<String> tips;
 }
 
-class CommunityReport {
-  final String userId;
-  final int waitMinutes;
-  final String comment;
-  final DateTime reportedAt;
-  final String locationId;
+// ─── GOOGLE PLACES HELPERS ──────────────────────────────
 
-  const CommunityReport({
-    required this.userId,
-    required this.waitMinutes,
-    required this.comment,
-    required this.reportedAt,
-    required this.locationId,
-  });
+String _emojiForTypes(List<String> types) {
+  if (types.any((t) => t.contains('hospital') || t.contains('doctor'))) {
+    return '🏥';
+  }
+  if (types.any((t) =>
+      t.contains('government') ||
+      t.contains('embassy') ||
+      t.contains('city_hall'))) {
+    return '🏛️';
+  }
+  if (types.any((t) => t.contains('shopping') || t.contains('store'))) {
+    return '🛍️';
+  }
+  if (types.any((t) => t.contains('restaurant') || t.contains('food'))) {
+    return '🍽️';
+  }
+  if (types.any((t) => t.contains('bank') || t.contains('atm'))) {
+    return '🏦';
+  }
+  if (types.any((t) => t.contains('gas_station'))) return '⛽';
+  if (types.any((t) => t.contains('school') || t.contains('university'))) {
+    return '🎓';
+  }
+  if (types.any((t) => t.contains('mosque'))) return '🕌';
+  if (types.any((t) => t.contains('pharmacy'))) return '💊';
+  if (types.any((t) => t.contains('post_office'))) return '📦';
+  return '📍';
 }
 
-// ─── DATA: Qatar service locations ──────────────────────
+String _categoryForTypes(List<String> types) {
+  if (types.any((t) => t.contains('hospital') || t.contains('doctor'))) {
+    return 'Medical';
+  }
+  if (types.any((t) =>
+      t.contains('government') ||
+      t.contains('embassy') ||
+      t.contains('local_government_office'))) {
+    return 'Government';
+  }
+  if (types.any((t) => t.contains('shopping') || t.contains('store'))) {
+    return 'Retail';
+  }
+  if (types.any((t) => t.contains('restaurant') || t.contains('food'))) {
+    return 'Food';
+  }
+  if (types.any((t) => t.contains('bank') || t.contains('finance'))) {
+    return 'Services';
+  }
+  if (types.any((t) => t.contains('telecom') || t.contains('electronics'))) {
+    return 'Telecom';
+  }
+  return 'Place';
+}
 
-const _qatarLocations = [
-  ServiceLocation(
-    id: 'metrash2_main',
-    name: 'Metrash2 / MOI Services',
-    category: 'Government',
-    emoji: '🏛️',
-    area: 'Multiple Locations',
-    address: 'Ministry of Interior, Qatar',
-  ),
-  ServiceLocation(
-    id: 'vehicle_inspection_ain_khaled',
-    name: 'Vehicle Inspection — Ain Khaled',
-    category: 'Government',
-    emoji: '🚗',
-    area: 'Ain Khaled',
-    address: 'Ain Khaled, Doha',
-  ),
-  ServiceLocation(
-    id: 'hmc_emergency',
-    name: 'Hamad Medical City — ER',
-    category: 'Medical',
-    emoji: '🏥',
-    area: 'Al Rayyan',
-    address: 'Hamad Medical City, Al Rayyan Road',
-  ),
-  ServiceLocation(
-    id: 'alkhor_hospital',
-    name: 'Al Khor Hospital',
-    category: 'Medical',
-    emoji: '🏥',
-    area: 'Al Khor',
-    address: 'Al Khor Hospital, Al Khor',
-  ),
-  ServiceLocation(
-    id: 'immigration_mesaimeer',
-    name: 'Immigration — Mesaimeer',
-    category: 'Government',
-    emoji: '🛂',
-    area: 'Mesaimeer',
-    address: 'General Directorate of Passports, Mesaimeer',
-  ),
-  ServiceLocation(
-    id: 'qatar_post_main',
-    name: 'Qatar Post — Main Branch',
-    category: 'Services',
-    emoji: '📦',
-    area: 'West Bay',
-    address: 'Qatar Post HQ, West Bay',
-  ),
-  ServiceLocation(
-    id: 'ooredoo_showroom',
-    name: 'Ooredoo Showroom',
-    category: 'Telecom',
-    emoji: '📱',
-    area: 'Multiple',
-    address: 'Various locations across Qatar',
-  ),
-  ServiceLocation(
-    id: 'city_center_doha',
-    name: 'City Center Doha',
-    category: 'Retail',
-    emoji: '🛍️',
-    area: 'Al Dafna',
-    address: 'City Center, Al Dafna, Doha',
-  ),
-  ServiceLocation(
-    id: 'carrefour_landmark',
-    name: 'Carrefour — Landmark Mall',
-    category: 'Retail',
-    emoji: '🛒',
-    area: 'Al Mansoura',
-    address: 'Landmark Mall, Al Mansoura',
-  ),
-  ServiceLocation(
-    id: 'lulu_hypermarket_alkhor',
-    name: 'LuLu Hypermarket — Al Khor',
-    category: 'Retail',
-    emoji: '🛒',
-    area: 'Al Khor',
-    address: 'LuLu Hypermarket, Al Khor',
-  ),
-];
+String _areaFromAddress(String address) {
+  final parts = address.split(',').map((p) => p.trim()).toList();
+  if (parts.length >= 2) {
+    return parts[parts.length - 2];
+  }
+  return 'Qatar';
+}
+
+PlaceResult _placeFromPrediction(Map<String, dynamic> json) {
+  final structured =
+      json['structured_formatting'] as Map<String, dynamic>? ?? {};
+  final name = structured['main_text'] as String? ??
+      json['description'] as String? ??
+      'Unknown place';
+  final secondary = structured['secondary_text'] as String? ?? 'Qatar';
+  final types =
+      (json['types'] as List?)?.map((t) => t.toString()).toList() ?? [];
+  return PlaceResult(
+    placeId: json['place_id'] as String? ?? '',
+    name: name,
+    address: json['description'] as String? ?? secondary,
+    category: _categoryForTypes(types),
+    emoji: _emojiForTypes(types),
+    area: _areaFromAddress(json['description'] as String? ?? secondary),
+    types: types,
+  );
+}
 
 // ─── SCREEN ─────────────────────────────────────────────
 
@@ -159,38 +167,191 @@ class QueueAvoidanceScreen extends ConsumerStatefulWidget {
 }
 
 class _QueueAvoidanceScreenState extends ConsumerState<QueueAvoidanceScreen> {
-  String _selectedCategory = 'All';
-  ServiceLocation? _selectedLocation;
+  static const _googleApiKey = String.fromEnvironment(
+    'GOOGLE_PLACES_API_KEY',
+    defaultValue: '',
+  );
+
+  static const _quickSearches = [
+    ('🏥', 'Hospital'),
+    ('🏛️', 'Government office'),
+    ('🛂', 'Immigration'),
+    ('📦', 'Qatar Post'),
+    ('🛍️', 'Shopping mall'),
+    ('🏦', 'Bank'),
+    ('⛽', 'Petrol station'),
+    ('🕌', 'Mosque'),
+  ];
+
+  final _searchController = TextEditingController();
+  final _reportCommentController = TextEditingController();
+  Timer? _searchDebounce;
+
+  String _searchQuery = '';
+  List<PlaceResult> _placeResults = [];
+  PlaceResult? _selectedLocation;
   WaitPrediction? _prediction;
+
+  bool _isSearchingPlaces = false;
   bool _isLoading = false;
   bool _isReporting = false;
   String? _error;
+  String? _placesError;
   int _reportMinutes = 15;
-  final _reportCommentController = TextEditingController();
 
-  final _categories = [
-    'All',
-    'Government',
-    'Medical',
-    'Services',
-    'Telecom',
-    'Retail',
-  ];
+  bool get _apiKeyConfigured =>
+      _googleApiKey.isNotEmpty &&
+      _googleApiKey != 'YOUR_GOOGLE_PLACES_API_KEY';
 
-  List<ServiceLocation> get _filteredLocations {
-    if (_selectedCategory == 'All') return _qatarLocations;
-    return _qatarLocations
-        .where((l) => l.category == _selectedCategory)
-        .toList();
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     _reportCommentController.dispose();
     super.dispose();
   }
 
-  Future<void> _getPrediction(ServiceLocation location) async {
+  void _onSearchChanged() {
+    final query = _searchController.text.trim();
+    if (query == _searchQuery) return;
+    setState(() {
+      _searchQuery = query;
+      _placesError = null;
+    });
+    _searchDebounce?.cancel();
+    if (query.length < 2) {
+      setState(() {
+        _placeResults = [];
+        _isSearchingPlaces = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      _fetchPlaces(query);
+    });
+  }
+
+  Future<void> _fetchPlaces(String query) async {
+    if (!_apiKeyConfigured) {
+      setState(() {
+        _placesError =
+            'Add your Google Places API key at the top of this file.';
+        _placeResults = [];
+        _isSearchingPlaces = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearchingPlaces = true;
+      _placesError = null;
+    });
+
+    try {
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/autocomplete/json',
+        {
+          'input': query,
+          'key': _googleApiKey,
+          'components': 'country:qa',
+          'language': 'en',
+        },
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final status = data['status'] as String? ?? 'UNKNOWN';
+
+      if (status != 'OK' && status != 'ZERO_RESULTS') {
+        final msg = data['error_message'] as String? ?? status;
+        throw Exception(msg);
+      }
+
+      final predictions = (data['predictions'] as List?) ?? [];
+      setState(() {
+        _placeResults = predictions
+            .map((p) => _placeFromPrediction(p as Map<String, dynamic>))
+            .where((p) => p.placeId.isNotEmpty)
+            .toList();
+        _isSearchingPlaces = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _placesError = 'Could not search places. Check API key & connection.';
+        _placeResults = [];
+        _isSearchingPlaces = false;
+      });
+    }
+  }
+
+  Future<PlaceResult> _enrichPlaceDetails(PlaceResult place) async {
+    if (!_apiKeyConfigured) return place;
+
+    try {
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/details/json',
+        {
+          'place_id': place.placeId,
+          'fields': 'place_id,name,formatted_address,types,vicinity',
+          'key': _googleApiKey,
+          'language': 'en',
+        },
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return place;
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK') return place;
+
+      final result = data['result'] as Map<String, dynamic>? ?? {};
+      final types =
+          (result['types'] as List?)?.map((t) => t.toString()).toList() ??
+              place.types;
+      final address =
+          result['formatted_address'] as String? ?? place.address;
+      final name = result['name'] as String? ?? place.name;
+
+      return PlaceResult(
+        placeId: place.placeId,
+        name: name,
+        address: address,
+        category: _categoryForTypes(types),
+        emoji: _emojiForTypes(types),
+        area: result['vicinity'] as String? ?? _areaFromAddress(address),
+        types: types,
+      );
+    } catch (_) {
+      return place;
+    }
+  }
+
+  Future<void> _quickSearch(String term) async {
+    _searchController.text = term;
+    _searchController.selection = TextSelection.fromPosition(
+      TextPosition(offset: term.length),
+    );
+    setState(() => _searchQuery = term);
+    await _fetchPlaces(term);
+  }
+
+  Future<void> _getPrediction(PlaceResult location) async {
     setState(() {
       _selectedLocation = location;
       _isLoading = true;
@@ -199,6 +360,10 @@ class _QueueAvoidanceScreenState extends ConsumerState<QueueAvoidanceScreen> {
     });
 
     try {
+      final enriched = await _enrichPlaceDetails(location);
+      if (!mounted) return;
+      setState(() => _selectedLocation = enriched);
+
       final now = DateTime.now();
       const dayNames = [
         '',
@@ -218,9 +383,11 @@ class _QueueAvoidanceScreenState extends ConsumerState<QueueAvoidanceScreen> {
 You are a Qatar daily life expert who knows wait time patterns at 
 government services, hospitals, and commercial locations.
 
-Predict the current wait time at: ${location.name}
-Location: ${location.area}, Qatar
-Category: ${location.category}
+Predict the current wait time at: ${enriched.name}
+Full address: ${enriched.address}
+Location area: ${enriched.area}, Qatar
+Category: ${enriched.category}
+Place types: ${enriched.types.join(', ')}
 Current time: $hour:00 on $day, month $month
 
 Consider Qatar-specific patterns:
@@ -301,8 +468,9 @@ Respond ONLY with valid JSON:
     setState(() => _isReporting = true);
     try {
       await FirebaseFirestore.instance.collection('queue_reports').add({
-        'locationId': _selectedLocation!.id,
+        'locationId': _selectedLocation!.placeId,
         'locationName': _selectedLocation!.name,
+        'locationAddress': _selectedLocation!.address,
         'waitMinutes': _reportMinutes,
         'comment': _reportCommentController.text.trim(),
         'reportedAt': FieldValue.serverTimestamp(),
@@ -317,7 +485,7 @@ Respond ONLY with valid JSON:
             content: Text(
               '✅ Report submitted! Thank you for helping the community.',
             ),
-            backgroundColor: Color(0xFF2DC653),
+            backgroundColor: AppColors.successBright,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -328,7 +496,7 @@ Respond ONLY with valid JSON:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not submit report. Try again.'),
-            backgroundColor: Color(0xFFE63946),
+            backgroundColor: AppColors.errorBright,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -341,7 +509,7 @@ Respond ONLY with valid JSON:
   void _showReportSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1035),
+      backgroundColor: AppColors.surfaceElevated,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -363,16 +531,20 @@ Respond ONLY with valid JSON:
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.isLight
+                        ? AppColors.textTertiary
+                        : Colors.white24,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 '📍 Report Live Wait Time',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white,
                   fontWeight: FontWeight.w800,
                   fontSize: 17,
                 ),
@@ -381,32 +553,42 @@ Respond ONLY with valid JSON:
               Text(
                 _selectedLocation?.name ?? '',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: AppColors.isLight
+                      ? AppColors.textOnGlassMuted
+                      : Colors.white.withValues(alpha: 0.45),
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 24),
               Text(
                 'Current wait time: $_reportMinutes minutes',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
               ),
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: const Color(0xFFFFB627),
-                  thumbColor: const Color(0xFFFFB627),
-                  inactiveTrackColor: Colors.white12,
+                  activeTrackColor: AppColors.accentGold,
+                  thumbColor: AppColors.accentGold,
+                  inactiveTrackColor: AppColors.isLight
+                      ? AppColors.glassBorder
+                      : Colors.white12,
                   trackHeight: 3,
                 ),
-                child: Slider(
-                  value: _reportMinutes.toDouble(),
-                  min: 0,
-                  max: 120,
-                  divisions: 24,
-                  onChanged: (v) => setSheet(() => _reportMinutes = v.round()),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Slider(
+                    value: _reportMinutes.toDouble(),
+                    min: 0,
+                    max: 120,
+                    divisions: 24,
+                    onChanged: (v) =>
+                        setSheet(() => _reportMinutes = v.round()),
+                  ),
                 ),
               ),
               Row(
@@ -416,7 +598,9 @@ Respond ONLY with valid JSON:
                       (t) => Text(
                         '${t}m',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: AppColors.isLight
+                              ? AppColors.textOnGlassMuted
+                              : Colors.white.withValues(alpha: 0.3),
                           fontSize: 10,
                         ),
                       ),
@@ -426,15 +610,23 @@ Respond ONLY with valid JSON:
               const SizedBox(height: 20),
               TextField(
                 controller: _reportCommentController,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white,
+                ),
                 decoration: InputDecoration(
                   hintText:
                       'Optional: add a note (e.g. Very crowded, system down)',
                   hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: AppColors.isLight
+                        ? AppColors.textOnGlassMuted
+                        : Colors.white.withValues(alpha: 0.25),
                     fontSize: 12,
                   ),
-                  fillColor: Colors.white.withValues(alpha: 0.06),
+                  fillColor: AppColors.isLight
+                      ? AppColors.glassBorder.withValues(alpha: 0.25)
+                      : Colors.white.withValues(alpha: 0.06),
                   filled: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -447,10 +639,9 @@ Respond ONLY with valid JSON:
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed:
-                      _isReporting ? null : () => _submitReport(ctx),
+                  onPressed: _isReporting ? null : () => _submitReport(ctx),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2DC653),
+                    backgroundColor: AppColors.successBright,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -473,175 +664,427 @@ Respond ONLY with valid JSON:
     );
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _placeResults = [];
+      _placesError = null;
+      _isSearchingPlaces = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0826),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0826),
-        elevation: 0,
-        title: const Text(
-          'Queue Avoidance',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
+    final locale = ref.watch(userLanguageProvider);
+    return AnimatedAuroraBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Text(
+            QuickActionsStrings.t('tool_queue_title', locale),
+            style: AppTypography.title.copyWith(color: AppColors.textPrimary),
           ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          if (_selectedLocation != null && _prediction != null)
-            TextButton.icon(
-              onPressed: _showReportSheet,
-              icon: const Icon(
-                Icons.add_location_alt_rounded,
-                color: Color(0xFFFFB627),
-                size: 16,
+          iconTheme: IconThemeData(color: AppColors.textPrimary),
+          actions: [
+            if (_selectedLocation != null && _prediction != null)
+              TextButton.icon(
+                onPressed: () {
+                  final shareData = WaitTimeCardData(
+                    locationName:         _selectedLocation!.name,
+                    locationArea:         _selectedLocation!.address,
+                    locationEmoji:        _selectedLocation!.emoji,
+                    estimatedMinutes:     _prediction!.estimatedMinutes,
+                    currentStatus:        _prediction!.currentStatus,
+                    statusColor:          _prediction!.statusColor,
+                    bestTimeToVisit:      _prediction!.bestTimeToVisit,
+                    reportedAt:           'Just now',
+                    communityReportCount: 0,
+                    shareCaption:
+                        '⏱ ${_selectedLocation!.name}\n'
+                        'Current wait: ~${_prediction!.estimatedMinutes} min '
+                        '(${_prediction!.currentStatus})\n\n'
+                        'Best time: ${_prediction!.bestTimeToVisit}\n\n'
+                        'Check wait times with RAABTA\n${CommonStrings.publicWebsiteHost}',
+                  );
+                  ShareCardSheet.show(context, shareData);
+                },
+                icon: const Icon(
+                  Icons.share_rounded,
+                  color: AppColors.accentGold,
+                  size:  15,
+                ),
+                label: const Text(
+                  'Share',
+                  style: TextStyle(
+                    color:      AppColors.accentGold,
+                    fontWeight: FontWeight.w700,
+                    fontSize:   13,
+                  ),
+                ),
               ),
-              label: const Text(
-                'Report',
+            if (_selectedLocation != null && _prediction != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TextButton.icon(
+                  onPressed: _showReportSheet,
+                  icon: const Icon(
+                    Icons.add_location_alt_rounded,
+                    color: AppColors.accentGold,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    'Report',
+                    style: TextStyle(
+                      color: AppColors.accentGold,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextField(
+                controller: _searchController,
                 style: TextStyle(
-                  color: Color(0xFFFFB627),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white,
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search any place in Qatar — shop, hospital, office…',
+                  hintStyle: TextStyle(
+                    color: AppColors.isLight
+                        ? AppColors.textOnGlassMuted
+                        : Colors.white.withValues(alpha: 0.25),
+                    fontSize: 13,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.sharePurple,
+                    size: 20,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? GestureDetector(
+                          onTap: _clearSearch,
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: AppColors.isLight
+                                ? AppColors.textOnGlassMuted
+                                : Colors.white38,
+                            size: 18,
+                          ),
+                        )
+                      : (_isSearchingPlaces
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.sharePurple,
+                                ),
+                              ),
+                            )
+                          : null),
+                  fillColor: AppColors.isLight
+                      ? AppColors.glassBorder.withValues(alpha: 0.25)
+                      : Colors.white.withValues(alpha: 0.06),
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppColors.sharePurple,
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
                 ),
               ),
             ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Column(
-        children: [
-          Container(
-            height: 40,
-            margin: const EdgeInsets.fromLTRB(16, 12, 0, 0),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              separatorBuilder: (context, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final cat = _categories[i];
-                final selected = _selectedCategory == cat;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = cat),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? const Color(0xFF6C3FC5)
-                          : const Color(0xFF6C3FC5).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF6C3FC5).withValues(
-                          alpha: selected ? 1 : 0.25,
+            if (!_apiKeyConfigured)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: GlassContainer(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  borderRadius: 10,
+                  glowColor: AppColors.amberGlow,
+                  glowIntensity: 0.08,
+                  backgroundColor: AppColors.amberGlow.withValues(alpha: 0.1),
+                  child: const Text(
+                    '⚠️ Add your Google Places API key in '
+                    'queue_avoidance_screen.dart to enable live search.',
+                    style: TextStyle(color: AppColors.accentGold, fontSize: 12),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _quickSearches.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final item = _quickSearches[i];
+                  return GestureDetector(
+                    onTap: () => _quickSearch('${item.$2} Qatar'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.sharePurple.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.sharePurple.withValues(alpha: 0.25),
                         ),
                       ),
-                    ),
-                    child: Text(
-                      cat,
-                      style: TextStyle(
-                        color: selected
-                            ? Colors.white
-                            : const Color(0xFF6C3FC5),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(item.$1, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(width: 6),
+                          Text(
+                            item.$2,
+                            style: const TextStyle(
+                              color: AppColors.sharePurple,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Text(
-                _error!,
-                style: const TextStyle(color: Color(0xFFE63946), fontSize: 13),
+                  );
+                },
               ),
             ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          color: Color(0xFF6C3FC5),
-                          strokeWidth: 2.5,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Predicting wait times...',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.errorBright, fontSize: 13),
+                ),
+              ),
+            if (_placesError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(
+                  _placesError!,
+                  style: const TextStyle(color: AppColors.errorBright, fontSize: 13),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(
+                            color: AppColors.sharePurple,
+                            strokeWidth: 2.5,
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _prediction != null
-                    ? _buildPredictionView()
-                    : _buildLocationList(),
-          ),
-        ],
+                          const SizedBox(height: 16),
+                          Text(
+                            'Predicting wait times...',
+                            style: TextStyle(
+                              color: AppColors.isLight
+                                  ? AppColors.textOnGlassSecondary
+                                  : Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _prediction != null
+                      ? _buildPredictionView()
+                      : _buildPlacesList(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildLocationList() {
+  Widget _buildPlacesList() {
+    if (_searchQuery.length < 2) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.place_rounded,
+                color: AppColors.isLight
+                    ? AppColors.textTertiary
+                    : Colors.white24,
+                size: 52,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Search any location in Qatar',
+                style: TextStyle(
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white.withValues(alpha: 0.7),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Type at least 2 characters — or tap a quick search chip above',
+                style: TextStyle(
+                  color: AppColors.isLight
+                      ? AppColors.textOnGlassMuted
+                      : Colors.white.withValues(alpha: 0.35),
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isSearchingPlaces) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.sharePurple,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+
+    if (_placeResults.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                color: AppColors.isLight
+                    ? AppColors.textTertiary
+                    : Colors.white24,
+                size: 48,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No places found for "$_searchQuery"',
+                style: TextStyle(
+                  color: AppColors.isLight
+                      ? AppColors.textOnGlassMuted
+                      : Colors.white.withValues(alpha: 0.4),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _clearSearch,
+                child: const Text(
+                  'Clear search',
+                  style: TextStyle(
+                    color: AppColors.sharePurple,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      itemCount: _filteredLocations.length,
+      itemCount: _placeResults.length,
       itemBuilder: (_, i) {
-        final loc = _filteredLocations[i];
+        final place = _placeResults[i];
         return GestureDetector(
-          onTap: () => _getPrediction(loc),
-          child: Container(
+          onTap: () => _getPrediction(place),
+          child: GlassContainer(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
+            borderRadius: 14,
             child: Row(
               children: [
-                Text(loc.emoji, style: const TextStyle(fontSize: 26)),
+                Text(place.emoji, style: const TextStyle(fontSize: 26)),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        loc.name,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        place.name,
+                        style: TextStyle(
+                          color: AppColors.isLight
+                              ? AppColors.textPrimary
+                              : Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${loc.category}  •  ${loc.area}',
+                        place.address,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: AppColors.isLight
+                              ? AppColors.textOnGlassMuted
+                              : Colors.white.withValues(alpha: 0.4),
                           fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        place.category,
+                        style: TextStyle(
+                          color: AppColors.sharePurple.withValues(alpha: 0.8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: Colors.white24,
+                  color: AppColors.isLight
+                      ? AppColors.textTertiary
+                      : Colors.white24,
                   size: 20,
                 ),
               ],
@@ -658,6 +1101,7 @@ Respond ONLY with valid JSON:
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
@@ -675,7 +1119,7 @@ Respond ONLY with valid JSON:
                 ),
                 SizedBox(width: 4),
                 Text(
-                  'Back to locations',
+                  'Back to search',
                   style: TextStyle(
                     color: Color(0xFF00B4D8),
                     fontSize: 13,
@@ -696,8 +1140,10 @@ Respond ONLY with valid JSON:
                   children: [
                     Text(
                       loc.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: AppColors.isLight
+                            ? AppColors.textPrimary
+                            : Colors.white,
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
                       ),
@@ -705,7 +1151,9 @@ Respond ONLY with valid JSON:
                     Text(
                       loc.address,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: AppColors.isLight
+                            ? AppColors.textOnGlassMuted
+                            : Colors.white.withValues(alpha: 0.4),
                         fontSize: 11,
                       ),
                     ),
@@ -715,16 +1163,14 @@ Respond ONLY with valid JSON:
             ],
           ),
           const SizedBox(height: 20),
-          Container(
+          GlassContainer(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: pred.statusColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: pred.statusColor.withValues(alpha: 0.3),
-              ),
-            ),
+            borderRadius: 16,
+            glowColor: pred.statusColor,
+            glowIntensity: 0.12,
+            backgroundColor: pred.statusColor.withValues(alpha: 0.08),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -785,7 +1231,9 @@ Respond ONLY with valid JSON:
                 Text(
                   pred.reason,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: AppColors.isLight
+                        ? AppColors.textOnGlassSecondary
+                        : Colors.white.withValues(alpha: 0.55),
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -795,7 +1243,9 @@ Respond ONLY with valid JSON:
                 Text(
                   'AI confidence: ${pred.confidence}',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: AppColors.isLight
+                        ? AppColors.textOnGlassMuted
+                        : Colors.white.withValues(alpha: 0.25),
                     fontSize: 11,
                   ),
                 ),
@@ -809,27 +1259,28 @@ Respond ONLY with valid JSON:
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2DC653).withValues(alpha: 0.08),
+                    color: AppColors.successBright.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFF2DC653).withValues(alpha: 0.2),
+                      color: AppColors.successBright.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Row(
                         children: [
                           Icon(
                             Icons.thumb_up_rounded,
-                            color: Color(0xFF2DC653),
+                            color: AppColors.successBright,
                             size: 14,
                           ),
                           SizedBox(width: 6),
                           Text(
                             'Best time',
                             style: TextStyle(
-                              color: Color(0xFF2DC653),
+                              color: AppColors.successBright,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -839,8 +1290,10 @@ Respond ONLY with valid JSON:
                       const SizedBox(height: 6),
                       Text(
                         pred.bestTimeToVisit,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: AppColors.isLight
+                              ? AppColors.textPrimary
+                              : Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
@@ -855,27 +1308,28 @@ Respond ONLY with valid JSON:
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE63946).withValues(alpha: 0.08),
+                    color: AppColors.errorBright.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFFE63946).withValues(alpha: 0.2),
+                      color: AppColors.errorBright.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Row(
                         children: [
                           Icon(
                             Icons.warning_amber_rounded,
-                            color: Color(0xFFE63946),
+                            color: AppColors.errorBright,
                             size: 14,
                           ),
                           SizedBox(width: 6),
                           Text(
                             'Avoid',
                             style: TextStyle(
-                              color: Color(0xFFE63946),
+                              color: AppColors.errorBright,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -885,8 +1339,10 @@ Respond ONLY with valid JSON:
                       const SizedBox(height: 6),
                       Text(
                         pred.worstTimeToVisit,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: AppColors.isLight
+                              ? AppColors.textPrimary
+                              : Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
@@ -900,10 +1356,12 @@ Respond ONLY with valid JSON:
           ),
           if (pred.tips.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text(
+            Text(
               '💡  Smart Tips',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.isLight
+                    ? AppColors.textPrimary
+                    : Colors.white,
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
               ),
@@ -918,7 +1376,7 @@ Respond ONLY with valid JSON:
                     const Text(
                       '•  ',
                       style: TextStyle(
-                        color: Color(0xFFFFB627),
+                        color: AppColors.accentGold,
                         fontSize: 14,
                       ),
                     ),
@@ -926,7 +1384,9 @@ Respond ONLY with valid JSON:
                       child: Text(
                         tip,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: AppColors.isLight
+                              ? AppColors.textOnGlassSecondary
+                              : Colors.white.withValues(alpha: 0.6),
                           fontSize: 13,
                           height: 1.5,
                         ),
@@ -941,10 +1401,12 @@ Respond ONLY with valid JSON:
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '👥  Community Reports',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.isLight
+                      ? AppColors.textPrimary
+                      : Colors.white,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
@@ -957,20 +1419,21 @@ Respond ONLY with valid JSON:
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFB627).withValues(alpha: 0.1),
+                    color: AppColors.accentGold.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFFFB627).withValues(alpha: 0.3),
+                      color: AppColors.accentGold.withValues(alpha: 0.3),
                     ),
                   ),
                   child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, color: Color(0xFFFFB627), size: 14),
+                      Icon(Icons.add, color: AppColors.accentGold, size: 14),
                       SizedBox(width: 4),
                       Text(
                         'Report',
                         style: TextStyle(
-                          color: Color(0xFFFFB627),
+                          color: AppColors.accentGold,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -985,7 +1448,7 @@ Respond ONLY with valid JSON:
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
                 .collection('queue_reports')
-                .where('locationId', isEqualTo: _selectedLocation!.id)
+                .where('locationId', isEqualTo: _selectedLocation!.placeId)
                 .orderBy('reportedAt', descending: true)
                 .limit(5)
                 .snapshots(),
@@ -994,14 +1457,18 @@ Respond ONLY with valid JSON:
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
+                    color: AppColors.isLight
+                        ? AppColors.glassBorder.withValues(alpha: 0.25)
+                        : Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     'Community reports unavailable.\n'
                     'Create the Firestore index if prompted in console.',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: AppColors.isLight
+                          ? AppColors.textOnGlassMuted
+                          : Colors.white.withValues(alpha: 0.35),
                       fontSize: 12,
                       height: 1.4,
                     ),
@@ -1014,24 +1481,28 @@ Respond ONLY with valid JSON:
                 return Container(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
+                    color: AppColors.isLight
+                        ? AppColors.glassBorder.withValues(alpha: 0.25)
+                        : Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: AppColors.isLight
+                          ? AppColors.glassBorder
+                          : Colors.white.withValues(alpha: 0.06),
                     ),
                   ),
                   child: Center(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          '📋',
-                          style: TextStyle(fontSize: 28),
-                        ),
+                        const Text('📋', style: TextStyle(fontSize: 28)),
                         const SizedBox(height: 8),
                         Text(
                           'No community reports yet',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
+                            color: AppColors.isLight
+                                ? AppColors.textOnGlassMuted
+                                : Colors.white.withValues(alpha: 0.3),
                             fontSize: 13,
                           ),
                         ),
@@ -1039,7 +1510,9 @@ Respond ONLY with valid JSON:
                         Text(
                           'Be the first to report a wait time',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: AppColors.isLight
+                                ? AppColors.textOnGlassMuted
+                                : Colors.white.withValues(alpha: 0.2),
                             fontSize: 11,
                           ),
                         ),
@@ -1050,6 +1523,7 @@ Respond ONLY with valid JSON:
               }
 
               return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: snapshot.data!.docs.map((doc) {
                   final data = doc.data();
                   final mins = data['waitMinutes'] as int? ?? 0;
@@ -1062,10 +1536,14 @@ Respond ONLY with valid JSON:
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
+                      color: AppColors.isLight
+                          ? AppColors.glassBorder.withValues(alpha: 0.25)
+                          : Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.07),
+                        color: AppColors.isLight
+                            ? AppColors.glassBorder
+                            : Colors.white.withValues(alpha: 0.07),
                       ),
                     ),
                     child: Row(
@@ -1074,7 +1552,8 @@ Respond ONLY with valid JSON:
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6C3FC5).withValues(alpha: 0.12),
+                            color: AppColors.sharePurple
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(
@@ -1083,7 +1562,7 @@ Respond ONLY with valid JSON:
                               Text(
                                 '$mins',
                                 style: const TextStyle(
-                                  color: Color(0xFF6C3FC5),
+                                  color: AppColors.sharePurple,
                                   fontWeight: FontWeight.w900,
                                   fontSize: 16,
                                   height: 1,
@@ -1092,7 +1571,7 @@ Respond ONLY with valid JSON:
                               Text(
                                 'min',
                                 style: TextStyle(
-                                  color: const Color(0xFF6C3FC5)
+                                  color: AppColors.sharePurple
                                       .withValues(alpha: 0.7),
                                   fontSize: 9,
                                 ),
@@ -1108,15 +1587,19 @@ Respond ONLY with valid JSON:
                               if (comment.isNotEmpty)
                                 Text(
                                   comment,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: AppColors.isLight
+                                        ? AppColors.textPrimary
+                                        : Colors.white,
                                     fontSize: 13,
                                   ),
                                 ),
                               Text(
                                 'Reported $time',
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.3),
+                                  color: AppColors.isLight
+                                      ? AppColors.textOnGlassMuted
+                                      : Colors.white.withValues(alpha: 0.3),
                                   fontSize: 11,
                                 ),
                               ),

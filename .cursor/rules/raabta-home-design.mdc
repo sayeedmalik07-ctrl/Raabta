@@ -1,0 +1,17 @@
+---
+description: Raabta Home design rules
+globs: lib/features/home/**
+alwaysApply: false
+---
+
+Follow `docs/raabta_home_design_kit.md`.
+
+- Use color-family tokens only. No hardcoded hex colors.
+- Use a maximum of 3 base hues per screen.
+- No blur in light mode.
+- Never use fake data.
+- Never display money figures on Home.
+- Respect reduced-motion settings.
+- Preserve existing features and navigation unless explicitly approved.
+- Do not modify the Home AI Assistant or its related widgets unless Prompt 1 identifies a specific dependency and the user approves it.
+- Audit first. Do not change source code until the user approves the findings.

@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "types": [
+    {
+      "id": "gov_moi_impersonation",
+      "titleKey": "ss_stype_gov_moi_title",
+      "howItWorksKey": "ss_stype_gov_moi_how",
+      "redFlagKeys": [
+        "ss_stype_gov_moi_flag_1",
+        "ss_stype_gov_moi_flag_2",
+        "ss_stype_gov_moi_flag_3",
+        "ss_stype_gov_moi_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_pause_otp", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_verify_metrash", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_gov_moi_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["fake_moi_fine"],
+        "topics": ["governmentFineOrFee"],
+        "localFlags": ["ss_flag_otp", "ss_flag_impersonation"]
+      }
+    },
+    {
+      "id": "bank_phishing_smishing",
+      "titleKey": "ss_stype_bank_title",
+      "howItWorksKey": "ss_stype_bank_how",
+      "redFlagKeys": [
+        "ss_stype_bank_flag_1",
+        "ss_stype_bank_flag_2",
+        "ss_stype_bank_flag_3",
+        "ss_stype_bank_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_bank_card", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_bank_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["bank_kyc_phish", "nas_address_verify"],
+        "localFlags": ["ss_flag_otp"]
+      }
+    },
+    {
+      "id": "parcel_customs_fee",
+      "titleKey": "ss_stype_parcel_title",
+      "howItWorksKey": "ss_stype_parcel_how",
+      "redFlagKeys": [
+        "ss_stype_parcel_flag_1",
+        "ss_stype_parcel_flag_2",
+        "ss_stype_parcel_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_courier_official", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_parcel_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["delivery_customs_fee"],
+        "topics": ["governmentFineOrFee"]
+      }
+    },
+    {
+      "id": "job_visa_fee_offer",
+      "titleKey": "ss_stype_job_title",
+      "howItWorksKey": "ss_stype_job_how",
+      "redFlagKeys": [
+        "ss_stype_job_flag_1",
+        "ss_stype_job_flag_2",
+        "ss_stype_job_flag_3",
+        "ss_stype_job_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_offer_checklist", "link": "checkup" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_job_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["job_visa_fee"],
+        "topics": ["jobOffer", "recruitmentFee"],
+        "contentTypes": ["jobOffer"],
+        "localFlags": ["ss_flag_upfront_fee"]
+      }
+    },
+    {
+      "id": "rental_deposit",
+      "titleKey": "ss_stype_rental_title",
+      "howItWorksKey": "ss_stype_rental_how",
+      "redFlagKeys": [
+        "ss_stype_rental_flag_1",
+        "ss_stype_rental_flag_2",
+        "ss_stype_rental_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_tenancy_hub", "link": "tenancyHub" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_rental_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["rental_deposit_scam"],
+        "topics": ["housingDeposit"],
+        "contentTypes": ["rentalOffer"]
+      }
+    },
+    {
+      "id": "marketplace_payment_qr",
+      "titleKey": "ss_stype_market_title",
+      "howItWorksKey": "ss_stype_market_how",
+      "redFlagKeys": [
+        "ss_stype_market_flag_1",
+        "ss_stype_market_flag_2",
+        "ss_stype_market_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_official_pay", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_market_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "localFlags": ["ss_flag_unusual_payment", "ss_flag_lookalike_domain"],
+        "terms": ["marketplace", "classified", "qr code", "payment link", "إعلان", "رمز"]
+      }
+    },
+    {
+      "id": "investment_forex_crypto",
+      "titleKey": "ss_stype_invest_title",
+      "howItWorksKey": "ss_stype_invest_how",
+      "redFlagKeys": [
+        "ss_stype_invest_flag_1",
+        "ss_stype_invest_flag_2",
+        "ss_stype_invest_flag_3",
+        "ss_stype_invest_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_academy", "link": "academy" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_invest_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["investment_guaranteed"],
+        "topics": ["investment"],
+        "contentTypes": ["investmentOffer"]
+      }
+    },
+    {
+      "id": "pay_to_earn_tasks",
+      "titleKey": "ss_stype_task_title",
+      "howItWorksKey": "ss_stype_task_how",
+      "redFlagKeys": [
+        "ss_stype_task_flag_1",
+        "ss_stype_task_flag_2",
+        "ss_stype_task_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_academy", "link": "academy" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_task_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "terms": ["like and earn", "task commission", "micro task", "recharge task", "مهام", "عمولة"]
+      }
+    },
+    {
+      "id": "romance_relationship",
+      "titleKey": "ss_stype_romance_title",
+      "howItWorksKey": "ss_stype_romance_how",
+      "redFlagKeys": [
+        "ss_stype_romance_flag_1",
+        "ss_stype_romance_flag_2",
+        "ss_stype_romance_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_pause_transfer", "link": "familyVerification" },
+        { "labelKey": "ss_stype_step_payment_check", "link": "paymentCheck" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_romance_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "terms": ["romance", "dating", "fiancé", "marry soon", "حب", "زواج", "مودة"]
+      }
+    },
+    {
+      "id": "recovery_follow_up",
+      "titleKey": "ss_stype_recovery_title",
+      "howItWorksKey": "ss_stype_recovery_how",
+      "redFlagKeys": [
+        "ss_stype_recovery_flag_1",
+        "ss_stype_recovery_flag_2",
+        "ss_stype_recovery_flag_3",
+        "ss_stype_recovery_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_incident", "link": "incident" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" },
+        { "labelKey": "ss_stype_step_academy", "link": "academy" }
+      ],
+      "exampleKey": "ss_stype_recovery_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "topics": ["recoveryOffer"]
+      }
+    },
+    {
+      "id": "money_mule_recruitment",
+      "titleKey": "ss_stype_mule_title",
+      "howItWorksKey": "ss_stype_mule_how",
+      "redFlagKeys": [
+        "ss_stype_mule_flag_1",
+        "ss_stype_mule_flag_2",
+        "ss_stype_mule_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_incident", "link": "incident" },
+        { "labelKey": "ss_stype_step_academy", "link": "academy" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_mule_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "localFlags": ["ss_flag_money_mule"]
+      }
+    },
+    {
+      "id": "family_emergency_voice",
+      "titleKey": "ss_stype_family_title",
+      "howItWorksKey": "ss_stype_family_how",
+      "redFlagKeys": [
+        "ss_stype_family_flag_1",
+        "ss_stype_family_flag_2",
+        "ss_stype_family_flag_3",
+        "ss_stype_family_flag_4"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_family_kit", "link": "familyVerification" },
+        { "labelKey": "ss_stype_step_call_back", "link": "familyVerification" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_family_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "topics": ["remittanceEmergency"]
+      }
+    },
+    {
+      "id": "fake_apps_apk",
+      "titleKey": "ss_stype_apk_title",
+      "howItWorksKey": "ss_stype_apk_how",
+      "redFlagKeys": [
+        "ss_stype_apk_flag_1",
+        "ss_stype_apk_flag_2",
+        "ss_stype_apk_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_official_store", "link": "checkup" },
+        { "labelKey": "ss_stype_step_incident", "link": "incident" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_apk_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "localFlags": ["ss_flag_sideload_app"]
+      }
+    },
+    {
+      "id": "remote_access_support",
+      "titleKey": "ss_stype_remote_title",
+      "howItWorksKey": "ss_stype_remote_how",
+      "redFlagKeys": [
+        "ss_stype_remote_flag_1",
+        "ss_stype_remote_flag_2",
+        "ss_stype_remote_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_hang_up", "link": "academy" },
+        { "labelKey": "ss_stype_step_incident", "link": "incident" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_remote_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "terms": ["anydesk", "teamviewer", "screen share", "remote access", "الوصول", "مشاركة الشاشة"]
+      }
+    },
+    {
+      "id": "telecom_sim_block",
+      "titleKey": "ss_stype_telecom_title",
+      "howItWorksKey": "ss_stype_telecom_how",
+      "redFlagKeys": [
+        "ss_stype_telecom_flag_1",
+        "ss_stype_telecom_flag_2",
+        "ss_stype_telecom_flag_3"
+      ],
+      "whatToDo": [
+        { "labelKey": "ss_stype_step_sim_check", "link": "simSwap" },
+        { "labelKey": "ss_stype_step_official_carrier", "link": "officialDirectory" },
+        { "labelKey": "ss_stype_step_report", "link": "authorityDirectory" }
+      ],
+      "exampleKey": "ss_stype_telecom_example",
+      "sourceLabelKeys": ["ss_stype_source_qatar_cyber_pattern"],
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "match": {
+        "patternIds": ["telecom_sim_block"],
+        "topics": ["insuranceCall"]
+      }
+    }
+  ]
+}

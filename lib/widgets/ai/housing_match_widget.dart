@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:raabta/core/design/app_colors.dart';
+import 'package:raabta/core/colors/app_colors.dart';
 import 'package:raabta/core/design/app_radius.dart';
 import 'package:raabta/core/design/app_spacing.dart';
 import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/housing/l10n/housing_strings.dart';
 import 'package:raabta/services/ai/claude_ai_service.dart';
 import 'package:raabta/services/ai/housing_match_service.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
@@ -73,15 +75,35 @@ class _HousingMatchWidgetState extends ConsumerState<HousingMatchWidget> {
 
   Color _tagColor(String tag) {
     if (tag.contains('Budget')) return AppColors.success;
-    if (tag.contains('Near')) return AppColors.primary;
-    if (tag.contains('Best Value')) return AppColors.gold;
-    if (tag.contains('Family')) return AppColors.info;
+    if (tag.contains('Best Value')) return AppColors.goldFamilyMain;
     if (tag.contains('Just Listed')) return AppColors.warning;
+    if (tag.contains('Near')) return AppColors.brandFamilyMain;
+    if (tag.contains('Family')) return AppColors.textSecondary;
     return AppColors.textSecondary;
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(userAIProfileProvider);
+    final locale = ref.watch(userLanguageProvider);
+
+    ref.listen(userAIProfileProvider, (previous, next) {
+      if (previous != next) {
+        setState(() {
+          _loading = true;
+          _result = null;
+          _aiExplanation = null;
+        });
+        _calculate();
+      }
+    });
+
+    ref.listen(userLanguageProvider, (previous, next) {
+      if (previous != next && mounted) {
+        setState(() {});
+      }
+    });
+
     if (_loading) {
       return widget.compact
           ? const AILoadingSkeleton(width: 200, height: 24, borderRadius: 20)
@@ -96,7 +118,7 @@ class _HousingMatchWidgetState extends ConsumerState<HousingMatchWidget> {
       return const SizedBox.shrink();
     }
 
-    return widget.compact ? _buildCompact() : _buildFull();
+    return widget.compact ? _buildCompact() : _buildFull(locale);
   }
 
   Widget _buildCompact() {
@@ -130,15 +152,15 @@ class _HousingMatchWidgetState extends ConsumerState<HousingMatchWidget> {
     );
   }
 
-  Widget _buildFull() {
+  Widget _buildFull(String locale) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
-        border: const Border(
-          left: BorderSide(color: AppColors.primary, width: 3),
+        color: AppColors.brandFamilyMain.withValues(alpha: 0.05),
+        border: Border(
+          left: BorderSide(color: AppColors.brandFamilyMain, width: 3),
         ),
         borderRadius: const BorderRadius.only(
           topRight: Radius.circular(AppRadius.md),
@@ -151,22 +173,22 @@ class _HousingMatchWidgetState extends ConsumerState<HousingMatchWidget> {
           Row(
             children: [
               Text(
-                '🤖 Raabta AI Analysis',
+                HousingStrings.t('housing_match_title', locale),
                 style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.primary,
+                  color: AppColors.brandFamilyMain,
                 ),
               ),
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.brandFamilyMain.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   _result!.matchLabel,
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  style: TextStyle(
+                    color: AppColors.brandFamilyMain,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -177,7 +199,7 @@ class _HousingMatchWidgetState extends ConsumerState<HousingMatchWidget> {
           const SizedBox(height: 5),
           Text(
             '${_result!.matchScore}% Housing Match',
-            style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+            style: AppTextStyles.h3.copyWith(color: AppColors.brandFamilyMain),
           ),
           const SizedBox(height: 5),
           Wrap(

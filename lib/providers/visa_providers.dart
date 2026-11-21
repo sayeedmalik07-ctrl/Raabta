@@ -1,10 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/config/monetization_state.dart';
+import 'package:raabta/core/l10n/app_locale_notifier.dart';
+import 'package:raabta/features/visa/data/deadline_tracker_repository.dart';
 import 'package:raabta/models/visa_models.dart';
-import 'package:raabta/screens/language_screen.dart';
-import 'package:raabta/services/deadline_notification_service.dart';
 import 'package:raabta/services/firebase_service.dart';
+import 'package:raabta/services/raabta_notification_service.dart';
+import 'package:raabta/services/smart_notification_engine.dart';
 import 'package:raabta/services/visa_api_service.dart';
 import 'package:raabta/services/visa_firestore_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,18 +16,15 @@ final visaApiServiceProvider = Provider<VisaApiService>((ref) {
   return VisaApiService();
 });
 
-final userLanguageProvider = FutureProvider<String>((ref) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(LanguageScreen.languageKey) ?? 'English';
-  } catch (_) {
-    return 'English';
-  }
-});
+final deadlineTrackerRepositoryProvider =
+    Provider((ref) => DeadlineTrackerRepository());
+
+/// Synchronous normalized locale — rebuilds instantly on toggle.
+final userLanguageProvider = appLocaleProvider;
 
 final visaGuideProvider =
     FutureProvider.autoDispose.family<VisaGuide, String>((ref, categoryId) async {
-  final language = await ref.watch(userLanguageProvider.future);
+  final language = ref.watch(userLanguageProvider);
   final api = ref.watch(visaApiServiceProvider);
 
   try {
@@ -45,72 +45,142 @@ final visaGuideProvider =
   }
 });
 
-final documentDeadlinesProvider =
-    StateNotifierProvider<DocumentDeadlinesNotifier, List<DocumentDeadline>>(
-        (ref) {
-  return DocumentDeadlinesNotifier();
+final _deadlineUserIdProvider = FutureProvider<String>((ref) async {
+  return RaabtaNotificationService.instance.getOrCreateUserId();
 });
 
-class DocumentDeadlinesNotifier extends StateNotifier<List<DocumentDeadline>> {
-  DocumentDeadlinesNotifier() : super([]) {
-    _load();
-  }
+final documentDeadlinesProvider = StreamProvider<List<DocumentDeadline>>((ref) async* {
+  final userId = await ref.watch(_deadlineUserIdProvider.future);
+  await _migrateLegacyDeadlines(ref, userId);
+  final repo = ref.watch(deadlineTrackerRepositoryProvider);
+  yield* repo.watchDeadlines(userId);
+});
 
-  static const _key = 'document_deadlines';
+class DocumentDeadlinesController {
+  DocumentDeadlinesController(this._ref);
 
-  Future<void> _load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getStringList(_key) ?? [];
-      final deadlines = raw
-          .map((e) => DocumentDeadline.fromJson(
-                jsonDecode(e) as Map<String, dynamic>,
-              ))
-          .toList()
-        ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
-      state = deadlines;
-    } catch (_) {}
-  }
+  final Ref _ref;
+
+  DeadlineTrackerRepository get _repo =>
+      _ref.read(deadlineTrackerRepositoryProvider);
+
+  Future<String> _userId() =>
+      _ref.read(_deadlineUserIdProvider.future);
 
   Future<void> addDeadline({
-    required String documentType,
+    required DocumentDeadlineTypeDef typeDef,
     required DateTime expiryDate,
-    required String guideCategoryId,
+    bool remind30Days = true,
+    bool remind7Days = true,
+    bool remind1Day = true,
+    String? vaultDocumentId,
+    String? visitVisaNickname,
   }) async {
+    final userId = await _userId();
+    final documentType = typeDef.type == DocumentDeadlineType.visitVisa
+        ? VisitVisaNicknamePolicy.documentTypeForPersistence(
+            rawNickname: visitVisaNickname,
+            defaultVisitVisaLabel: typeDef.label,
+          )
+        : typeDef.label;
     final deadline = DocumentDeadline(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: '',
       documentType: documentType,
+      typeId: typeDef.id,
       expiryDate: expiryDate,
-      guideCategoryId: guideCategoryId,
+      guideCategoryId: typeDef.guideCategoryId,
+      remind30Days: remind30Days,
+      remind7Days: remind7Days,
+      remind1Day: remind1Day,
+      vaultDocumentId: vaultDocumentId,
     );
+    final id = await _repo.add(userId: userId, deadline: deadline);
+    final notificationLabel = deadline.notificationDocumentLabel;
+    await SmartNotificationEngine.instance.scheduleDocumentDeadlineReminders(
+      deadlineId: id,
+      documentType: notificationLabel,
+      expiryDate: expiryDate,
+      remind30Days: remind30Days,
+      remind7Days: remind7Days,
+      remind1Day: remind1Day,
+    );
+  }
 
-    final updated = [...state, deadline]
-      ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
-    state = updated;
-    await _persist(updated);
-    await DeadlineNotificationService.instance
-        .scheduleDeadlineNotifications(deadline);
+  Future<void> attachVaultDocument({
+    required String deadlineId,
+    required String vaultDocumentId,
+  }) async {
+    await _repo.update(deadlineId, {'vaultDocumentId': vaultDocumentId});
+  }
+
+  Future<void> updateReminderToggles({
+    required DocumentDeadline deadline,
+    required bool remind30Days,
+    required bool remind7Days,
+    required bool remind1Day,
+  }) async {
+    await _repo.update(deadline.id, {
+      'remind30Days': remind30Days,
+      'remind7Days': remind7Days,
+      'remind1Day': remind1Day,
+    });
+    await SmartNotificationEngine.instance.cancelDocumentDeadlineReminders(
+      deadline.id,
+    );
+    await SmartNotificationEngine.instance.scheduleDocumentDeadlineReminders(
+      deadlineId: deadline.id,
+      documentType: deadline.notificationDocumentLabel,
+      expiryDate: deadline.expiryDate,
+      remind30Days: remind30Days,
+      remind7Days: remind7Days,
+      remind1Day: remind1Day,
+    );
   }
 
   Future<void> removeDeadline(String id) async {
-    await DeadlineNotificationService.instance.cancelDeadlineNotifications(id);
-    final updated = state.where((d) => d.id != id).toList();
-    state = updated;
-    await _persist(updated);
-  }
-
-  Future<void> _persist(List<DocumentDeadline> deadlines) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _key,
-        deadlines.map((d) => jsonEncode(d.toJson())).toList(),
-      );
-    } catch (_) {}
+    await SmartNotificationEngine.instance.cancelDocumentDeadlineReminders(id);
+    await _repo.delete(id);
   }
 }
 
+final documentDeadlinesControllerProvider =
+    Provider((ref) => DocumentDeadlinesController(ref));
+
+Future<void> _migrateLegacyDeadlines(Ref ref, String userId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    const legacyKey = 'document_deadlines';
+    final raw = prefs.getStringList(legacyKey) ?? [];
+    if (raw.isEmpty) return;
+
+    final repo = ref.read(deadlineTrackerRepositoryProvider);
+    for (final entry in raw) {
+      final json = jsonDecode(entry) as Map<String, dynamic>;
+      final legacy = DocumentDeadline.fromJson(json);
+      final typeDef = deadlineTypeDefForLegacyLabel(legacy.documentType);
+      await repo.add(
+        userId: userId,
+        deadline: legacy.copyWith(
+          typeId: typeDef.id,
+          documentType: typeDef.label,
+          guideCategoryId: typeDef.guideCategoryId,
+        ),
+      );
+    }
+    await prefs.remove(legacyKey);
+  } catch (_) {}
+}
+
 final isPremiumUserProvider = FutureProvider<bool>((ref) async {
+  if (!MonetizationState.grantsPaidEntitlements) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('is_premium_user') == true) {
+        await prefs.setBool('is_premium_user', false);
+      }
+    } catch (_) {}
+    return false;
+  }
   try {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('is_premium_user') ?? false;
@@ -118,54 +188,3 @@ final isPremiumUserProvider = FutureProvider<bool>((ref) async {
     return false;
   }
 });
-
-final documentScanUsageProvider =
-    FutureProvider<DocumentScanUsage>((ref) async {
-  return DocumentScanUsage.load();
-});
-
-class DocumentScanUsage {
-  DocumentScanUsage({required this.count, required this.monthKey});
-
-  final int count;
-  final String monthKey;
-
-  static const freeLimit = 3;
-
-  bool get hasRemaining => count < freeLimit;
-
-  int get remaining => (freeLimit - count).clamp(0, freeLimit);
-
-  static String currentMonthKey() {
-    final now = DateTime.now();
-    return '${now.year}_${now.month.toString().padLeft(2, '0')}';
-  }
-
-  static Future<DocumentScanUsage> load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final monthKey = currentMonthKey();
-      final storedMonth = prefs.getString('scan_month_key') ?? monthKey;
-      if (storedMonth != monthKey) {
-        await prefs.setString('scan_month_key', monthKey);
-        await prefs.setInt('scan_count', 0);
-        return DocumentScanUsage(count: 0, monthKey: monthKey);
-      }
-      return DocumentScanUsage(
-        count: prefs.getInt('scan_count') ?? 0,
-        monthKey: monthKey,
-      );
-    } catch (_) {
-      return DocumentScanUsage(count: 0, monthKey: currentMonthKey());
-    }
-  }
-
-  static Future<void> increment() async {
-    final usage = await load();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('scan_count', usage.count + 1);
-      await prefs.setString('scan_month_key', usage.monthKey);
-    } catch (_) {}
-  }
-}

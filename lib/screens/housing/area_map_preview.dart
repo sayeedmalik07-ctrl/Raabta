@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:raabta/core/colors/app_colors.dart';
 
 class AreaMapPreview extends StatelessWidget {
   const AreaMapPreview({
@@ -44,8 +45,8 @@ class AreaMapPreview extends StatelessWidget {
                   circleId: CircleId('${area}_area'),
                   center: position,
                   radius: 800,
-                  fillColor: const Color(0xFF22D3EE).withValues(alpha: 0.15),
-                  strokeColor: const Color(0xFF22D3EE),
+                  fillColor: AppColors.quickActionCyan.withValues(alpha: 0.15),
+                  strokeColor: AppColors.quickActionCyan,
                   strokeWidth: 2,
                 ),
               },

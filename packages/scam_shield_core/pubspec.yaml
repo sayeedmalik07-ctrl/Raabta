@@ -1,0 +1,13 @@
+name: scam_shield_core
+description: Pure-Dart Scam Shield detection and evidence logic for Raabta.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  meta: ^1.16.0
+
+dev_dependencies:
+  test: ^1.25.0

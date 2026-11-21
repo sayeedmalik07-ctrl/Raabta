@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/l10n/app_locale.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/core/widgets/glass_settings_tile.dart';
+import 'package:raabta/features/home/widgets/glass_loading_card.dart';
 import 'package:raabta/models/notification_models.dart';
 import 'package:raabta/providers/notification_providers.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/notifications/l10n/notification_settings_strings.dart';
 
 class NotificationSettingsScreen extends ConsumerStatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -20,15 +27,6 @@ class _NotificationSettingsScreenState
     extends ConsumerState<NotificationSettingsScreen> {
   NotificationSettings? _settings;
   bool _loading = true;
-
-  static const _languages = [
-    'English',
-    'Urdu',
-    'Hindi',
-    'Arabic',
-    'Filipino',
-    'Bengali',
-  ];
 
   @override
   void initState() {
@@ -54,71 +52,62 @@ class _NotificationSettingsScreenState
     ref.invalidate(notificationSettingsProvider);
   }
 
-  String _formatHour(int hour) {
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final h = hour % 12 == 0 ? 12 : hour % 12;
-    return '$h:00 $period';
-  }
-
   @override
   Widget build(BuildContext context) {
+    final locale = AppLocale.normalize(ref.watch(userLanguageProvider));
+
     if (_loading || _settings == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-            onPressed: () => context.pop(),
-          ),
-          title: Text('Notification Settings', style: AppTextStyles.h2),
+      return GlassScreenScaffold(
+        title: NotificationSettingsStrings.t('settings_title', locale),
+        leading: GlassIconButton(
+          icon: Icons.arrow_back,
+          tooltip: CommonActionStrings.t('action_back', locale),
+          onPressed: () => context.pop(),
         ),
         body: const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+          child: GlassLoadingCard(height: 120, width: 240),
         ),
       );
     }
 
     final s = _settings!;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('Notification Settings', style: AppTextStyles.h2),
+    return GlassScreenScaffold(
+      title: NotificationSettingsStrings.t('settings_title', locale),
+      leading: GlassIconButton(
+        icon: Icons.arrow_back,
+        tooltip: CommonActionStrings.t('action_back', locale),
+        onPressed: () => context.pop(),
       ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          Text('Notification language', style: AppTextStyles.h3),
+          Text(
+            NotificationSettingsStrings.t('notification_language', locale),
+            style: AppTypography.title,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Separate from app language — alerts will arrive in this language',
-            style: AppTextStyles.bodySmall,
+            NotificationSettingsStrings.t('notification_language_hint', locale),
+            style: AppTypography.bodySmall,
           ),
           const SizedBox(height: AppSpacing.md),
-          Container(
+          GlassContainer(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border),
-            ),
+            borderRadius: AppSpacing.radiusLg,
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: s.notificationLanguage,
                 isExpanded: true,
                 dropdownColor: AppColors.surface,
-                items: _languages
+                style: AppTypography.body.copyWith(color: AppColors.textPrimary),
+                items: NotificationSettingsStrings.notificationLanguageKeys
                     .map(
                       (lang) => DropdownMenuItem(
                         value: lang,
-                        child: Text(lang, style: AppTextStyles.bodyMedium),
+                        child: Text(
+                          NotificationSettingsStrings.languageLabel(lang, locale),
+                        ),
                       ),
                     )
                     .toList(),
@@ -131,62 +120,133 @@ class _NotificationSettingsScreenState
             ),
           ),
           const SizedBox(height: AppSpacing.xxl),
-          Text('Notification types', style: AppTextStyles.h3),
+          Text(
+            NotificationSettingsStrings.t('notification_types', locale),
+            style: AppTypography.title,
+          ),
           const SizedBox(height: AppSpacing.md),
           _ToggleTile(
-            title: '📋 Iqama expiry warnings',
-            subtitle: '90, 60, 30, 14, 7, 3, 1 days before expiry',
+            title: NotificationSettingsStrings.t('type_iqama_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_iqama_subtitle', locale),
             value: s.iqamaExpiry,
             onChanged: (v) => _save(s.copyWith(iqamaExpiry: v)),
           ),
           _ToggleTile(
-            title: '🏠 Housing matches',
-            subtitle: 'New listings matching your saved search',
+            title: NotificationSettingsStrings.t('type_housing_title', locale),
+            subtitle:
+                NotificationSettingsStrings.t('type_housing_subtitle', locale),
             value: s.housingMatch,
             onChanged: (v) => _save(s.copyWith(housingMatch: v)),
           ),
           _ToggleTile(
-            title: '💰 Exchange rate alerts',
-            subtitle: 'When your target rate is reached',
+            title: NotificationSettingsStrings.t('type_rate_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_rate_subtitle', locale),
             value: s.rateAlert,
             onChanged: (v) => _save(s.copyWith(rateAlert: v)),
           ),
           _ToggleTile(
-            title: '💬 Community replies',
-            subtitle: 'When someone answers your question',
+            title:
+                NotificationSettingsStrings.t('type_community_reply_title', locale),
+            subtitle: NotificationSettingsStrings.t(
+              'type_community_reply_subtitle',
+              locale,
+            ),
             value: s.communityReply,
             onChanged: (v) => _save(s.copyWith(communityReply: v)),
           ),
           _ToggleTile(
-            title: '💼 Job matches',
-            subtitle: 'New jobs matching your profile',
+            title: NotificationSettingsStrings.t('type_job_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_job_subtitle', locale),
             value: s.jobMatch,
             onChanged: (v) => _save(s.copyWith(jobMatch: v)),
           ),
           _ToggleTile(
-            title: '📰 Weekly digest',
-            subtitle: 'Top housing + jobs in your area every Sunday',
+            title:
+                NotificationSettingsStrings.t('type_weekly_digest_title', locale),
+            subtitle: NotificationSettingsStrings.t(
+              'type_weekly_digest_subtitle',
+              locale,
+            ),
             value: s.weeklyDigest,
             onChanged: (v) => _save(s.copyWith(weeklyDigest: v)),
           ),
           _ToggleTile(
-            title: '📢 Admin announcements',
-            subtitle: 'Qatar law changes, holidays, important updates',
+            title: NotificationSettingsStrings.t('type_admin_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_admin_subtitle', locale),
             value: s.adminAnnouncement,
             onChanged: (v) => _save(s.copyWith(adminAnnouncement: v)),
           ),
+          _ToggleTile(
+            title: NotificationSettingsStrings.t('type_bill_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_bill_subtitle', locale),
+            value: s.billDue,
+            onChanged: (v) => _save(s.copyWith(billDue: v)),
+          ),
+          _ToggleTile(
+            title: NotificationSettingsStrings.t('type_warranty_title', locale),
+            subtitle:
+                NotificationSettingsStrings.t('type_warranty_subtitle', locale),
+            value: s.warrantyExpiring,
+            onChanged: (v) => _save(s.copyWith(warrantyExpiring: v)),
+          ),
+          _ToggleTile(
+            title: NotificationSettingsStrings.t('type_events_title', locale),
+            subtitle: NotificationSettingsStrings.t('type_events_subtitle', locale),
+            value: s.communityEvents,
+            onChanged: (v) => _save(s.copyWith(communityEvents: v)),
+          ),
+          _ToggleTile(
+            title:
+                NotificationSettingsStrings.t('type_lost_found_title', locale),
+            subtitle: NotificationSettingsStrings.t(
+              'type_lost_found_subtitle',
+              locale,
+            ),
+            value: s.communityLostFound,
+            onChanged: (v) => _save(s.copyWith(communityLostFound: v)),
+          ),
+          _ToggleTile(
+            title:
+                NotificationSettingsStrings.t('type_breaking_news_title', locale),
+            subtitle: NotificationSettingsStrings.t(
+              'type_breaking_news_subtitle',
+              locale,
+            ),
+            value: s.breakingNews,
+            onChanged: (v) => _save(s.copyWith(breakingNews: v)),
+          ),
+          _ToggleTile(
+            title:
+                NotificationSettingsStrings.t('type_group_activity_title', locale),
+            subtitle: NotificationSettingsStrings.t(
+              'type_group_activity_subtitle',
+              locale,
+            ),
+            value: s.groupActivity,
+            onChanged: (v) => _save(s.copyWith(groupActivity: v)),
+          ),
+          _ToggleTile(
+            title: NotificationSettingsStrings.t('type_emergency_title', locale),
+            subtitle:
+                NotificationSettingsStrings.t('type_emergency_subtitle', locale),
+            value: s.emergency,
+            onChanged: (v) => _save(s.copyWith(emergency: v)),
+          ),
           const SizedBox(height: AppSpacing.xxl),
-          Text('Quiet hours', style: AppTextStyles.h3),
+          Text(
+            NotificationSettingsStrings.t('quiet_hours', locale),
+            style: AppTypography.title,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'No push notifications during these hours (Qatar time)',
-            style: AppTextStyles.bodySmall,
+            NotificationSettingsStrings.t('quiet_hours_hint', locale),
+            style: AppTypography.bodySmall,
           ),
           const SizedBox(height: AppSpacing.md),
           _ToggleTile(
-            title: '🌙 Enable quiet hours',
+            title: NotificationSettingsStrings.t('quiet_hours_enable', locale),
             subtitle:
-                '${_formatHour(s.quietHoursStart)} – ${_formatHour(s.quietHoursEnd)}',
+                '${NotificationSettingsStrings.formatHour(s.quietHoursStart, locale)} – ${NotificationSettingsStrings.formatHour(s.quietHoursEnd, locale)}',
             value: s.quietHoursEnabled,
             onChanged: (v) => _save(s.copyWith(quietHoursEnabled: v)),
           ),
@@ -196,16 +256,18 @@ class _NotificationSettingsScreenState
               children: [
                 Expanded(
                   child: _HourPicker(
-                    label: 'Start',
+                    label: NotificationSettingsStrings.t('start_time', locale),
                     hour: s.quietHoursStart,
+                    locale: locale,
                     onChanged: (h) => _save(s.copyWith(quietHoursStart: h)),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _HourPicker(
-                    label: 'End',
+                    label: NotificationSettingsStrings.t('end_time', locale),
                     hour: s.quietHoursEnd,
+                    locale: locale,
                     onChanged: (h) => _save(s.copyWith(quietHoursEnd: h)),
                   ),
                 ),
@@ -233,19 +295,12 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: SwitchListTile(
-        title: Text(title, style: AppTextStyles.bodyMedium),
-        subtitle: Text(subtitle, style: AppTextStyles.bodySmall),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: GlassSwitchTile(
+        title: title,
+        subtitle: subtitle,
         value: value,
-        activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-        activeThumbColor: AppColors.primary,
         onChanged: onChanged,
       ),
     );
@@ -256,43 +311,34 @@ class _HourPicker extends StatelessWidget {
   const _HourPicker({
     required this.label,
     required this.hour,
+    required this.locale,
     required this.onChanged,
   });
 
   final String label;
   final int hour;
+  final String locale;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
+    return GlassContainer(
+      borderRadius: AppSpacing.radiusLg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.bodySmall),
+          Text(label, style: AppTypography.bodySmall),
           DropdownButton<int>(
             value: hour,
             isExpanded: true,
             dropdownColor: AppColors.surface,
+            style: AppTypography.body.copyWith(color: AppColors.textPrimary),
             items: List.generate(
               24,
               (h) => DropdownMenuItem(
                 value: h,
                 child: Text(
-                  h == 0
-                      ? '12 AM'
-                      : h < 12
-                          ? '$h AM'
-                          : h == 12
-                              ? '12 PM'
-                              : '${h - 12} PM',
-                  style: AppTextStyles.bodyMedium,
+                  NotificationSettingsStrings.formatHourOption(h, locale),
                 ),
               ),
             ),

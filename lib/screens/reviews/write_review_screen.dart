@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/reviews/l10n/workplace_review_strings.dart';
 
-class WriteReviewScreen extends StatefulWidget {
+class WriteReviewScreen extends ConsumerStatefulWidget {
   const WriteReviewScreen({super.key});
 
   @override
-  State<WriteReviewScreen> createState() => _WriteReviewScreenState();
+  ConsumerState<WriteReviewScreen> createState() => _WriteReviewScreenState();
 }
 
-class _WriteReviewScreenState extends State<WriteReviewScreen> {
-  static const Color _backgroundColor = Color(0xFF050A0F);
-  static const Color _surfaceColor = Color(0xFF0D1520);
-  static const Color _subtitleColor = Color(0xFF8A9BB0);
-  static const Color _cyanColor = Color(0xFF22D3EE);
-
+class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
   final TextEditingController _companyController = TextEditingController();
   final TextEditingController _reviewController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
@@ -22,15 +27,36 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   double _housingRating = 3;
   double _managementRating = 4;
   double _workLifeRating = 3;
-  String _homeFlight = 'Yes';
-  String _employmentStatus = 'Current Employee';
+  String _homeFlightKey = 'yes';
+  String _employmentKey = 'current';
   bool _disclaimerAccepted = false;
 
-  static const List<String> _homeFlightOptions = ['Yes', 'No', 'Partial'];
-  static const List<String> _employmentOptions = [
-    'Current Employee',
-    'Former Employee',
-  ];
+  static const _homeFlightKeys = ['yes', 'no', 'partial'];
+  static const _employmentKeys = ['current', 'former'];
+
+  String _homeFlightLabel(String key, String locale) {
+    switch (key) {
+      case 'yes':
+        return WorkplaceReviewStrings.t('option_yes', locale);
+      case 'no':
+        return WorkplaceReviewStrings.t('option_no', locale);
+      case 'partial':
+        return WorkplaceReviewStrings.t('option_partial', locale);
+      default:
+        return key;
+    }
+  }
+
+  String _employmentLabel(String key, String locale) {
+    switch (key) {
+      case 'current':
+        return WorkplaceReviewStrings.t('employment_current', locale);
+      case 'former':
+        return WorkplaceReviewStrings.t('employment_former', locale);
+      default:
+        return key;
+    }
+  }
 
   @override
   void dispose() {
@@ -43,32 +69,32 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: _subtitleColor),
-      filled: true,
-      fillColor: _surfaceColor,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+      hintStyle: AppTypography.body.copyWith(color: AppColors.textTertiary),
+      border: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
-  void _submit() {
+  void _submit(String locale) {
     if (_companyController.text.trim().isEmpty) {
-      _showError('Please enter a company name');
+      _showError(WorkplaceReviewStrings.t('error_company_required', locale));
       return;
     }
     if (_reviewController.text.trim().length < 100) {
-      _showError('Review must be at least 100 characters');
+      _showError(WorkplaceReviewStrings.t('error_review_length', locale));
       return;
     }
     if (!_disclaimerAccepted) {
-      _showError('Please accept the disclaimer');
+      _showError(WorkplaceReviewStrings.t('error_disclaimer', locale));
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Review submitted anonymously!')),
+      SnackBar(
+        content: Text(WorkplaceReviewStrings.t('success_submitted', locale)),
+      ),
     );
     Navigator.of(context).pop();
   }
@@ -90,14 +116,11 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-            ),
+            Text(label, style: AppTypography.body.copyWith(color: AppColors.textPrimary)),
             Text(
               '⭐ ${value.toStringAsFixed(1)}',
-              style: const TextStyle(
-                color: _cyanColor,
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.cyanGlow,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -108,8 +131,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
           min: 1,
           max: 5,
           divisions: 8,
-          activeColor: _cyanColor,
-          inactiveColor: _surfaceColor,
+          activeColor: AppColors.cyanGlow,
+          inactiveColor: AppColors.glassBorder,
           onChanged: onChanged,
         ),
       ],
@@ -118,8 +141,9 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
   Widget _chipRow({
     required String title,
-    required List<String> options,
-    required String selected,
+    required List<String> optionKeys,
+    required String selectedKey,
+    required String Function(String key) labelForKey,
     required ValueChanged<String> onSelected,
   }) {
     return Column(
@@ -127,32 +151,35 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: _subtitleColor,
+          style: AppTypography.subtitle.copyWith(
+            color: AppColors.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: options.map((option) {
-            final isSelected = selected == option;
-            return FilterChip(
-              label: Text(option),
-              selected: isSelected,
-              onSelected: (_) => onSelected(option),
-              backgroundColor: _surfaceColor,
-              selectedColor: _cyanColor.withValues(alpha: 0.2),
-              labelStyle: TextStyle(
-                color: isSelected ? _cyanColor : _subtitleColor,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: optionKeys.map((key) {
+            final isSelected = selectedKey == key;
+            return GlassCard(
+              onTap: () => onSelected(key),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
-              side: BorderSide(
-                color: isSelected ? _cyanColor : Colors.transparent,
+              borderRadius: AppSpacing.radiusFull,
+              glowColor: isSelected ? AppColors.cyanGlow : null,
+              glowIntensity: isSelected ? 0.2 : 0,
+              child: Text(
+                labelForKey(key),
+                style: AppTypography.chipLabel.copyWith(
+                  color: isSelected
+                      ? AppColors.cyanGlow
+                      : AppColors.textSecondary,
+                ),
               ),
-              showCheckmark: false,
             );
           }).toList(),
         ),
@@ -160,191 +187,197 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
     );
   }
 
+  Widget _glassField(TextEditingController controller, {
+    required String hint,
+    int maxLines = 1,
+    ValueChanged<String>? onChanged,
+  }) {
+    return GlassContainer(
+      padding: EdgeInsets.zero,
+      borderRadius: AppSpacing.radiusSm,
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        onChanged: onChanged,
+        style: AppTypography.body.copyWith(color: AppColors.textPrimary),
+        decoration: _inputDecoration(hint),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(userLanguageProvider);
     final reviewLength = _reviewController.text.trim().length;
 
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        backgroundColor: _backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Write Anonymous Review',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
+    return GlassScreenScaffold(
+      title: WorkplaceReviewStrings.t('write_title', locale),
+      leading: GlassIconButton(
+        icon: Icons.arrow_back_ios_rounded,
+        tooltip: CommonActionStrings.t('action_back', locale),
+        onPressed: () => Navigator.of(context).pop(),
       ),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Company name',
-                style: TextStyle(
-                  color: _subtitleColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              WorkplaceReviewStrings.t('label_company_name', locale),
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _companyController,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('Search or enter company name...'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _glassField(
+              _companyController,
+              hint: WorkplaceReviewStrings.t('hint_company_name', locale),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              WorkplaceReviewStrings.t('label_ratings', locale),
+              style: AppTypography.title,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            GlassCard(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                children: [
+                  _ratingSlider(
+                    label: WorkplaceReviewStrings.t('rating_overall', locale),
+                    value: _overallRating,
+                    onChanged: (v) => setState(() => _overallRating = v),
+                  ),
+                  _ratingSlider(
+                    label: WorkplaceReviewStrings.t('rating_salary_paid', locale),
+                    value: _salaryRating,
+                    onChanged: (v) => setState(() => _salaryRating = v),
+                  ),
+                  _ratingSlider(
+                    label: WorkplaceReviewStrings.t('rating_accommodation', locale),
+                    value: _housingRating,
+                    onChanged: (v) => setState(() => _housingRating = v),
+                  ),
+                  _ratingSlider(
+                    label: WorkplaceReviewStrings.t('rating_management_hr', locale),
+                    value: _managementRating,
+                    onChanged: (v) => setState(() => _managementRating = v),
+                  ),
+                  _ratingSlider(
+                    label: WorkplaceReviewStrings.t('rating_work_hours', locale),
+                    value: _workLifeRating,
+                    onChanged: (v) => setState(() => _workLifeRating = v),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Ratings',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _chipRow(
+              title: WorkplaceReviewStrings.t('chip_home_flight', locale),
+              optionKeys: _homeFlightKeys,
+              selectedKey: _homeFlightKey,
+              labelForKey: (key) => _homeFlightLabel(key, locale),
+              onSelected: (v) => setState(() => _homeFlightKey = v),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              WorkplaceReviewStrings.t('label_your_review', locale),
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 12),
-              _ratingSlider(
-                label: '⭐ Overall Experience',
-                value: _overallRating,
-                onChanged: (v) => setState(() => _overallRating = v),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _glassField(
+              _reviewController,
+              hint: WorkplaceReviewStrings.t('hint_review', locale),
+              maxLines: 5,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              WorkplaceReviewStrings.format(
+                'char_minimum',
+                locale,
+                params: {'count': '$reviewLength'},
               ),
-              _ratingSlider(
-                label: '💰 Salary paid on time',
-                value: _salaryRating,
-                onChanged: (v) => setState(() => _salaryRating = v),
+              style: AppTypography.caption.copyWith(
+                color: reviewLength >= 100
+                    ? AppColors.cyanGlow
+                    : AppColors.textSecondary,
               ),
-              _ratingSlider(
-                label: '🏠 Accommodation quality (if provided)',
-                value: _housingRating,
-                onChanged: (v) => setState(() => _housingRating = v),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _chipRow(
+              title: WorkplaceReviewStrings.t('chip_employment_status', locale),
+              optionKeys: _employmentKeys,
+              selectedKey: _employmentKey,
+              labelForKey: (key) => _employmentLabel(key, locale),
+              onSelected: (v) => setState(() => _employmentKey = v),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              WorkplaceReviewStrings.t('label_department', locale),
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-              _ratingSlider(
-                label: '👔 Management & HR treatment',
-                value: _managementRating,
-                onChanged: (v) => setState(() => _managementRating = v),
-              ),
-              _ratingSlider(
-                label: '📅 Work hours & overtime policy',
-                value: _workLifeRating,
-                onChanged: (v) => setState(() => _workLifeRating = v),
-              ),
-              const SizedBox(height: 8),
-              _chipRow(
-                title: '✈️ Home flight provided',
-                options: _homeFlightOptions,
-                selected: _homeFlight,
-                onSelected: (v) => setState(() => _homeFlight = v),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Your review',
-                style: TextStyle(
-                  color: _subtitleColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _reviewController,
-                maxLines: 5,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('Share your experience...'),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '$reviewLength / 100 characters minimum',
-                style: TextStyle(
-                  color: reviewLength >= 100 ? _cyanColor : _subtitleColor,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _chipRow(
-                title: 'Employment status',
-                options: _employmentOptions,
-                selected: _employmentStatus,
-                onSelected: (v) => setState(() => _employmentStatus = v),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Department (optional)',
-                style: TextStyle(
-                  color: _subtitleColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _departmentController,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('e.g. Operations, HR, Engineering'),
-              ),
-              const SizedBox(height: 24),
-              Row(
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _glassField(
+              _departmentController,
+              hint: WorkplaceReviewStrings.t('hint_department', locale),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GlassContainer(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              borderRadius: AppSpacing.radiusSm,
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Checkbox(
                     value: _disclaimerAccepted,
                     onChanged: (v) =>
                         setState(() => _disclaimerAccepted = v ?? false),
-                    activeColor: _cyanColor,
-                    checkColor: _backgroundColor,
-                    side: const BorderSide(color: _subtitleColor),
+                    activeColor: AppColors.cyanGlow,
+                    checkColor: AppColors.background,
+                    side: BorderSide(color: AppColors.textSecondary),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.only(top: AppSpacing.sm),
                       child: Text(
-                        'I confirm this review is based on my genuine experience. '
-                        'I understand false reviews may violate terms of service.',
-                        style: TextStyle(
-                          color: _subtitleColor,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
+                        WorkplaceReviewStrings.t('disclaimer', locale),
+                        style: AppTypography.bodySmall.copyWith(height: 1.4),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _cyanColor,
-                    foregroundColor: _backgroundColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Submit Anonymously',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            GlassCard(
+              onTap: () => _submit(locale),
+              glowColor: AppColors.cyanGlow,
+              glowIntensity: 0.25,
+              backgroundColor: AppColors.cyanGlow,
+              borderRadius: AppSpacing.radiusSm,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                WorkplaceReviewStrings.t('submit_anonymously', locale),
+                style: AppTypography.button.copyWith(
+                  color: AppColors.background,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

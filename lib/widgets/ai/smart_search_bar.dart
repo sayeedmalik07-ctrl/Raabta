@@ -12,11 +12,11 @@ import 'package:raabta/services/ai/user_profile_ai_service.dart';
 
 const List<String> _searchHints = [
   'Find HSE jobs near Ras Laffan...',
-  'Rooms in Al Khor under 1500 QR...',
+  'Rooms in Qatar under 1500 QR...',
   'Best Indian restaurants near me...',
   'How to renew my Iqama?',
   'Safety Officer jobs in Doha...',
-  'Family flat in Al Khor 2BHK...',
+  'Family flat in Doha 2BHK...',
   'Pakistani grocery near Industrial Area...',
   'Driver jobs in Qatar urgently...',
 ];
@@ -159,13 +159,19 @@ class _SmartSearchBarState extends ConsumerState<SmartSearchBar>
       case SearchIntent.findBusiness:
         context.push('/businesses');
       case SearchIntent.findDoctor:
-        context.push('/doctors');
+        context.push('/health-insurance');
       case SearchIntent.checkRate:
         context.push('/money');
       case SearchIntent.visaQuestion:
         context.push('/visa');
       case SearchIntent.communityQuestion:
         context.push('/community');
+      case SearchIntent.eosbCalculator:
+        context.push('/eosb');
+      case SearchIntent.prayerMosque:
+        context.push('/prayer-mosque');
+      case SearchIntent.tripPlanner:
+        context.push('/trip-planner');
       default:
         context.push('/ai-chat', extra: {'query': result.displayQuery});
     }
@@ -189,6 +195,9 @@ class _SmartSearchBarState extends ConsumerState<SmartSearchBar>
       SearchIntent.checkRate: 'Exchange Rates',
       SearchIntent.visaQuestion: 'Visa Guide',
       SearchIntent.communityQuestion: 'Community',
+      SearchIntent.eosbCalculator: 'EOSB',
+      SearchIntent.prayerMosque: 'Prayer',
+      SearchIntent.tripPlanner: 'Trip',
       SearchIntent.unknown: 'Results',
     };
     return labels[intent] ?? 'Results';

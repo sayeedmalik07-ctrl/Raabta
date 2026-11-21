@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
 
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/glass/glass_container.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+
+/// Backward-compatible card that delegates to the shared glass system.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -11,6 +13,7 @@ class AppCard extends StatelessWidget {
     this.gradientBorder = false,
     this.glass = false,
     this.borderGradient,
+    this.onTap,
   });
 
   final Widget child;
@@ -18,46 +21,38 @@ class AppCard extends StatelessWidget {
   final bool gradientBorder;
   final bool glass;
   final Gradient? borderGradient;
-
-  static const BoxShadow _premiumShadow = BoxShadow(
-    color: Colors.black45,
-    blurRadius: 20,
-    offset: Offset(0, 8),
-  );
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(AppRadius.xxl);
-    final innerDecoration = BoxDecoration(
-      color: glass ? AppColors.glass : AppColors.surface,
-      borderRadius: borderRadius,
-      border: glass && !gradientBorder
-          ? Border.all(color: AppColors.glassBorder)
-          : null,
-      boxShadow: const [_premiumShadow],
-    );
+    final glowColor = gradientBorder && borderGradient != null
+        ? borderGradient!.colors.first
+        : null;
 
-    if (gradientBorder) {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: borderGradient ?? AppColors.primaryGradient,
-          borderRadius: borderRadius,
-          boxShadow: const [_premiumShadow],
-        ),
-        padding: const EdgeInsets.all(1),
-        child: Container(
-          decoration: innerDecoration.copyWith(
-            color: glass ? AppColors.glass : AppColors.surface,
-          ),
-          padding: padding,
-          child: child,
-        ),
+    if (onTap != null) {
+      return GlassCard(
+        onTap: onTap,
+        padding: padding,
+        borderRadius: AppSpacing.radiusLg,
+        glowColor: glowColor,
+        glowIntensity: gradientBorder ? 0.18 : 0,
+        child: child,
       );
     }
 
-    return Container(
-      decoration: innerDecoration,
+    if (glass || gradientBorder) {
+      return GlassContainer(
+        padding: padding,
+        borderRadius: AppSpacing.radiusLg,
+        glowColor: glowColor,
+        glowIntensity: gradientBorder ? 0.18 : 0,
+        child: child,
+      );
+    }
+
+    return GlassContainer(
       padding: padding,
+      borderRadius: AppSpacing.radiusLg,
       child: child,
     );
   }

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:raabta/models/visa_models.dart';
@@ -33,45 +32,6 @@ class VisaApiService {
     return VisaGuide.fromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
       language,
-    );
-  }
-
-  Future<DocumentScanResult> scanDocument({
-    required File imageFile,
-    required String language,
-    required bool isPremium,
-  }) async {
-    final bytes = await imageFile.readAsBytes();
-    final base64Image = base64Encode(bytes);
-
-    final uri = Uri.parse('$_baseUrl/api/document-scan');
-    final response = await _client
-        .post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'imageBase64': base64Image,
-            'language': language,
-            'isPremium': isPremium,
-          }),
-        )
-        .timeout(const Duration(seconds: 45));
-
-    if (response.statusCode == 429) {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      throw VisaApiException(
-        body['message'] as String? ?? 'Free scan limit reached',
-      );
-    }
-    if (response.statusCode != 200) {
-      final body = jsonDecode(response.body) as Map<String, dynamic>?;
-      throw VisaApiException(
-        body?['error'] as String? ?? 'Document scan failed',
-      );
-    }
-
-    return DocumentScanResult.fromJson(
-      jsonDecode(response.body) as Map<String, dynamic>,
     );
   }
 }

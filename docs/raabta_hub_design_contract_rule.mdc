@@ -1,0 +1,12 @@
+---
+description: Raabta hub and Home design language
+globs: lib/features/**
+alwaysApply: false
+---
+Follow docs/HUB_DESIGN_CONTRACT.md and the Raabta design kits in docs/.
+- Compose existing shared components; never create one-off cards, badges, sheets or state views.
+- Tokens only (ColorFamily, spacing, radius, typography from lib/core). No hardcoded hex, radius or text styles.
+- Hub chrome is brand purple; one content hue at most (gold for money and legal, teal for community); semantic colors only for status.
+- Dark, light, RTL, text scale 1.3, 9 locales. Skeletons not spinners. Flag-gated controls are hidden, never disabled.
+- Never fake data. No payment wording, no star ratings. Optimistic UI only for reversible taps.
+- If no pattern fits, stop and report instead of inventing a style.

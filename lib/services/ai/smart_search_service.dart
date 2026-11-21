@@ -1,18 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/features/global_search/domain/multilingual_query_normalizer.dart';
+import 'package:raabta/features/global_search/domain/search_analysis.dart';
+import 'package:raabta/features/global_search/domain/service_search_terminology.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
 
 // ---------------------------------------------------------------------------
-// Models
+// Smart Search (AI intent routing — NOT app-wide Firestore content search)
+//
+// For cross-feature document/listing search see `GlobalSearchScreen` and
+// `GlobalSearchRepository` under `lib/features/global_search/`.
 // ---------------------------------------------------------------------------
 
 enum SearchIntent {
   findJob,
   findHousing,
   findBusiness,
+  findService,
   findDoctor,
   checkRate,
   visaQuestion,
   communityQuestion,
+  eosbCalculator,
+  prayerMosque,
+  tripPlanner,
+  verifyEmployer,
+  verifyAgency,
+  scanDocument,
   unknown,
 }
 
@@ -54,25 +67,45 @@ class SmartSearchResult {
 // ---------------------------------------------------------------------------
 
 class SmartSearchService {
-  static const List<String> _jobKeywords = [
-    'job',
-    'jobs',
-    'work',
-    'hiring',
-    'vacancy',
-    'vacancies',
-    'position',
-    'positions',
-    'career',
-    'employment',
-    'officer',
-    'manager',
-    'engineer',
-    'driver',
-    'supervisor',
-    'technician',
-    'nurse',
-    'teacher',
+  static const List<String> _tripKeywords = [
+    'trip planner',
+    'itinerary',
+    'travel plan',
+    'qatar trip',
+    'doha trip',
+    'visit qatar',
+    'things to do',
+    'sightseeing',
+    'tourist',
+    'vacation qatar',
+  ];
+
+  static const List<String> _prayerKeywords = [
+    'prayer',
+    'prayer time',
+    'salah',
+    'namaz',
+    'qibla',
+    'mosque',
+    'masjid',
+    'jumuah',
+    'jummah',
+    'fajr',
+    'maghrib',
+    'islamic calendar',
+    'hijri',
+  ];
+
+  static const List<String> _eosbKeywords = [
+    'eosb',
+    'end of service',
+    'gratuity',
+    'settlement',
+    'termination pay',
+    'leave encashment',
+    'notice period',
+    'final settlement',
+    'end of service benefit',
   ];
 
   static const List<String> _housingKeywords = [
@@ -100,8 +133,6 @@ class SmartSearchService {
     'gym',
     'shop',
     'clinic',
-    'service',
-    'repair',
     'grocery',
     'indian food',
     'pakistani food',
@@ -109,6 +140,7 @@ class SmartSearchService {
     'bakery',
     'store',
     'market',
+    'company',
   ];
 
   static const List<String> _doctorKeywords = [
@@ -159,6 +191,38 @@ class SmartSearchService {
     'question',
     'discussion',
     'expat',
+  ];
+
+  static const List<String> _employerVerifyKeywords = [
+    'verify employer',
+    'check employer',
+    'employer verification',
+    'employer record',
+    'check company',
+    'verify company',
+    'company record',
+    'company reliable',
+    'is reliable',
+    'track record',
+  ];
+
+  static const List<String> _agencyVerifyKeywords = [
+    'recruitment agency',
+    'verify agency',
+    'check agency',
+    'agency verification',
+    'recruitment verification',
+    'verify recruitment',
+    'check recruitment',
+  ];
+
+  static const List<String> _scannerKeywords = [
+    'scan document',
+    'document scanner',
+    'scan my document',
+    'scan pdf',
+    'pdf scanner',
+    'document scan',
   ];
 
   static const List<String> _qatarAreas = [
@@ -216,8 +280,30 @@ class SmartSearchService {
     'How to renew QID in Qatar',
   ];
 
+  /// Deterministic query analysis for Global Search pre-routing (S1).
+  ///
+  /// Analysis only — no navigation, no network, no [BuildContext].
+  SearchAnalysis analyze(String query, {UserAIProfile? profile}) {
+    if (query.trim().isEmpty) return SearchAnalysis.empty();
+    final normalization = MultilingualQueryNormalizer.normalize(query);
+    final result = parseQuery(
+      query,
+      profile: profile,
+      normalization: normalization,
+    );
+    return SearchAnalysis.fromSmartSearchResult(
+      result,
+      originalQuery: query,
+      normalization: normalization,
+    );
+  }
+
   /// Parses a natural language query into structured search filters.
-  SmartSearchResult parseQuery(String query, {UserAIProfile? profile}) {
+  SmartSearchResult parseQuery(
+    String query, {
+    UserAIProfile? profile,
+    MultilingualNormalizationResult? normalization,
+  }) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
       return const SmartSearchResult(
@@ -228,14 +314,16 @@ class SmartSearchService {
       );
     }
 
-    final lower = trimmed.toLowerCase();
+    final resolvedNormalization =
+        normalization ?? MultilingualQueryNormalizer.normalize(trimmed);
+    final lower = resolvedNormalization.canonicalLower;
     final intentScores = _scoreIntents(lower);
-    final intent = _resolveIntent(intentScores);
+    final intent = _resolveIntent(intentScores, lower);
     final confidence = _resolveConfidence(intentScores, intent);
 
     final filters = <String, dynamic>{};
 
-    final area = _extractArea(trimmed);
+    final area = _extractArea(resolvedNormalization.normalizedText);
     if (area != null) filters['area'] = area;
 
     if (_containsNearMe(lower)) {
@@ -248,20 +336,45 @@ class SmartSearchService {
     final priceFilters = _extractPriceFilters(lower);
     filters.addAll(priceFilters);
 
+    final employerName = extractEmployerName(trimmed);
+    if (employerName != null) filters['employerName'] = employerName;
+
+    final agencyName = extractAgencyName(trimmed);
+    if (agencyName != null) filters['agencyName'] = agencyName;
+
+    final currencyConversion = extractCurrencyConversion(trimmed);
+    if (currencyConversion != null) {
+      filters.addAll(currencyConversion);
+    }
+
     switch (intent) {
       case SearchIntent.findJob:
-        filters.addAll(_extractJobFilters(trimmed, lower));
+        filters.addAll(_extractJobFilters(resolvedNormalization.normalizedText, lower));
       case SearchIntent.findHousing:
-        filters.addAll(_extractHousingFilters(trimmed, lower));
+        filters.addAll(_extractHousingFilters(resolvedNormalization.normalizedText, lower));
       case SearchIntent.findBusiness:
-        filters.addAll(_extractBusinessFilters(trimmed, lower));
+        filters.addAll(_extractBusinessFilters(resolvedNormalization.normalizedText, lower));
+      case SearchIntent.findService:
+        filters.addAll(_extractServiceFilters(resolvedNormalization.normalizedText, lower));
       case SearchIntent.findDoctor:
-        filters.addAll(_extractDoctorFilters(trimmed, lower));
+        filters.addAll(_extractDoctorFilters(resolvedNormalization.normalizedText, lower));
       case SearchIntent.checkRate:
         filters.addAll(_extractRateFilters(lower));
       case SearchIntent.visaQuestion:
-        filters.addAll(_extractVisaFilters(trimmed, lower));
+        filters.addAll(_extractVisaFilters(resolvedNormalization.normalizedText, lower));
       case SearchIntent.communityQuestion:
+        filters['query'] = trimmed;
+      case SearchIntent.eosbCalculator:
+        filters['query'] = trimmed;
+      case SearchIntent.prayerMosque:
+        filters['query'] = trimmed;
+      case SearchIntent.tripPlanner:
+        filters['query'] = trimmed;
+      case SearchIntent.verifyEmployer:
+        filters['query'] = trimmed;
+      case SearchIntent.verifyAgency:
+        filters['query'] = trimmed;
+      case SearchIntent.scanDocument:
         filters['query'] = trimmed;
       case SearchIntent.unknown:
         filters['query'] = trimmed;
@@ -318,16 +431,102 @@ class SmartSearchService {
   // -------------------------------------------------------------------------
 
   Map<SearchIntent, int> _scoreIntents(String lower) {
+    final employerScore = _employerVerifyScore(lower);
+    final agencyScore = _agencyVerifyScore(lower);
+    final scannerScore = _scannerScore(lower);
+
     return {
-      SearchIntent.findJob: _keywordScore(lower, _jobKeywords),
+      SearchIntent.verifyEmployer: employerScore,
+      SearchIntent.verifyAgency: agencyScore,
+      SearchIntent.scanDocument: scannerScore,
+      SearchIntent.findJob: _jobIntentScore(lower),
       SearchIntent.findHousing: _keywordScore(lower, _housingKeywords),
-      SearchIntent.findBusiness: _keywordScore(lower, _businessKeywords),
+      SearchIntent.findBusiness: _businessIntentScore(lower),
+      SearchIntent.findService: ServiceSearchTerminology.score(lower),
       SearchIntent.findDoctor: _keywordScore(lower, _doctorKeywords),
-      SearchIntent.checkRate: _keywordScore(lower, _rateKeywords),
+      SearchIntent.checkRate: _rateIntentScore(lower),
       SearchIntent.visaQuestion: _keywordScore(lower, _visaKeywords),
       SearchIntent.communityQuestion: _keywordScore(lower, _communityKeywords),
+      SearchIntent.eosbCalculator: _eosbIntentScore(lower),
+      SearchIntent.prayerMosque: _keywordScore(lower, _prayerKeywords),
+      SearchIntent.tripPlanner: _keywordScore(lower, _tripKeywords),
     };
   }
+
+  int _employerVerifyScore(String lower) {
+    var score = _keywordScore(lower, _employerVerifyKeywords);
+    if (RegExp(r'\b(check|verify)\s+.+\s+company\b').hasMatch(lower)) {
+      score += 2;
+    }
+    if (RegExp(r'\bis\s+.+\s+company\s+(reliable|legit|safe)\b').hasMatch(lower)) {
+      score += 2;
+    }
+    if (extractEmployerName(lower) != null) score += 2;
+    return score;
+  }
+
+  int _agencyVerifyScore(String lower) {
+    var score = _keywordScore(lower, _agencyVerifyKeywords);
+    if (RegExp(r'\b(check|verify)\s+.+\s+recruitment\b').hasMatch(lower)) {
+      score += 2;
+    }
+    return score;
+  }
+
+  int _scannerScore(String lower) {
+    var score = _keywordScore(lower, _scannerKeywords);
+    if (lower.trim() == 'scan') score += 2;
+    return score;
+  }
+
+  int _rateIntentScore(String lower) {
+    var score = _keywordScore(lower, _rateKeywords);
+    if (extractCurrencyConversion(lower) != null) score += 3;
+    return score;
+  }
+
+  int _eosbIntentScore(String lower) {
+    var score = _keywordScore(lower, _eosbKeywords);
+    if (_isEosbCalculatePhrase(lower)) score += 2;
+    return score;
+  }
+
+  bool _isEosbCalculatePhrase(String lower) {
+    const calcWords = ['calculate', 'calculator', 'compute', 'calculation'];
+    const eosbWords = ['eosb', 'gratuity', 'end of service', 'gratuity benefit'];
+    final hasCalc = calcWords.any(lower.contains);
+    final hasEosb = eosbWords.any(lower.contains);
+    return hasCalc && hasEosb;
+  }
+
+  int _jobIntentScore(String lower) {
+    var score = _keywordScore(lower, ServiceSearchTerminology.jobMetaKeywords);
+    if (ServiceSearchTerminology.hasStrongJobSignal(lower)) {
+      score += _keywordScore(lower, _jobProfessionKeywords);
+    }
+    return score;
+  }
+
+  int _businessIntentScore(String lower) {
+    var score = _keywordScore(lower, _businessKeywords);
+    if (ServiceSearchTerminology.hasStrongBusinessSignal(lower)) {
+      score += 2;
+    }
+    return score;
+  }
+
+  static const List<String> _jobProfessionKeywords = [
+    'officer',
+    'manager',
+    'engineer',
+    'driver',
+    'supervisor',
+    'technician',
+    'nurse',
+    'teacher',
+    'electrician',
+    'plumber',
+  ];
 
   int _keywordScore(String lower, List<String> keywords) {
     var score = 0;
@@ -337,7 +536,7 @@ class SmartSearchService {
     return score;
   }
 
-  SearchIntent _resolveIntent(Map<SearchIntent, int> scores) {
+  SearchIntent _resolveIntent(Map<SearchIntent, int> scores, String lower) {
     var bestIntent = SearchIntent.unknown;
     var bestScore = 0;
 
@@ -350,8 +549,38 @@ class SmartSearchService {
 
     if (bestScore == 0) return SearchIntent.unknown;
 
-    final doctorScore = scores[SearchIntent.findDoctor] ?? 0;
+    // Action intents take precedence when strongly matched.
+    final verifyEmployer = scores[SearchIntent.verifyEmployer] ?? 0;
+    final verifyAgency = scores[SearchIntent.verifyAgency] ?? 0;
+    final scanDocument = scores[SearchIntent.scanDocument] ?? 0;
+    if (verifyEmployer >= 2 && verifyEmployer >= bestScore) {
+      return SearchIntent.verifyEmployer;
+    }
+    if (verifyAgency >= 2 && verifyAgency >= bestScore) {
+      return SearchIntent.verifyAgency;
+    }
+    if (scanDocument >= 2 && scanDocument >= bestScore) {
+      return SearchIntent.scanDocument;
+    }
+
+    final serviceScore = scores[SearchIntent.findService] ?? 0;
+    final jobScore = scores[SearchIntent.findJob] ?? 0;
     final businessScore = scores[SearchIntent.findBusiness] ?? 0;
+
+    if (ServiceSearchTerminology.hasStrongJobSignal(lower) && jobScore > 0) {
+      return SearchIntent.findJob;
+    }
+    if (ServiceSearchTerminology.hasStrongBusinessSignal(lower) &&
+        businessScore > 0) {
+      return SearchIntent.findBusiness;
+    }
+    if (serviceScore > 0 &&
+        serviceScore >= jobScore &&
+        serviceScore >= businessScore) {
+      return SearchIntent.findService;
+    }
+
+    final doctorScore = scores[SearchIntent.findDoctor] ?? 0;
     if (doctorScore > 0 && doctorScore >= businessScore) {
       return SearchIntent.findDoctor;
     }
@@ -407,6 +636,16 @@ class SmartSearchService {
     return filters;
   }
 
+  Map<String, dynamic> _extractServiceFilters(String query, String lower) {
+    final filters = <String, dynamic>{
+      'query': ServiceSearchTerminology.cleanServiceQuery(query),
+    };
+    final trade = ServiceSearchTerminology.extractTrade(query);
+    if (trade != null) filters['serviceTrade'] = trade;
+    if (_containsNearMe(lower)) filters['proximity'] = 'near';
+    return filters;
+  }
+
   Map<String, dynamic> _extractBusinessFilters(String query, String lower) {
     final filters = <String, dynamic>{};
 
@@ -442,7 +681,9 @@ class SmartSearchService {
     final filters = <String, dynamic>{'query': query};
 
     if (lower.contains('iqama')) filters['topic'] = 'iqama';
-    if (lower.contains('qid')) filters['topic'] = 'qid';
+    if (lower.contains('qid') || lower.contains('qatar id')) {
+      filters['topic'] = 'qid';
+    }
     if (lower.contains('exit')) filters['topic'] = 'exit_permit';
     if (lower.contains('renewal') || lower.contains('renew')) {
       filters['topic'] = 'renewal';
@@ -457,13 +698,36 @@ class SmartSearchService {
       if (lower.contains(area.toLowerCase())) return area;
     }
 
+    const aliases = {
+      'doha': 'Doha',
+      'al rayyan': 'Al Rayyan',
+      'rayyan': 'Al Rayyan',
+      'al wakrah': 'Al Wakrah',
+      'wakrah': 'Al Wakrah',
+      'lusail': 'Lusail',
+      'al khor': 'Al Khor',
+      'umm salal': 'Umm Salal',
+      'mesaieed': 'Mesaieed',
+      'dukhan': 'Dukhan',
+      'industrial area': 'Industrial Area',
+      'old airport': 'Old Airport',
+      'west bay': 'West Bay',
+      'al sadd': 'Al Sadd',
+      'bin mahmoud': 'Bin Mahmoud',
+      'najma': 'Najma',
+      'mansoura': 'Al Mansoura',
+      'al mansoura': 'Al Mansoura',
+      'abu hamour': 'Abu Hamour',
+      'al waab': 'Al Waab',
+      'barwa': 'Barwa',
+      'ain khaled': 'Ain Khaled',
+    };
+    for (final entry in aliases.entries) {
+      if (lower.contains(entry.key)) return entry.value;
+    }
+
     if (lower.contains('ras laffan')) return 'Ras Laffan';
-    if (lower.contains('industrial area')) return 'Industrial Area';
-    if (lower.contains('west bay')) return 'West Bay';
-    if (lower.contains('old airport')) return 'Old Airport';
     if (lower.contains('the pearl')) return 'The Pearl';
-    if (lower.contains('al khor')) return 'Al Khor';
-    if (lower.contains('al wakrah')) return 'Al Wakrah';
 
     return null;
   }
@@ -485,6 +749,19 @@ class SmartSearchService {
     ).firstMatch(lower);
     if (underMatch != null) {
       filters['maxPrice'] = _parseNumber(underMatch.group(1)!);
+      return filters;
+    }
+
+    final aboveMatch = RegExp(
+      r'(?:above|over|more than|minimum|min)\s*(?:qar\s*)?(\d[\d,]*)',
+    ).firstMatch(lower);
+    if (aboveMatch != null) {
+      final value = _parseNumber(aboveMatch.group(1)!);
+      if (lower.contains('job')) {
+        filters['minSalary'] = value;
+      } else {
+        filters['minPrice'] = value;
+      }
       return filters;
     }
 
@@ -529,7 +806,57 @@ class SmartSearchService {
       return _cleanPhrase(nearMatch.group(1)!);
     }
 
+    final jobFirst = RegExp(
+      r'\bjobs?\s+([a-z][\w-]+)',
+      caseSensitive: false,
+    ).firstMatch(lower.trim());
+    if (jobFirst != null) {
+      final phrase = _cleanPhrase(jobFirst.group(1)!);
+      if (phrase.isNotEmpty && !_isJobTitleStopword(phrase)) return phrase;
+    }
+
+    final leadingProfession = RegExp(
+      r'^([a-z][\w\s/-]{0,30}?)\s+jobs?\b',
+      caseSensitive: false,
+    ).firstMatch(lower.trim());
+    if (leadingProfession != null) {
+      final phrase = _cleanPhrase(leadingProfession.group(1)!);
+      if (phrase.isNotEmpty) return phrase;
+    }
+
+    final anywhereProfession = RegExp(
+      r'\b([a-z][\w\s/-]{0,30}?)\s+jobs?\b',
+      caseSensitive: false,
+    ).firstMatch(lower.trim());
+    if (anywhereProfession != null) {
+      final phrase = _cleanPhrase(anywhereProfession.group(1)!);
+      if (phrase.isNotEmpty &&
+          phrase.length <= 30 &&
+          !_isJobTitleStopword(phrase)) {
+        return phrase;
+      }
+    }
+
     return null;
+  }
+
+  bool _isJobTitleStopword(String phrase) {
+    const blocked = {
+      'in',
+      'at',
+      'on',
+      'for',
+      'with',
+      'near',
+      'above',
+      'below',
+      'under',
+      'over',
+      'around',
+      'doha',
+      'qatar',
+    };
+    return blocked.contains(phrase.toLowerCase());
   }
 
   String? _extractPropertyType(String lower) {
@@ -592,13 +919,22 @@ class SmartSearchService {
   // -------------------------------------------------------------------------
 
   List<String> _profileSuggestions(UserAIProfile profile) {
-    final area = profile.preferredArea.isNotEmpty
-        ? profile.preferredArea
-        : 'Al Khor';
+    final area = profile.preferredArea.trim();
     final profession = profile.profession.isNotEmpty
         ? profile.profession
         : 'HSE Officer';
     final maxBudget = profile.budgetRange['max'] ?? 2000;
+
+    if (area.isEmpty) {
+      return [
+        '$profession jobs in Qatar',
+        'Safety Manager jobs Doha',
+        'Rooms in Qatar under QAR $maxBudget',
+        'Best Indian restaurants in Doha',
+        'Family friendly 2BHK apartment Doha',
+        'INR exchange rate today',
+      ];
+    }
 
     return [
       '$profession jobs in $area',
@@ -616,9 +952,10 @@ class SmartSearchService {
     SmartSearchResult result,
     UserAIProfile? profile,
   ) {
-    final area = result.filters['area']?.toString() ??
-        profile?.preferredArea ??
-        'Al Khor';
+    final area = _resolveAreaLabel(
+      filterArea: result.filters['area']?.toString(),
+      profileArea: profile?.preferredArea,
+    );
     final profession = profile?.profession.isNotEmpty == true
         ? profile!.profession
         : 'HSE Officer';
@@ -638,6 +975,9 @@ class SmartSearchService {
         return cuisine.isNotEmpty
             ? 'Best $cuisine restaurants in $area'
             : 'Best services in $area';
+      case SearchIntent.findService:
+        final trade = result.filters['serviceTrade']?.toString() ?? 'service';
+        return '$trade in $area';
       case SearchIntent.checkRate:
         final currency = result.filters['currency']?.toString() ?? 'INR';
         return '$currency exchange rate today';
@@ -647,9 +987,33 @@ class SmartSearchService {
         return 'Doctors in $area';
       case SearchIntent.communityQuestion:
         return 'Ask Qatar: ${result.displayQuery}';
+      case SearchIntent.eosbCalculator:
+        return 'Calculate EOSB / gratuity';
+      case SearchIntent.prayerMosque:
+        return 'Prayer times & nearby mosques';
+      case SearchIntent.tripPlanner:
+        return 'Plan your Qatar trip with AI';
+      case SearchIntent.verifyEmployer:
+        return 'Verify employer record';
+      case SearchIntent.verifyAgency:
+        return 'Verify recruitment agency';
+      case SearchIntent.scanDocument:
+        return 'Scan a document';
       case SearchIntent.unknown:
         return result.displayQuery;
     }
+  }
+
+  /// Neutral area label when profile/query has no location — matches home header.
+  static String _resolveAreaLabel({
+    String? filterArea,
+    String? profileArea,
+  }) {
+    final fromFilter = filterArea?.trim();
+    if (fromFilter != null && fromFilter.isNotEmpty) return fromFilter;
+    final fromProfile = profileArea?.trim();
+    if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
+    return 'Qatar';
   }
 
   // -------------------------------------------------------------------------
@@ -657,7 +1021,7 @@ class SmartSearchService {
   // -------------------------------------------------------------------------
 
   bool _containsNearMe(String lower) =>
-      lower.contains('near me') || lower.contains('nearby');
+      MultilingualQueryNormalizer.containsNearMe(lower);
 
   bool _containsBest(String lower) => lower.contains('best');
 
@@ -686,6 +1050,159 @@ class SmartSearchService {
         )
         .join(' ');
   }
+
+  // -------------------------------------------------------------------------
+  // S2 entity extraction (deterministic, testable)
+  // -------------------------------------------------------------------------
+
+  /// Extracts employer/company name from verification-style queries.
+  String? extractEmployerName(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return null;
+
+    final patterns = [
+      RegExp(
+        r'(?:check|verify)\s+(?:employer\s+)?(.+?)(?:\s+company)?$',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:check|verify)\s+(.+?)\s+company\b',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\bis\s+(.+?)\s+company\s+(?:reliable|legit|safe|trustworthy)\b',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:employer|company)\s+(?:check|verify)\s+(.+?)$',
+        caseSensitive: false,
+      ),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(trimmed);
+      if (match == null) continue;
+      final name = _cleanEmployerEntity(match.group(1)!);
+      if (_isValidEmployerName(name)) return name;
+    }
+    return null;
+  }
+
+  /// Extracts recruitment agency name when present.
+  String? extractAgencyName(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return null;
+
+    final patterns = [
+      RegExp(
+        r'(?:check|verify)\s+(.+?)\s+recruitment(?:\s+agency)?\b',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:check|verify)\s+(.+?)\s+agency\b',
+        caseSensitive: false,
+      ),
+    ];
+
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(trimmed);
+      if (match == null) continue;
+      final name = _cleanEmployerEntity(match.group(1)!);
+      if (_isValidAgencyName(name)) return name;
+    }
+    return null;
+  }
+
+  /// Parses currency conversion patterns such as "500 QAR to INR".
+  Map<String, dynamic>? extractCurrencyConversion(String query) {
+    final normalized = MultilingualQueryNormalizer.normalize(query);
+    final lower = normalized.canonicalLower.trim();
+    if (lower.isEmpty) return null;
+
+    final amountPair = RegExp(
+      r'(\d[\d,]*(?:\.\d+)?)\s*(qar|inr|pkr|bdt|npr|php|usd|eur|riyal|rial)\s*(?:to|→)\s*(qar|inr|pkr|bdt|npr|php|usd|eur)',
+      caseSensitive: false,
+    ).firstMatch(lower);
+
+    if (amountPair != null) {
+      final from = amountPair.group(2)!.toUpperCase();
+      return {
+        'conversionAmount': _parseAmount(amountPair.group(1)!),
+        'fromCurrency': from == 'RIYAL' || from == 'RIAL' ? 'QAR' : from,
+        'toCurrency': amountPair.group(3)!.toUpperCase(),
+      };
+    }
+
+    final convertPair = RegExp(
+      r'convert\s+(qar|inr|pkr|bdt|npr|php|usd|eur)\s+(?:to|→)\s+(qar|inr|pkr|bdt|npr|php|usd|eur)',
+      caseSensitive: false,
+    ).firstMatch(lower);
+
+    if (convertPair != null) {
+      return {
+        'fromCurrency': convertPair.group(1)!.toUpperCase(),
+        'toCurrency': convertPair.group(2)!.toUpperCase(),
+      };
+    }
+
+    final barePair = RegExp(
+      r'\b(qar|inr|pkr|bdt|npr|php|usd|eur)\s+(?:to|→)\s+(qar|inr|pkr|bdt|npr|php|usd|eur)\b',
+      caseSensitive: false,
+    ).firstMatch(lower);
+
+    if (barePair != null) {
+      return {
+        'fromCurrency': barePair.group(1)!.toUpperCase(),
+        'toCurrency': barePair.group(2)!.toUpperCase(),
+      };
+    }
+
+    return null;
+  }
+
+  String _cleanEmployerEntity(String raw) {
+    var value = raw.trim();
+    value = value.replaceAll(RegExp(r'\s+'), ' ');
+    value = value.replaceAll(
+      RegExp(r'\b(a|an|the|my|this|that|employer|company|recruitment|agency)\b',
+          caseSensitive: false),
+      '',
+    );
+    value = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return _titleCase(value);
+  }
+
+  bool _isValidEmployerName(String name) {
+    if (name.length < 2) return false;
+    final lower = name.toLowerCase();
+    const blocked = {
+      'employer',
+      'company',
+      'recruitment',
+      'agency',
+      'reliable',
+      'verify',
+      'check',
+    };
+    return !blocked.contains(lower);
+  }
+
+  bool _isValidAgencyName(String name) {
+    if (name.length < 2) return false;
+    final lower = name.toLowerCase();
+    const blocked = {
+      'recruitment',
+      'agency',
+      'verify',
+      'check',
+    };
+    return !blocked.contains(lower);
+  }
+
+  double? _parseAmount(String raw) {
+    final cleaned = raw.replaceAll(',', '');
+    return double.tryParse(cleaned);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -694,6 +1211,13 @@ class SmartSearchService {
 
 final smartSearchServiceProvider = Provider<SmartSearchService>((ref) {
   return SmartSearchService();
+});
+
+final smartSearchAnalysisProvider = Provider.family<
+    SearchAnalysis,
+    ({String query, UserAIProfile? profile})>((ref, params) {
+  final service = ref.watch(smartSearchServiceProvider);
+  return service.analyze(params.query, profile: params.profile);
 });
 
 final smartSearchResultProvider = Provider.family<

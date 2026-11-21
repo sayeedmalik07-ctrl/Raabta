@@ -233,10 +233,15 @@ class BusinessRecommendationService {
           'among $nationality expats.';
     }
 
-    if (ratingScore >= 20 && distanceScore >= 15 && rating >= 4.5) {
+    final reviewCount =
+        business != null ? _extractReviewCount(business) : 0;
+    if (reviewCount > 0 &&
+        ratingScore >= 20 &&
+        distanceScore >= 15 &&
+        rating >= 4.5) {
       final ratingLabel = rating.toStringAsFixed(1);
-      return 'Top-rated business near you. $ratingLabel★ with excellent '
-          'community reviews.';
+      return 'Listed business near you in $area — $ratingLabel★ on record '
+          'from stored ratings.';
     }
 
     if (interestScore >= 10) {
@@ -253,7 +258,7 @@ class BusinessRecommendationService {
       return 'Conveniently located in $area, close to your preferred neighbourhood.';
     }
 
-    return 'Recommended based on your Raabta profile and community ratings.';
+    return 'Recommended based on your Raabta profile and listing details.';
   }
 
   /// Returns top 5 personalized business recommendations.
@@ -368,6 +373,7 @@ class BusinessRecommendationService {
   }
 
   int _scoreRating(Map<String, dynamic> business) {
+    if (_extractReviewCount(business) <= 0) return 0;
     final rating = _extractRating(business);
     if (rating >= 4.8) return 25;
     if (rating >= 4.5) return 20;
@@ -451,7 +457,10 @@ class BusinessRecommendationService {
 
     if (isNearby) tags.add('Near You');
     if (isTrending) tags.add('Trending');
-    if ((breakdown['rating'] ?? 0) >= 20) tags.add('Top Rated');
+    if (_extractReviewCount(business) > 0 &&
+        (breakdown['rating'] ?? 0) >= 20) {
+      tags.add('Stored ratings');
+    }
     if ((breakdown['language'] ?? 0) >= 18) {
       tags.add('Speaks ${_displayLanguage(profile.language)}');
     }
@@ -545,6 +554,13 @@ class BusinessRecommendationService {
     final rating = business['rating'];
     if (rating is num) return rating.toDouble();
     if (rating is String) return double.tryParse(rating) ?? 0;
+    return 0;
+  }
+
+  int _extractReviewCount(Map<String, dynamic> business) {
+    final count = business['reviewCount'];
+    if (count is num) return count.toInt();
+    if (count is String) return int.tryParse(count) ?? 0;
     return 0;
   }
 

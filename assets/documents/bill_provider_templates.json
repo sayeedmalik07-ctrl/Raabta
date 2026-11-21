@@ -1,0 +1,64 @@
+{
+  "providers": [
+    {
+      "id": "kahramaa",
+      "displayName": "Kahramaa",
+      "detectKeywords": ["Kahramaa", "KAHRAMAA", "كهرماء", "Qatar General Electricity"],
+      "accountLabels": ["Account No", "Customer No", "Account Number", "Electricity Account", "رقم الحساب", "رقم العميل"],
+      "amountLabels": ["Total Amount Due", "Amount Due", "Total Due", "Net Amount", "المبلغ المستحق", "إجمالي المبلغ"],
+      "dueDateLabels": ["Due Date", "Payment Due", "Pay By", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR|ر\\.?\\s*ق)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,14})\\b"
+    },
+    {
+      "id": "ooredoo",
+      "displayName": "Ooredoo",
+      "detectKeywords": ["Ooredoo", "OOREDOO", "أوريدoo", "Ooredoo Qatar"],
+      "accountLabels": ["Account No", "Service No", "Mobile No", "Customer ID", "رقم الحساب", "رقم الخدمة"],
+      "amountLabels": ["Total Amount", "Amount Due", "Bill Amount", "Total", "المبلغ", "إجمالي"],
+      "dueDateLabels": ["Due Date", "Payment Due", "Bill Date", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,12})\\b"
+    },
+    {
+      "id": "vodafone",
+      "displayName": "Vodafone Qatar",
+      "detectKeywords": ["Vodafone", "VODAFONE", "فودافون", "Vodafone Qatar"],
+      "accountLabels": ["Account No", "Account Number", "Customer No", "Service Number", "رقم الحساب"],
+      "amountLabels": ["Total Amount Due", "Amount Due", "Total", "Bill Total", "المبلغ المستحق"],
+      "dueDateLabels": ["Due Date", "Payment Due", "Pay By", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,12})\\b"
+    },
+    {
+      "id": "qatar_cool",
+      "displayName": "Qatar Cool",
+      "detectKeywords": ["Qatar Cool", "QATAR COOL", "قطر كول"],
+      "accountLabels": ["Account No", "Customer No", "Contract No", "رقم الحساب"],
+      "amountLabels": ["Total Amount Due", "Amount Due", "Total", "المبلغ المستحق"],
+      "dueDateLabels": ["Due Date", "Payment Due", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,14})\\b"
+    },
+    {
+      "id": "marafeq",
+      "displayName": "Marafeq Qatar",
+      "detectKeywords": ["Marafeq", "MARAFEQ", "Marafeq Qatar", "مرافق"],
+      "accountLabels": ["Account No", "Customer No", "Contract No", "Unit No", "رقم الحساب"],
+      "amountLabels": ["Total Amount Due", "Amount Due", "Total", "Bill Amount", "المبلغ المستحق"],
+      "dueDateLabels": ["Due Date", "Payment Due", "Pay By", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,14})\\b"
+    },
+    {
+      "id": "bein",
+      "displayName": "beIN",
+      "detectKeywords": ["beIN", "BEIN", "beIN SPORTS", "beIN Media", "بي إن"],
+      "accountLabels": ["Account No", "Customer ID", "Subscription No", "رقم الحساب"],
+      "amountLabels": ["Total Amount Due", "Amount Due", "Total", "Bill Amount", "المبلغ المستحق"],
+      "dueDateLabels": ["Due Date", "Payment Due", "Renewal Date", "تاريخ الاستحقاق"],
+      "amountRegex": "(?:QAR|QR)?\\s*([\\d,]+\\.?\\d*)",
+      "accountRegex": "\\b(\\d{6,14})\\b"
+    }
+  ]
+}

@@ -1,12 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:raabta/features/visa/data/deadline_tracker_repository.dart';
+import 'package:raabta/services/ai/expat_score_live_calculator.dart';
+import 'package:raabta/services/ai/expat_score_live_inputs_loader.dart';
+import 'package:raabta/services/ai/expat_score_signal_enricher.dart';
+import 'package:raabta/features/home/l10n/home_recommendation_strings.dart';
 import 'package:raabta/services/ai/user_profile_ai_service.dart';
 import 'package:raabta/services/firebase_service.dart';
 
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
+
+/// Neutral routing target for Expat Score actions — not localized display text.
+abstract final class ExpatScoreRouteTarget {
+  static const community = 'community';
+  static const visa = 'visa';
+  static const jobs = 'jobs';
+  static const refer = 'refer';
+  static const tool = 'tool';
+}
 
 class ScoreAction {
   const ScoreAction({
@@ -15,6 +29,7 @@ class ScoreAction {
     required this.pointsGain,
     required this.actionType,
     required this.estimatedTime,
+    this.routeTarget = ExpatScoreRouteTarget.tool,
   });
 
   final String title;
@@ -22,6 +37,7 @@ class ScoreAction {
   final int pointsGain;
   final String actionType;
   final String estimatedTime;
+  final String routeTarget;
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -29,6 +45,7 @@ class ScoreAction {
         'pointsGain': pointsGain,
         'actionType': actionType,
         'estimatedTime': estimatedTime,
+        'routeTarget': routeTarget,
       };
 }
 
@@ -86,6 +103,16 @@ class AchievementCheckResult {
 
   final List<Achievement> achievements;
   final List<Achievement> newlyUnlocked;
+}
+
+class ExpatScoreHistoryPoint {
+  const ExpatScoreHistoryPoint({
+    required this.date,
+    required this.total,
+  });
+
+  final DateTime date;
+  final double total;
 }
 
 class ExpatScoreState {
@@ -159,8 +186,8 @@ class _ProfileSignals {
 
   bool get budgetRangeSet {
     final min = profile.budgetRange['min'] ?? 0;
-    final max = profile.budgetRange['max'] ?? 0;
-    return min > 0 || max > 0;
+    // Ignore factory default max-only ranges — user must set a real minimum.
+    return min > 0;
   }
 
   bool get preferredAreaSet =>
@@ -173,19 +200,61 @@ class _ProfileSignals {
 // ---------------------------------------------------------------------------
 
 class ExpatLifeScoreService {
-  ExpatLifeScoreService({FirebaseFirestore? firestore})
-      : _firestore = FirebaseService.isReady
+  ExpatLifeScoreService({
+    FirebaseFirestore? firestore,
+    DeadlineTrackerRepository? deadlineRepo,
+  })  : _firestore = FirebaseService.isReady
             ? (firestore ?? FirebaseFirestore.instance)
-            : null;
+            : null,
+        _deadlineRepo = deadlineRepo ?? DeadlineTrackerRepository();
 
   final FirebaseFirestore? _firestore;
+  final DeadlineTrackerRepository _deadlineRepo;
+
+  DeadlineTrackerRepository get deadlineRepo => _deadlineRepo;
 
   static final _launchMonth = DateTime(2025, 6, 1);
 
-  /// Calculates the full expat life score including growth metrics.
-  Future<ExpatLifeScore> calculateScore(UserAIProfile profile) async {
-    final signals = _ProfileSignals.fromProfile(profile);
-    final breakdown = _calculateBreakdown(signals);
+  /// Calculates the full expat life score from live repository data.
+  ///
+  /// Pass [preloadedInputs] in tests to avoid Firestore/SharedPreferences I/O.
+  Future<ExpatLifeScore> calculateScore(
+    UserAIProfile profile, {
+    bool interestsEnriched = false,
+    ExpatScoreLiveInputs? preloadedInputs,
+  }) async {
+    final scoringProfile = interestsEnriched
+        ? profile
+        : profile.copyWith(
+            interests: await ExpatScoreSignalEnricher.enrichInterests(
+              profile: profile,
+              deadlineRepo: _deadlineRepo,
+            ),
+          );
+
+    final baseInputs = preloadedInputs ??
+        await ExpatScoreLiveInputsLoader.load(
+          profile: scoringProfile,
+          firestore: _firestore,
+          deadlineRepo: _deadlineRepo,
+        );
+
+    final scoredRisks = scoreRisksForExpatInputs(baseInputs);
+    final consistencyInsights = scoreConsistencyForExpatInputs(baseInputs);
+    final inputs = baseInputs.copyWith(
+      scoredRisks: scoredRisks,
+      consistencyInsights: consistencyInsights,
+    );
+
+    final liveResult = const ExpatScoreLiveCalculator().compute(inputs);
+    return _finalizeScore(scoringProfile.uid, liveResult);
+  }
+
+  Future<ExpatLifeScore> _finalizeScore(
+    String uid,
+    ExpatScoreLiveResult liveResult,
+  ) async {
+    final breakdown = liveResult.breakdown;
 
     final career = breakdown['career']!;
     final housing = breakdown['housing']!;
@@ -198,10 +267,10 @@ class ExpatLifeScoreService {
         .clamp(0, 100)
         .toDouble();
 
-    final weeklyGrowth = await _calculateWeeklyGrowth(profile.uid, total);
-    final monthlyGrowth = await _calculateMonthlyGrowth(profile.uid, total);
+    final weeklyGrowth = await _calculateWeeklyGrowth(uid, total);
+    final monthlyGrowth = await _calculateMonthlyGrowth(uid, total);
 
-    await _saveScoreSnapshot(profile.uid, total);
+    await _saveScoreSnapshot(uid, total, breakdown);
 
     return ExpatLifeScore(
       total: total,
@@ -215,205 +284,272 @@ class ExpatLifeScoreService {
       weeklyGrowth: weeklyGrowth,
       monthlyGrowth: monthlyGrowth,
       lastCalculated: DateTime.now(),
+      categoryMeta: liveResult.categoryMeta,
     );
   }
 
+  /// Recent daily score snapshots for trend charts (oldest → newest).
+  Future<List<ExpatScoreHistoryPoint>> fetchRecentHistory(
+    String uid, {
+    int limit = 14,
+  }) async {
+    final ref = _scoreHistoryRef(uid);
+    if (ref == null || uid.isEmpty) return const [];
+
+    try {
+      final snapshot = await ref
+          .orderBy('recordedAt', descending: true)
+          .limit(limit)
+          .get();
+
+      final points = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final recordedAt = data['recordedAt'];
+        DateTime date;
+        if (recordedAt is String) {
+          date = DateTime.tryParse(recordedAt) ?? DateTime.now();
+        } else {
+          date = DateTime.now();
+        }
+        return ExpatScoreHistoryPoint(
+          date: date,
+          total: (data['total'] as num?)?.toDouble() ?? 0,
+        );
+      }).toList();
+
+      return points.reversed.toList();
+    } catch (e) {
+      debugPrint('ExpatLifeScoreService: history fetch failed — $e');
+      return const [];
+    }
+  }
+
   /// Returns prioritized actions that would increase the score the most.
-  List<ScoreAction> getImprovementActions(UserAIProfile profile) {
+  List<ScoreAction> getImprovementActions(
+    UserAIProfile profile, {
+    String locale = 'English',
+  }) {
     final signals = _ProfileSignals.fromProfile(profile);
     final actions = <ScoreAction>[];
 
+    ScoreAction localized({
+      required String titleKey,
+      required String descKey,
+      required String timeKey,
+      required int pointsGain,
+      required String actionType,
+      String routeTarget = ExpatScoreRouteTarget.tool,
+      Map<String, String> params = const {},
+    }) {
+      return ScoreAction(
+        title: HomeRecommendationStrings.format(titleKey, locale, params: params),
+        description:
+            HomeRecommendationStrings.format(descKey, locale, params: params),
+        pointsGain: pointsGain,
+        actionType: actionType,
+        estimatedTime: HomeRecommendationStrings.t(timeKey, locale),
+        routeTarget: routeTarget,
+      );
+    }
+
     if (!signals.iqamaExpirySet) {
       actions.add(
-        const ScoreAction(
-          title: 'Set your Iqama expiry date',
-          description: 'Get reminders before your Iqama expires',
+        localized(
+          titleKey: 'improve_iqama_title',
+          descKey: 'improve_iqama_desc',
+          timeKey: 'time_1_min',
           pointsGain: 3,
           actionType: 'set_reminder',
-          estimatedTime: '1 min',
+          routeTarget: ExpatScoreRouteTarget.visa,
         ),
       );
     }
 
     if (profile.communityGroups.isEmpty) {
-      final groupName = _suggestedCommunityGroup(profile.nationality);
+      final groupName = _suggestedCommunityGroup(profile.nationality, locale);
       actions.add(
-        ScoreAction(
-          title: 'Join $groupName group',
-          description: 'Connect with expats who share your background',
+        localized(
+          titleKey: 'improve_join_group_title',
+          descKey: 'improve_join_group_desc',
+          timeKey: 'time_1_tap',
           pointsGain: 5,
           actionType: 'join_group',
-          estimatedTime: '1 tap',
+          routeTarget: ExpatScoreRouteTarget.community,
+          params: {'groupName': groupName},
         ),
       );
     }
 
     if (profile.skills.length < 3) {
       actions.add(
-        const ScoreAction(
-          title: 'Complete your skills profile',
-          description:
-              'Add HSE, safety or other skills to improve job matches',
+        localized(
+          titleKey: 'improve_skills_title',
+          descKey: 'improve_skills_desc',
+          timeKey: 'time_2_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '2 min',
         ),
       );
     }
 
     if (profile.profession.trim().isEmpty) {
       actions.add(
-        const ScoreAction(
-          title: 'Add your profession',
-          description: 'Help Raabta AI personalize jobs and services for you',
+        localized(
+          titleKey: 'improve_profession_title',
+          descKey: 'improve_profession_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '1 min',
         ),
       );
     }
 
     if (profile.certifications.isEmpty) {
       actions.add(
-        const ScoreAction(
-          title: 'Add certifications',
-          description: 'NEBOSH, IOSH and other certs boost career score',
+        localized(
+          titleKey: 'improve_certs_title',
+          descKey: 'improve_certs_desc',
+          timeKey: 'time_2_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '2 min',
         ),
       );
     }
 
     if (profile.viewedJobIds.length < 5) {
       actions.add(
-        const ScoreAction(
-          title: 'Explore job listings',
-          description: 'View 5+ jobs to activate your job search score',
+        localized(
+          titleKey: 'improve_explore_jobs_title',
+          descKey: 'improve_explore_jobs_desc',
+          timeKey: 'time_5_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '5 min',
+          routeTarget: ExpatScoreRouteTarget.jobs,
         ),
       );
     }
 
     if (profile.savedJobIds.isEmpty) {
       actions.add(
-        const ScoreAction(
-          title: 'Save a job you like',
-          description: 'Saved jobs count toward your career engagement score',
+        localized(
+          titleKey: 'improve_save_job_title',
+          descKey: 'improve_save_job_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '1 min',
+          routeTarget: ExpatScoreRouteTarget.jobs,
         ),
       );
     }
 
     if (!signals.housingConfirmed) {
       actions.add(
-        const ScoreAction(
-          title: 'Confirm your current housing',
-          description: 'Unlock housing insights tailored to your area',
+        localized(
+          titleKey: 'improve_housing_title',
+          descKey: 'improve_housing_desc',
+          timeKey: 'time_2_min',
           pointsGain: 8,
           actionType: 'fill_profile',
-          estimatedTime: '2 min',
         ),
       );
     }
 
     if (profile.savedHousingIds.isEmpty && profile.viewedHousingIds.isEmpty) {
       actions.add(
-        const ScoreAction(
-          title: 'Browse housing listings',
-          description: 'Search and save listings to improve housing score',
+        localized(
+          titleKey: 'improve_browse_housing_title',
+          descKey: 'improve_browse_housing_desc',
+          timeKey: 'time_3_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '3 min',
         ),
       );
     }
 
     if (!signals.budgetRangeSet) {
       actions.add(
-        const ScoreAction(
-          title: 'Set your monthly budget',
-          description: 'Get better housing and salary recommendations',
+        localized(
+          titleKey: 'improve_budget_title',
+          descKey: 'improve_budget_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '1 min',
         ),
       );
     }
 
     if (!signals.moneyTransferSet) {
       actions.add(
-        const ScoreAction(
-          title: 'Set money transfer preference',
-          description: 'Track remittance options on the Money screen',
+        localized(
+          titleKey: 'improve_transfer_title',
+          descKey: 'improve_transfer_desc',
+          timeKey: 'time_2_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '2 min',
         ),
       );
     }
 
     if (!signals.exchangeAlertsActive) {
       actions.add(
-        const ScoreAction(
-          title: 'Enable exchange rate alerts',
-          description: 'Stay updated on QAR exchange rates',
+        localized(
+          titleKey: 'improve_exchange_title',
+          descKey: 'improve_exchange_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'set_reminder',
-          estimatedTime: '1 min',
         ),
       );
     }
 
     if (signals.questionsAnswered == 0) {
       actions.add(
-        const ScoreAction(
-          title: 'Answer a question on Ask Qatar',
-          description: 'Help fellow expats and boost community score',
+        localized(
+          titleKey: 'improve_ask_qatar_title',
+          descKey: 'improve_ask_qatar_desc',
+          timeKey: 'time_2_min',
           pointsGain: 3,
           actionType: 'join_group',
-          estimatedTime: '2 min',
+          routeTarget: ExpatScoreRouteTarget.community,
         ),
       );
     }
 
     if (!signals.doctorPreferenceSet) {
       actions.add(
-        const ScoreAction(
-          title: 'Set doctor language preference',
-          description: 'Find doctors who speak your language',
+        localized(
+          titleKey: 'improve_doctor_title',
+          descKey: 'improve_doctor_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'fill_profile',
-          estimatedTime: '1 min',
         ),
       );
     }
 
     if (!signals.passportExpirySet) {
       actions.add(
-        const ScoreAction(
-          title: 'Add passport expiry date',
-          description: 'Never miss a renewal deadline',
+        localized(
+          titleKey: 'improve_passport_title',
+          descKey: 'improve_passport_desc',
+          timeKey: 'time_1_min',
           pointsGain: 3,
           actionType: 'set_reminder',
-          estimatedTime: '1 min',
+          routeTarget: ExpatScoreRouteTarget.visa,
         ),
       );
     }
 
     if (signals.referralCount < 5) {
       actions.add(
-        ScoreAction(
-          title: 'Refer a friend to Raabta',
-          description:
-              'Earn points — ${5 - signals.referralCount} more referrals to unlock Ambassador',
+        localized(
+          titleKey: 'improve_refer_title',
+          descKey: 'improve_refer_desc',
+          timeKey: 'time_1_min',
           pointsGain: 5,
           actionType: 'refer_friend',
-          estimatedTime: '1 min',
+          routeTarget: ExpatScoreRouteTarget.refer,
+          params: {'remaining': '${5 - signals.referralCount}'},
         ),
       );
     }
@@ -466,99 +602,14 @@ class ExpatLifeScoreService {
   }
 
   // -------------------------------------------------------------------------
-  // Category scoring
+  // Level + score history
   // -------------------------------------------------------------------------
-
-  Map<String, double> _calculateBreakdown(_ProfileSignals signals) {
-    return {
-      'career': _scoreCareer(signals),
-      'housing': _scoreHousing(signals),
-      'financial': _scoreFinancial(signals),
-      'community': _scoreCommunity(signals),
-      'health': _scoreHealth(signals),
-      'documentation': _scoreDocumentation(signals),
-    };
-  }
-
-  double _scoreCareer(_ProfileSignals signals) {
-    var score = 0.0;
-    final profile = signals.profile;
-
-    if (profile.profession.trim().isNotEmpty) score += 5;
-    if (profile.skills.length >= 3) score += 5;
-    if (profile.certifications.isNotEmpty) score += 5;
-    if (profile.viewedJobIds.length >= 5) score += 5;
-    if (profile.savedJobIds.isNotEmpty) score += 5;
-
-    return score.clamp(0, 25);
-  }
-
-  double _scoreHousing(_ProfileSignals signals) {
-    var score = 0.0;
-    final profile = signals.profile;
-
-    if (signals.preferredAreaSet) score += 5;
-    if (signals.housingConfirmed) score += 8;
-    if (profile.savedHousingIds.isNotEmpty ||
-        profile.viewedHousingIds.length >= 3) {
-      score += 5;
-    }
-    if (signals.housingReviewWritten) score += 2;
-
-    return score.clamp(0, 20);
-  }
-
-  double _scoreFinancial(_ProfileSignals signals) {
-    var score = 0.0;
-
-    if (signals.budgetRangeSet) score += 5;
-    if (signals.moneyTransferSet) score += 5;
-    if (signals.exchangeAlertsActive) score += 5;
-    if (signals.savingsGoalSet) score += 3;
-    if (signals.insuranceStatusConfirmed) score += 2;
-
-    return score.clamp(0, 20);
-  }
-
-  double _scoreCommunity(_ProfileSignals signals) {
-    var score = 0.0;
-    final groups = signals.profile.communityGroups.length;
-
-    if (groups >= 1) score += 5;
-    if (groups >= 3) score += 3;
-    if (signals.communityPostCount > 0) score += 2;
-    if (signals.questionsAnswered > 0) score += 3;
-    if (signals.eventsAttended > 0) score += 2;
-
-    return score.clamp(0, 15);
-  }
-
-  double _scoreHealth(_ProfileSignals signals) {
-    var score = 0.0;
-
-    if (signals.doctorPreferenceSet) score += 5;
-    if (signals.medicalInsuranceConfirmed) score += 3;
-    if (signals.emergencyContactsSaved) score += 2;
-
-    return score.clamp(0, 10);
-  }
-
-  double _scoreDocumentation(_ProfileSignals signals) {
-    var score = 0.0;
-
-    if (signals.iqamaExpirySet) score += 3;
-    if (signals.passportExpirySet) score += 3;
-    if (signals.qidInfoAdded) score += 2;
-    if (signals.workPermitTracked) score += 2;
-
-    return score.clamp(0, 10);
-  }
 
   String _resolveLevel(double total) {
     if (total <= 20) return 'New Arrival 🆕';
     if (total <= 40) return 'Settling In 🏠';
-    if (total <= 60) return 'Growing Strong 📈';
-    if (total <= 80) return 'Established Resident 🏆';
+    if (total <= 79) return 'Growing Strong 📈';
+    if (total <= 94) return 'Established Resident 🏆';
     return 'Qatar Pro ⭐';
   }
 
@@ -576,7 +627,11 @@ class ExpatLifeScoreService {
     return _firestore.collection('users').doc(uid).collection('achievements');
   }
 
-  Future<void> _saveScoreSnapshot(String uid, double total) async {
+  Future<void> _saveScoreSnapshot(
+    String uid,
+    double total,
+    Map<String, double> breakdown,
+  ) async {
     final ref = _scoreHistoryRef(uid);
     if (ref == null) return;
 
@@ -586,6 +641,12 @@ class ExpatLifeScoreService {
     try {
       await ref.doc(docId).set({
         'total': total,
+        'career': breakdown['career'],
+        'housing': breakdown['housing'],
+        'financial': breakdown['financial'],
+        'community': breakdown['community'],
+        'health': breakdown['health'],
+        'documentation': breakdown['documentation'],
         'recordedAt': now.toIso8601String(),
         'weekDate': docId,
       }, SetOptions(merge: true));
@@ -660,49 +721,49 @@ class ExpatLifeScoreService {
     return [
       Achievement(
         id: 'early_adopter',
-        title: 'Early Adopter',
+        title: '',
         emoji: '🌟',
         unlocked: profile.lastUpdated.isBefore(_launchMonth.add(const Duration(days: 31))),
       ),
       Achievement(
         id: 'job_seeker',
-        title: 'Job Seeker',
+        title: '',
         emoji: '💼',
         unlocked: profile.viewedJobIds.length >= 10,
       ),
       Achievement(
         id: 'home_hunter',
-        title: 'Home Hunter',
+        title: '',
         emoji: '🏠',
         unlocked: profile.savedHousingIds.length >= 3,
       ),
       Achievement(
         id: 'connector',
-        title: 'Connector',
+        title: '',
         emoji: '🤝',
         unlocked: profile.communityGroups.length >= 3,
       ),
       Achievement(
         id: 'community_star',
-        title: 'Community Star',
+        title: '',
         emoji: '⭐',
         unlocked: signals.communityPostCount >= 5,
       ),
       Achievement(
         id: 'document_pro',
-        title: 'Document Pro',
+        title: '',
         emoji: '📋',
         unlocked: allDocsTracked,
       ),
       Achievement(
         id: 'ambassador',
-        title: 'Ambassador',
+        title: '',
         emoji: '🌍',
         unlocked: signals.referralCount >= 5,
       ),
       Achievement(
         id: 'qatar_pro',
-        title: 'Qatar Pro',
+        title: '',
         emoji: '🏆',
         unlocked: score >= 80,
       ),
@@ -742,7 +803,7 @@ class ExpatLifeScoreService {
     );
   }
 
-  String _suggestedCommunityGroup(String nationality) {
+  String _suggestedCommunityGroup(String nationality, String locale) {
     final lower = nationality.toLowerCase();
     if (lower.contains('india')) return 'Indians in Qatar';
     if (lower.contains('pakistan')) return 'Pakistanis in Qatar';
@@ -752,7 +813,7 @@ class ExpatLifeScoreService {
       return 'Filipinos in Qatar';
     }
     if (lower.contains('kenya')) return 'Kenyans in Qatar';
-    return 'your community';
+    return HomeRecommendationStrings.t('community_group_fallback', locale);
   }
 }
 
@@ -766,28 +827,38 @@ final expatLifeScoreServiceProvider = Provider<ExpatLifeScoreService>((ref) {
 
 final expatLifeScoreProvider =
     StateNotifierProvider<ExpatLifeScoreNotifier, ExpatScoreState>((ref) {
-  return ExpatLifeScoreNotifier(ref.watch(expatLifeScoreServiceProvider));
+  return ExpatLifeScoreNotifier(
+    ref.watch(expatLifeScoreServiceProvider),
+    ref.watch(userProfileAIServiceProvider),
+  );
 });
 
 class ExpatLifeScoreNotifier extends StateNotifier<ExpatScoreState> {
-  ExpatLifeScoreNotifier(this._service) : super(const ExpatScoreState());
+  ExpatLifeScoreNotifier(this._service, this._profileService)
+      : super(const ExpatScoreState());
 
   final ExpatLifeScoreService _service;
+  final UserProfileAIService _profileService;
 
   /// Recalculates score, achievements, and improvement actions.
   Future<void> refresh(UserAIProfile profile) async {
-    final score = await _service.calculateScore(profile);
-    final actions = _service.getImprovementActions(
-      profile.copyWith(score: score),
+    final enrichedInterests = await ExpatScoreSignalEnricher.enrichInterests(
+      profile: profile,
+      deadlineRepo: _service.deadlineRepo,
     );
-    final achievementResult = await _service.checkAchievements(
-      profile.copyWith(score: score),
+    final scoringProfile = profile.copyWith(interests: enrichedInterests);
+    final score = await _service.calculateScore(
+      scoringProfile,
+      interestsEnriched: true,
     );
+    final achievementResult = await _service.checkAchievements(scoringProfile);
+
+    await _profileService.persistCalculatedScore(scoringProfile.uid, score);
 
     state = ExpatScoreState(
       score: score,
       achievements: achievementResult.achievements,
-      improvementActions: actions,
+      improvementActions: const [],
       pendingNotifications: achievementResult.newlyUnlocked,
     );
   }
@@ -795,6 +866,26 @@ class ExpatLifeScoreNotifier extends StateNotifier<ExpatScoreState> {
   /// Clears pending achievement notifications after UI displays them.
   void clearPendingNotifications() {
     state = state.copyWith(pendingNotifications: const []);
+  }
+
+  /// Resets in-memory score state on authenticated UID change or logout.
+  void resetForAuthChange() {
+    state = const ExpatScoreState();
+  }
+
+  /// Loads score from [profile] when the dashboard has no cached calculation yet.
+  Future<void> refreshIfEmpty(UserAIProfile profile) async {
+    if (state.score != null) return;
+
+    final persisted = profile.score;
+    final hasPersistedScore = persisted.lastCalculated.isAfter(
+      DateTime.now().subtract(const Duration(days: 30)),
+    );
+    if (hasPersistedScore && persisted.total > 0) {
+      state = ExpatScoreState(score: persisted);
+    }
+
+    await refresh(profile);
   }
 
   List<ScoreAction> get improvementActions => state.improvementActions;

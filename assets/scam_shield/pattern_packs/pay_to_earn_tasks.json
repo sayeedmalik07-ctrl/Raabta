@@ -1,0 +1,25 @@
+{
+  "id": "pay_to_earn_tasks",
+  "verified": false,
+  "localFlag": "ss_flag_pay_to_earn",
+  "evidenceKind": "payToEarnTask",
+  "minGroups": 1,
+  "sourceLabel": "Pattern check",
+  "evidenceTextKey": "ss_evidence_pay_to_earn",
+  "groups": [
+    {
+      "id": "task_earn",
+      "patterns": [
+        "complete simple tasks",
+        "like or rate videos and earn",
+        "earn commission on tasks",
+        "task mission reward",
+        "deposit to unlock the next task",
+        "unlock the next mission",
+        "مهام بسيطة",
+        "اكسب من المهام",
+        "टास्क कमाएं"
+      ]
+    }
+  ]
+}

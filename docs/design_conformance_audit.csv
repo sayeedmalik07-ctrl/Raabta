@@ -1,0 +1,282 @@
+route,file,feature,hub,tier,hardcoded_colors,uses_tokens,card_style,icon_style,radius_deviations,blur_light_mode,dark_light_checked,hardcoded_text_styles,empty_loading_error_styled,skeleton_vs_spinner,rtl_risk,conformance_score,triage_bin
+/splash,lib/screens/splash_screen.dart,screens,Long tail,T3,0,Y,custom/none,other/none,1,N,N,3,Y,skeleton,Medium-High,92,SKIN ONLY
+/language,lib/screens/language_screen.dart,screens,Long tail,T3,0,Y,GlassCard,other/none,0,N,N,3,Y,spinner,Low,100,SKIN ONLY
+/login,lib/screens/login_screen.dart,screens,Long tail,T3,0,Y,GlassContainer,mixed,0,N,N,1,Y,spinner,Medium,95,SKIN ONLY
+/prospective,lib/features/prospective_migrant/presentation/screens/prospective_hub_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+country,lib/features/prospective_migrant/presentation/screens/prospective_country_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+contract,lib/features/prospective_migrant/presentation/screens/prospective_contract_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+preview,lib/features/prospective_migrant/presentation/screens/prospective_preview_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+checklist,lib/features/prospective_migrant/presentation/screens/prospective_checklist_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+qvc,lib/features/prospective_migrant/presentation/screens/prospective_qvc_tracker_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+/onboarding/welcome,lib/features/onboarding/presentation/screens/onboarding_welcome_screen.dart,features,Long tail,T3,0,Y,GlassContainer,mixed,0,N,N,3,N,none/unknown,Low,90,SKIN ONLY
+/onboarding/qualifier,lib/features/onboarding/presentation/screens/onboarding_qualifier_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+/home,lib/screens/home/home_screen.dart,screens,Home,T1,7,Partial,custom/none,family,1,N,N,44,Y,skeleton,Low,88,SKIN ONLY (reference done)
+/jobs,lib/screens/jobs/jobs_screen.dart,screens,Jobs,T1,2,Y,GlassCard,family,4,N,N,29,Y,spinner,Medium-High,89,SKIN ONLY
+post,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+my-posts,lib/features/post_engine/presentation/screens/my_posts_hub_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,2,Y,spinner,Medium-High,87,SKIN ONLY
+my-applications,lib/screens/jobs/job_my_applications_screen.dart,screens,Long tail,T3,0,Y,GlassCard,other/none,0,N,N,0,Y,spinner,Low,100,SKIN ONLY
+listing/:jobId/applications,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+chat/:jobId/:applicantUid,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/jobs/cv-start,lib/features/jobs/cv_maker/presentation/screens/cv_start_screen.dart,features,Jobs,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+/jobs/cv-builder,lib/features/jobs/cv_maker/presentation/screens/cv_builder_screen.dart,features,Jobs,T1,0,Y,GlassCard,mixed,1,N,N,0,Y,spinner,Medium,95,SKIN ONLY
+/jobs/cv-preview,lib/features/jobs/cv_maker/presentation/screens/cv_preview_screen.dart,features,Jobs,T1,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+/housing,lib/screens/housing/housing_screen.dart,screens,Housing,T1,2,Y,GlassCard,mixed,0,N,N,12,Y,skeleton,Medium-High,87,SKIN ONLY
+post,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+listing/:listingId,lib/screens/housing/housing_detail_screen.dart,screens,Long tail,T3,1,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Medium-High,92,SKIN ONLY
+viewing,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+chat/:listingId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+my-listings,lib/screens/housing/my_housing_listings_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Medium-High,95,SKIN ONLY
+/businesses,lib/screens/businesses/businesses_screen.dart,screens,Business,T1,0,Y,HubBusinessCard,family,0,N,N,0,Y,skeleton,Medium,92,SKIN ONLY
+request-appointment/:businessId,lib/features/business/presentation/screens/business_request_appointment_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,0,N,N,0,Y,none/unknown,Low,92,SKIN ONLY
+request-quote/:businessId,lib/features/business/presentation/screens/business_request_quote_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,0,N,N,0,Y,none/unknown,Low,92,SKIN ONLY
+post,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/services,lib/screens/services/services_home_screen.dart,screens,Services,T1,0,Y,HubServiceCard,family,0,N,N,0,Y,skeleton,Medium-High,100,SKIN ONLY (Batch D)
+category/:categoryId,lib/screens/services/service_category_screen.dart,screens,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,1,Y,skeleton,Medium-High,90,SKIN ONLY
+post,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+listing/:listingId,lib/screens/services/service_listing_detail_screen.dart,screens,Long tail,T3,0,Y,HubDetailActionBar,family,0,N,N,0,Y,skeleton,Medium-High,94,SKIN ONLY (Batch D)
+quote,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+chat/:providerId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+my-listings,lib/screens/services/my_service_listings_screen.dart,screens,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,skeleton,Medium-High,90,SKIN ONLY
+/community,lib/screens/community/community_screen.dart,screens,Community,T1,0,Y,GlassCard,mixed,0,N,N,8,Y,skeleton,Medium-High,94,SKIN ONLY
+buddy,lib/features/buddy/presentation/screens/buddy_hub_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Medium,95,SKIN ONLY
+profile,lib/features/buddy/presentation/screens/buddy_opt_in_screen.dart,features,Profile,T2,0,Y,GlassCard,other/none,0,N,N,0,Y,spinner,Medium-High,100,SKIN ONLY
+chat/:threadId,lib/features/buddy/presentation/screens/buddy_chat_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,1,N,N,0,Y,spinner,Medium,87,SKIN ONLY
+/community/events,lib/screens/community/community_screen.dart,screens,Community,T1,0,Y,GlassCard,mixed,0,N,N,8,Y,skeleton,Medium-High,94,SKIN ONLY
+/news,lib/screens/community/news_screen.dart,screens,Community,T2,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Medium-High,95,SKIN ONLY
+/visa,(widget ),,Visa & Documents,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+guide/:categoryId,lib/screens/visahelp/visa_guide_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Medium-High,95,SKIN ONLY
+/money,(widget ),,Money Hub,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+corridor-comparator,(widget ),,Money Hub,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+submit,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/money/corridor-comparator,(widget ),,Money Hub,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/money-services/gold,(widget ),,Money Hub,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/money-services/cost-of-living,lib/features/cost_of_living/presentation/screens/cost_of_living_screen.dart,features,Money Hub,T2,0,Y,GlassCard,family,0,N,N,0,Y,spinner,Low,100,SKIN ONLY
+/money-services/personal-budget,lib/features/personal_budget/presentation/screens/personal_budget_screen.dart,features,Money Hub,T2,0,Y,GlassCard,family,0,N,N,0,Y,spinner,Low,100,SKIN ONLY
+/money-services/corridor-comparator,(widget _corridorComparatorScreen),,Money Hub,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+submit,lib/features/money_comparator/presentation/screens/submit_transfer_report_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+/exchange-locator,(widget ),,Money Hub,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+company/:companyId,lib/features/exchange_locator/presentation/screens/company_detail_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,skeleton,Low,87,SKIN ONLY
+branch/:branchId,lib/features/exchange_locator/presentation/screens/branch_detail_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Medium-High,95,SKIN ONLY
+/doctors,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/marketplace,lib/screens/marketplace/marketplace_screen.dart,screens,Market,T1,2,Y,GlassCard,family,0,N,N,19,Y,spinner,Medium-High,91,SKIN ONLY
+post,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+category/:categoryId,lib/screens/marketplace/category_listings_screen.dart,screens,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+listing/:listingId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+offer,(widget ),,Jobs,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+chat/:listingId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/ai-chat,(widget ),,Global,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/profile,lib/screens/profile/profile_screen.dart,screens,Profile,T2,3,Y,GlassCard,mixed,1,N,N,28,Y,none/unknown,Medium-High,81,SKIN ONLY
+my-activity,lib/screens/profile/my_activity_screen.dart,screens,Long tail,T3,0,Y,GlassCard,other/none,0,N,N,2,Y,spinner,Low,100,SKIN ONLY
+saved-searches,lib/features/saved_search/presentation/saved_searches_screen.dart,features,Long tail,T3,0,Y,GlassCard,other/none,0,N,N,1,Y,spinner,Low,100,SKIN ONLY
+personal-info,lib/screens/profile/personal_info_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,skeleton,Low,95,SKIN ONLY
+progressive-capture,lib/screens/profile/progressive_profile_capture_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,1,Y,skeleton,Low,95,SKIN ONLY
+appearance,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+language,lib/screens/profile/profile_language_screen.dart,screens,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+notifications,lib/screens/profile/profile_notification_preferences_screen.dart,screens,Global,T2,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+help,lib/screens/profile/help_center_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,none/unknown,Medium-High,95,SKIN ONLY
+report-issue,lib/screens/profile/report_issue_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+privacy,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+blocked-users,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+privacy-policy,lib/screens/profile/legal_document_screen.dart,screens,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,N,none/unknown,Low,82,SKIN ONLY
+terms,lib/screens/profile/legal_document_screen.dart,screens,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,N,none/unknown,Low,82,SKIN ONLY
+/appearance,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/expat-score,lib/screens/expat_score/expat_score_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,2,N,N,11,Y,spinner,Medium-High,93,SKIN ONLY
+/business-advertise,lib/screens/monetization/business_advertise_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,7,N,none/unknown,Medium-High,89,SKIN ONLY
+/advertise,lib/screens/monetization/business_advertise_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,7,N,none/unknown,Medium-High,89,SKIN ONLY
+/premium,lib/screens/monetization/premium_subscription_screen.dart,screens,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,4,N,none/unknown,Medium-High,90,SKIN ONLY
+/boost-listing,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/global-search,lib/features/global_search/presentation/global_search_screen.dart,features,Global,T2,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+ask-ai,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/notifications,lib/screens/notifications/notification_center_screen.dart,screens,Global,T2,0,Y,GlassCard,mixed,1,N,N,2,Y,skeleton,Medium-High,95,SKIN ONLY
+/notification-settings,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/notification-preferences,lib/features/notification_preferences/presentation/screens/notification_preferences_screen.dart,features,Long tail,T3,0,Y,GlassContainer,mixed,0,N,N,0,Y,skeleton,Medium,95,SKIN ONLY
+/scanner,lib/features/quick_actions/scanner/scanner_studio_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,skeleton,Low,95,DO NOT TOUCH
+capture,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+pdf-tools,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+ocr,lib/features/quick_actions/scanner/ocr_studio_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,skeleton,Low,95,DO NOT TOUCH
+ai,lib/features/quick_actions/scanner/scanner_ai_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,Y,skeleton,Low,95,SKIN ONLY
+/barcode-scanner,lib/features/quick_actions/barcode_scanner_screen.dart,features,Long tail,T3,2,Y,GlassContainer,mixed,0,N,N,21,Y,spinner,Low,85,DO NOT TOUCH
+/dietary-profile,lib/features/quick_actions/barcode_scanner/dietary_profile_screen.dart,features,Long tail,T3,0,Y,GlassContainer,mixed,0,N,N,20,Y,spinner,Low,91,SKIN ONLY
+/arabic-companion,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+translate,lib/features/quick_actions/landmark_translator_screen.dart,features,Long tail,T3,3,Y,GlassContainer,mixed,2,N,N,11,Y,spinner,Medium-High,84,SKIN ONLY
+/landmark-translator,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/bill-splitter,lib/features/quick_actions/bill_splitter_screen.dart,features,Money Hub,T2,4,Y,GlassContainer,mixed,1,N,N,41,Y,none/unknown,Medium,75,SKIN ONLY
+receipt/review,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+receipt/assign,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/my-splits,lib/features/quick_actions/bill_splitter/my_splits_screen.dart,features,Long tail,T3,3,Y,GlassContainer,mixed,3,N,N,35,Y,spinner,Medium-High,79,SKIN ONLY
+/warranty-shield,lib/features/quick_actions/warranty_shield_screen.dart,features,Long tail,T3,0,Y,GlassContainer,mixed,2,N,N,35,Y,spinner,Medium-High,88,SKIN ONLY
+scan/review,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+item,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+claim,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/scam-shield,lib/features/scam_shield/presentation/screens/scam_shield_screen.dart,features,ScamShield,T1,0,Y,GlassCard,family,0,N,N,0,Y,none/unknown,Low,100,SKIN ONLY
+share-review,lib/features/scam_shield/presentation/screens/scam_shield_share_review_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+incident,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+in-call-assistant,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,DO NOT TOUCH
+sim-swap,lib/features/scam_shield/presentation/screens/scam_shield_sim_swap_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+directory,lib/features/scam_shield/presentation/screens/scam_shield_directory_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+official-directory,lib/features/scam_shield/presentation/screens/scam_shield_official_directory_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+payment-check,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+advisories,lib/features/scam_shield/presentation/screens/scam_shield_advisories_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,1,N,N,0,Y,skeleton,Low,95,SKIN ONLY
+:id,lib/features/scam_shield/presentation/screens/scam_shield_advisory_detail_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+academy,lib/features/scam_shield/presentation/screens/scam_shield_academy_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+call-screening,(widget ScamCallScreeningOptInScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+sms-filter-guide,(widget ScamSmsFilterGuideScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+checkup,lib/features/scam_shield/presentation/screens/scam_shield_checkup_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+personal-context,lib/features/scam_shield/personal_context/personal_context_settings_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,0,N,N,0,Y,spinner,Low,92,SKIN ONLY
+shield,lib/features/scam_shield/presentation/screens/scam_shield_shield_status_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+security-tip,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+check-number,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+report-ready,lib/features/scam_shield/sensitive_lock/scam_shield_sensitive_route_shell.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+evidence-locker,lib/features/scam_shield/sensitive_lock/scam_shield_sensitive_route_shell.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+investment-check,lib/features/scam_shield/presentation/screens/scam_shield_investment_check_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+scam-types,(widget ScamTypeLibraryListScreen),,ScamShield,T2,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+:id,(widget ScamTypeLibraryDetailScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+family-verification,lib/features/scam_shield/sensitive_lock/scam_shield_sensitive_route_shell.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+share,lib/features/scam_shield/sensitive_lock/scam_shield_sensitive_route_shell.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+practice,lib/features/scam_shield/sensitive_lock/scam_shield_sensitive_route_shell.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,N,none/unknown,Low,62,SKIN + LAYOUT
+/climate-navigator,lib/features/quick_actions/climate_navigator_screen.dart,features,Daily Essentials,T3,0,Y,GlassContainer,mixed,2,N,N,20,Y,skeleton,Low,91,SKIN ONLY
+/queue-avoidance,lib/features/quick_actions/queue_avoidance_screen.dart,features,Long tail,T3,2,Y,GlassContainer,mixed,3,N,N,102,Y,skeleton,Medium-High,74,SKIN ONLY
+/bill-tracker,lib/features/quick_actions/bill_tracker_screen.dart,features,Money Hub,T2,0,Y,custom/none,mixed,0,N,N,0,N,none/unknown,Low,82,SKIN ONLY
+scan/review,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+import/text,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+loans/add,lib/features/bill_tracker/friends_family_loans/presentation/screens/add_loan_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+loans/person,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/know-qatar,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/disruption-readiness/leaving,lib/features/disruption_readiness/presentation/screens/disruption_readiness_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/disruption-readiness/know,lib/features/disruption_readiness/presentation/screens/disruption_readiness_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/disruption-readiness/trip,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/daily-ussd,lib/features/daily_utilities/ussd/ussd_codes_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,1,N,N,5,Y,none/unknown,Medium-High,94,SKIN ONLY
+/daily-phrases,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/driving,lib/features/daily_utilities/driving/presentation/driving_hub_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,3,N,none/unknown,Low,90,SKIN ONLY
+calculator,lib/features/daily_utilities/driving/presentation/driving_fee_calculator_screen.dart,features,Long tail,T3,0,Y,GlassCard,other/none,1,N,N,13,N,none/unknown,Low,93,SKIN ONLY
+fine-status,lib/features/daily_utilities/driving/presentation/driving_fine_status_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,1,N,N,4,N,none/unknown,Low,90,SKIN ONLY
+theory-quiz,lib/features/daily_utilities/driving/presentation/driving_theory_quiz_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,5,Y,none/unknown,Medium,94,SKIN ONLY
+/document-vault,lib/features/document_vault/document_vault_screen.dart,features,Visa & Documents,T1,10,Partial,custom/none,mixed,1,N,N,33,Y,spinner,Medium-High,41,SKIN + LAYOUT
+/document-vault/:id,(widget ),,Visa & Documents,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/evidence-trail,lib/features/intelligence/presentation/screens/evidence_trail_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Medium-High,95,SKIN ONLY
+/ramadan,lib/features/ramadan/ramadan_hub_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,N,none/unknown,Low,90,SKIN ONLY
+/ramadan/qibla,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,DO NOT TOUCH
+/ramadan/zakat,lib/features/ramadan/zakat_calculator_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,3,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner,lib/features/trip_planner/presentation/screens/trip_planner_home_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/generating,lib/features/trip_planner/presentation/screens/trip_generating_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,0,N,N,0,N,none/unknown,Low,87,SKIN ONLY
+/trip-planner/preferences,lib/features/trip_planner/presentation/screens/trip_preferences_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/saved,lib/features/trip_planner/presentation/screens/saved_trips_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/settings,(widget TripSettingsScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/shared/:code,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/itinerary/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/day/:tripId/:day,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/activity/:tripId/:activityId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/budget/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/map/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,DO NOT TOUCH
+/trip-planner/weather/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/summary/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/explore,lib/features/trip_planner/presentation/screens/explore_qatar_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,N,none/unknown,Low,90,SKIN ONLY
+/trip-planner/explore/:category,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/place/:placeId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/search,lib/features/trip_planner/presentation/screens/travel_search_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+/trip-planner/wallet,lib/features/trip_planner/presentation/screens/travel_wallet_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/fair-prices,lib/features/trip_planner/presentation/screens/fair_price_guide_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/bill-scan,lib/features/trip_planner/presentation/screens/trip_bill_scan_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/import-booking,lib/features/trip_planner/presentation/screens/trip_booking_import_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Medium,95,SKIN ONLY
+/trip-planner/readiness/:id,lib/features/trip_planner/presentation/screens/trip_readiness_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,1,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/emergency,lib/features/trip_planner/presentation/screens/travel_emergency_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/trip-planner/local-life,(widget LocalLifeHubScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+:categoryId,(widget LocalLifeCategoryScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+:entryId,(widget LocalLifeEntryScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/guide/culture,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/guide/dos-donts,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/guide/ramadan,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/trip-planner/guide/transport,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/prayer-mosque,lib/features/prayer_mosque/presentation/screens/prayer_dashboard_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/prayer-mosque/times,lib/features/prayer_mosque/presentation/screens/prayer_times_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,N,none/unknown,Low,90,SKIN ONLY
+/prayer-mosque/qibla,lib/features/prayer_mosque/presentation/screens/qibla_compass_screen.dart,features,Long tail,T3,0,N,custom/none,Material,0,N,N,0,Y,none/unknown,Low,62,DO NOT TOUCH
+/prayer-mosque/mosques,lib/features/prayer_mosque/presentation/screens/nearby_mosques_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,none/unknown,Medium-High,87,SKIN ONLY
+/prayer-mosque/mosque/:id,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/prayer-mosque/calendar,lib/features/prayer_mosque/presentation/screens/islamic_calendar_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,2,N,none/unknown,Low,90,SKIN ONLY
+/prayer-mosque/jumuah,lib/features/prayer_mosque/presentation/screens/jumuah_reminder_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+/prayer-mosque/settings,lib/features/prayer_mosque/presentation/screens/prayer_settings_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,N,none/unknown,Low,90,SKIN ONLY
+/prayer-mosque/notifications,lib/features/prayer_mosque/presentation/screens/prayer_notification_settings_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+/prayer-mosque/history,lib/features/prayer_mosque/presentation/screens/prayer_history_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,none/unknown,Low,87,SKIN ONLY
+/prayer-mosque/assistant,lib/features/prayer_mosque/presentation/screens/prayer_assistant_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/prayer-mosque/travel,lib/features/prayer_mosque/presentation/screens/travel_prayer_screen.dart,features,Long tail,T3,0,Y,GlassCard,Material,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/prayer-mosque/search,(widget PrayerSearchScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/invite/:code,lib/features/referral/presentation/screens/referral_invite_redirect_screen.dart,features,Long tail,T3,0,N,custom/none,other/none,0,N,N,0,Y,spinner,Low,67,SKIN + LAYOUT
+/agency-verification/check,lib/features/eosb/presentation/screens/agency_verification_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY
+/employer-track-record/check,lib/features/eosb/presentation/screens/employer_track_record_lookup_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+/eosb,lib/features/eosb/presentation/screens/eosb_dashboard_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,skeleton,Low,95,SKIN ONLY
+/eosb/employee-info,lib/features/eosb/presentation/screens/employee_information_screen.dart,features,Truth Engines,T1,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Medium-High,87,SKIN ONLY
+/eosb/result,(widget ),,Truth Engines,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/eosb/comparison,lib/features/eosb/presentation/screens/employer_comparison_screen.dart,features,Truth Engines,T1,0,Y,custom/none,Material,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+/eosb/warnings,lib/features/eosb/presentation/screens/legal_warnings_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/death-benefits,lib/features/eosb/presentation/screens/eosb_death_benefits_screen.dart,features,Truth Engines,T1,0,N,custom/none,Material,0,N,N,0,Y,spinner,Low,62,SKIN + LAYOUT
+/eosb/ai-assistant,(widget EosbAiAssistantScreen),,Truth Engines,T1,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/eosb/documents,lib/features/eosb/presentation/screens/generate_documents_screen.dart,features,Truth Engines,T1,1,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,92,SKIN ONLY
+/eosb/verify/:certificateId,lib/features/eosb/presentation/screens/eosb_certificate_verify_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/history,lib/features/eosb/presentation/screens/calculation_history_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Medium-High,95,SKIN ONLY
+/eosb/settings,lib/features/eosb/presentation/screens/eosb_settings_screen.dart,features,Truth Engines,T1,0,N,custom/none,Material,0,N,N,0,Y,spinner,Low,62,SKIN + LAYOUT
+/eosb/contract-analysis,lib/features/eosb/presentation/screens/contract_analysis_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/scenarios,lib/features/eosb/presentation/screens/scenario_simulator_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Low,95,SKIN ONLY
+/eosb/timeline,lib/features/eosb/presentation/screens/employment_timeline_screen.dart,features,Truth Engines,T1,0,N,custom/none,Material,0,N,N,0,Y,spinner,Low,62,SKIN + LAYOUT
+/eosb/legal-review,lib/features/eosb/presentation/screens/legal_review_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Medium,95,SKIN ONLY
+/eosb/overtime,lib/features/eosb/presentation/screens/overtime_truth_hub_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/input,lib/features/eosb/presentation/screens/overtime_input_screen.dart,features,Truth Engines,T1,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Medium-High,87,SKIN ONLY
+/eosb/overtime/result,lib/features/eosb/presentation/screens/overtime_result_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/calendar,lib/features/eosb/presentation/screens/overtime_calendar_screen.dart,features,Truth Engines,T1,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Medium-High,87,SKIN ONLY
+/eosb/overtime/employee,lib/features/eosb/presentation/screens/overtime_employee_screen.dart,features,Truth Engines,T1,0,Y,GlassContainer,mixed,0,N,N,0,Y,spinner,Medium-High,95,SKIN ONLY
+/eosb/overtime/summary,lib/features/eosb/presentation/screens/overtime_summary_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/history,lib/features/eosb/presentation/screens/overtime_history_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/ai-review,lib/features/eosb/presentation/screens/overtime_ai_review_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/import,lib/features/eosb/presentation/screens/overtime_import_screen.dart,features,Truth Engines,T1,0,Y,GlassContainer,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/overtime/rounding,lib/features/eosb/presentation/screens/overtime_rounding_pattern_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/eosb/payslip-consistency,lib/features/eosb/presentation/screens/payslip_consistency_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+/concierge-90-day,lib/features/concierge_90_day/presentation/screens/concierge_journey_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,1,Y,spinner,Low,87,SKIN ONLY
+/health-insurance,lib/features/health_insurance/presentation/screens/health_insurance_dashboard_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,3,Y,spinner,Low,95,SKIN ONLY
+compliance,lib/features/health_insurance/presentation/screens/compliance_check_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+results,lib/features/health_insurance/presentation/screens/compliance_results_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,skeleton,Low,87,SKIN ONLY
+history,lib/features/health_insurance/presentation/screens/insurance_compliance_history_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+:entryId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+coverage-reality-check,lib/features/health_insurance/presentation/screens/coverage_reality_check_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+upload,lib/features/health_insurance/presentation/screens/policy_upload_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+scenarios,lib/features/health_insurance/presentation/screens/health_insurance_scenario_simulator_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+policy-explainer,lib/features/health_insurance/presentation/screens/policy_explainer_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+denial-dispute,lib/features/health_insurance/presentation/screens/health_insurance_denial_dispute_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/case-timeline/:engine/:caseId,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/tenancy,lib/features/tenancy/presentation/screens/tenancy_dashboard_screen.dart,features,Housing,T1,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Low,95,SKIN ONLY
+listing-check,lib/features/tenancy/presentation/screens/listing_verification_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+lease-entry,lib/features/tenancy/presentation/screens/tenancy_lease_entry_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+result,lib/features/tenancy/presentation/screens/tenancy_result_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,skeleton,Low,87,SKIN ONLY
+checklist,lib/features/tenancy/presentation/screens/tenancy_dispute_checklist_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+documents,lib/features/tenancy/presentation/screens/tenancy_documents_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+ai-assistant,lib/features/tenancy/presentation/screens/tenancy_ai_assistant_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Medium,95,SKIN ONLY
+scenarios,lib/features/tenancy/presentation/screens/tenancy_scenario_simulator_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+history,lib/features/tenancy/presentation/screens/tenancy_history_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+condition,lib/features/tenancy/presentation/screens/tenancy_condition_hub_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+capture,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+compare,lib/features/tenancy/presentation/screens/tenancy_condition_compare_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,1,N,N,0,Y,spinner,Low,95,SKIN ONLY
+report,lib/features/tenancy/presentation/screens/tenancy_condition_report_screen.dart,features,Long tail,T3,0,N,custom/none,Material,0,N,N,0,Y,spinner,Low,62,SKIN + LAYOUT
+/sponsorship-transfer,lib/features/sponsorship_transfer/presentation/screens/sponsorship_transfer_dashboard_screen.dart,features,Truth Engines,T1,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Low,95,SKIN ONLY
+readiness,lib/features/sponsorship_transfer/presentation/screens/transfer_readiness_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+result,lib/features/sponsorship_transfer/presentation/screens/transfer_result_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,skeleton,Low,87,SKIN ONLY
+checklist,lib/features/sponsorship_transfer/presentation/screens/transfer_checklist_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+documents,lib/features/sponsorship_transfer/presentation/screens/transfer_documents_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+ai-assistant,lib/features/sponsorship_transfer/presentation/screens/transfer_ai_assistant_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Medium,95,SKIN ONLY
+scenarios,lib/features/sponsorship_transfer/presentation/screens/transfer_scenario_simulator_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,1,Y,spinner,Low,95,SKIN ONLY
+history,lib/features/sponsorship_transfer/presentation/screens/transfer_history_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,0,Y,spinner,Low,95,SKIN ONLY
+/maintenance,(widget MaintenanceScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/force-update,(widget ForceUpdateScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/suspended,(widget SuspendedAccountScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/feature-disabled,(widget FeatureDisabledScreen),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/my-posts,lib/features/post_engine/presentation/screens/my_posts_hub_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,0,N,N,2,Y,spinner,Medium-High,87,SKIN ONLY
+/dev/post-schema-preview,(widget ),,Long tail,T3,-1,N/A,unknown,unknown,-1,N/A,N,-1,N,unknown,unknown,0,SKIN + LAYOUT
+/admin,lib/features/admin/screens/admin_dashboard_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,0,N,N,2,Y,spinner,Low,95,SKIN ONLY
+users,lib/features/admin/screens/admin_users_screen.dart,features,Long tail,T3,0,Y,custom/none,mixed,2,N,N,5,Y,spinner,Medium-High,86,SKIN ONLY
+moderation,lib/features/admin/screens/admin_moderation_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+config,lib/features/admin/screens/admin_config_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,0,N,N,0,Y,spinner,Low,92,SKIN ONLY
+ai-usage,lib/features/admin/screens/admin_ai_usage_screen.dart,features,Long tail,T3,0,Y,custom/none,other/none,2,N,N,2,Y,spinner,Low,92,SKIN ONLY
+legal-sources,lib/features/admin/screens/admin_legal_sources_screen.dart,features,Long tail,T3,0,Y,Material/custom,other/none,1,N,N,0,Y,spinner,Low,92,SKIN ONLY
+legal-change-monitor,lib/features/admin/screens/admin_legal_change_monitor_screen.dart,features,Long tail,T3,0,Y,GlassCard,mixed,1,N,N,0,Y,spinner,Low,95,SKIN ONLY
+moph-insurers,lib/features/admin/screens/admin_moph_insurers_screen.dart,features,Long tail,T3,0,Y,Material/custom,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+exchange-locator,lib/features/exchange_locator/presentation/screens/admin_exchange_locator_screen.dart,features,Money Hub,T2,0,Y,Material/custom,mixed,0,N,N,2,Y,spinner,Medium-High,87,SKIN ONLY
+shield-freshness,lib/features/admin/screens/admin_shield_freshness_screen.dart,features,Long tail,T3,0,Y,GlassCard,other/none,0,N,N,0,Y,spinner,Low,100,SKIN ONLY
+sheet:post-category-picker,lib/features/post_engine/presentation/screens/post_category_picker_screen.dart,post_engine,Post flow,T1,0,Y,custom/none,mixed,0,N,N,0,Y,spinner,Low,87,SKIN ONLY
+sheet:global-search-filters,lib/features/global_search/presentation/global_search_screen.dart,global_search,Global,T1,0,Y,GlassCard,mixed,0,N,N,0,Y,none/unknown,Low,95,SKIN ONLY

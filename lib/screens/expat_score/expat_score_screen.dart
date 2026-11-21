@@ -1,169 +1,50 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/l10n/app_shell_strings.dart';
+import 'package:raabta/core/l10n/common_action_strings.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_screen_scaffold.dart';
+import 'package:raabta/features/home/providers/expat_score_advice_provider.dart';
+import 'package:raabta/features/home/providers/expat_score_detail_recommendations_provider.dart';
+import 'package:raabta/features/home/providers/expat_score_history_provider.dart';
+import 'package:raabta/features/home/utils/expat_score_category_detail_helper.dart';
+import 'package:raabta/features/home/utils/expat_score_profile_helper.dart';
+import 'package:raabta/features/intelligence/presentation/widgets/intelligence_insight_row.dart';
+import 'package:raabta/providers/auth_providers.dart';
+import 'package:raabta/providers/visa_providers.dart';
+import 'package:raabta/screens/expat_score/l10n/expat_score_strings.dart';
+import 'package:raabta/services/ai/expat_life_score_service.dart';
+import 'package:raabta/services/ai/user_profile_ai_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ExpatScoreScreen extends StatefulWidget {
+class ExpatScoreScreen extends ConsumerStatefulWidget {
   const ExpatScoreScreen({super.key});
 
   @override
-  State<ExpatScoreScreen> createState() => _ExpatScoreScreenState();
+  ConsumerState<ExpatScoreScreen> createState() => _ExpatScoreScreenState();
 }
 
-class _ExpatScoreScreenState extends State<ExpatScoreScreen>
+class _ExpatScoreScreenState extends ConsumerState<ExpatScoreScreen>
     with SingleTickerProviderStateMixin {
-  static const int _score = 72;
-  static const String _levelLabel = 'Growing Strong 📈';
-
   late AnimationController _arcController;
   late Animation<double> _arcAnimation;
+  double? _lastAnimatedScore;
 
-  static const List<String> _levels = [
-    'New Arrival',
-    'Settling In',
-    'Growing Strong',
-    'Established',
-    'Qatar Pro',
-  ];
-
-  static const List<_CategoryScore> _categories = [
-    _CategoryScore(
-      emoji: '💼',
-      title: 'Career',
-      score: 78,
-      color: AppColors.primary,
-      completed: [
-        'Job profile complete',
-        'Skills listed',
-        'Experience added',
-      ],
-      pending: [
-        'Post your first job review',
-        'Add certifications',
-      ],
-    ),
-    _CategoryScore(
-      emoji: '🏠',
-      title: 'Housing',
-      score: 62,
-      color: AppColors.info,
-      completed: [
-        'Current accommodation confirmed',
-        'Area preference set',
-      ],
-      pending: [
-        'Get verified housing listing',
-        'Add housing review',
-      ],
-    ),
-    _CategoryScore(
-      emoji: '💰',
-      title: 'Financial',
-      score: 80,
-      color: AppColors.success,
-      completed: [
-        'Money transfer preference set',
-        'Exchange rate alerts active',
-        'Salary range added',
-      ],
-      pending: [
-        'Add emergency fund status',
-      ],
-    ),
-    _CategoryScore(
-      emoji: '👥',
-      title: 'Community',
-      score: 45,
-      color: AppColors.secondary,
-      completed: [
-        'Joined 2 community groups',
-      ],
-      pending: [
-        'Post in community (earn 10pts)',
-        'Answer 3 questions',
-        'Attend 1 event',
-      ],
-    ),
-    _CategoryScore(
-      emoji: '📋',
-      title: 'Documentation',
-      score: 65,
-      color: AppColors.warning,
-      completed: [
-        'Iqama deadline set',
-        'Passport expiry tracked',
-      ],
-      pending: [
-        'Add QID information',
-        'Set medical card reminder',
-      ],
-    ),
-  ];
-
-  static const List<_AiRecommendation> _recommendations = [
-    _AiRecommendation(
-      action: 'Post a community question',
-      points: 15,
-      duration: '2 minutes',
-    ),
-    _AiRecommendation(
-      action: 'Add your driving license info',
-      points: 10,
-      duration: '1 minute',
-    ),
-    _AiRecommendation(
-      action: 'Refer 1 friend',
-      points: 50,
-      duration: 'Share link',
-    ),
-  ];
-
-  static const List<_Achievement> _achievements = [
-    _Achievement(emoji: '🌟', name: 'Early Adopter', earned: true),
-    _Achievement(emoji: '💼', name: 'Job Seeker', earned: true),
-    _Achievement(emoji: '🏠', name: 'Home Hunter', earned: false),
-    _Achievement(emoji: '🤝', name: 'Connector', earned: false),
-    _Achievement(emoji: '🌍', name: 'Qatar Pro', earned: false),
-  ];
-
-  static const List<_GamificationLevel> _gamificationLevels = [
-    _GamificationLevel(
-      emoji: '🆕',
-      name: 'New Arrival',
-      range: '0–20',
-      status: _LevelStatus.completed,
-    ),
-    _GamificationLevel(
-      emoji: '🏠',
-      name: 'Settling In',
-      range: '21–40',
-      status: _LevelStatus.completed,
-    ),
-    _GamificationLevel(
-      emoji: '📈',
-      name: 'Growing Strong',
-      range: '41–60',
-      status: _LevelStatus.current,
-    ),
-    _GamificationLevel(
-      emoji: '🏆',
-      name: 'Established Resident',
-      range: '61–80',
-      status: _LevelStatus.next,
-    ),
-    _GamificationLevel(
-      emoji: '⭐',
-      name: 'Qatar Pro',
-      range: '81–100',
-      status: _LevelStatus.future,
-    ),
-  ];
+  List<String> _levelNames(String locale) => [
+        ExpatScoreStrings.t('level_new_arrival', locale),
+        ExpatScoreStrings.t('level_settling_in', locale),
+        ExpatScoreStrings.t('level_growing_strong', locale),
+        ExpatScoreStrings.t('level_established', locale),
+        ExpatScoreStrings.t('level_qatar_pro', locale),
+      ];
 
   @override
   void initState() {
@@ -172,10 +53,16 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-    _arcAnimation = Tween<double>(begin: 0, end: _score / 100).animate(
+    _arcAnimation = Tween<double>(begin: 0, end: 0).animate(
       CurvedAnimation(parent: _arcController, curve: Curves.easeOutCubic),
     );
-    _arcController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profile = ref.read(userAIProfileProvider);
+      if (profile != null) {
+        unawaited(ref.read(expatLifeScoreProvider.notifier).refresh(profile));
+      }
+    });
   }
 
   @override
@@ -184,96 +71,276 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
     super.dispose();
   }
 
-  void _shareScore() {
+  void _animateToScore(double score) {
+    if (_lastAnimatedScore == score) return;
+    _lastAnimatedScore = score;
+    _arcAnimation = Tween<double>(begin: 0, end: score / 100).animate(
+      CurvedAnimation(parent: _arcController, curve: Curves.easeOutCubic),
+    );
+    _arcController.forward(from: 0);
+  }
+
+  void _shareScore(int score, String levelLabel, String locale) {
     Share.share(
-      'My Raabta Expat Life Score is $_score — $_levelLabel. '
-      'Track your Qatar journey on Raabta!',
-      subject: 'My Expat Life Score',
+      ExpatScoreStrings.format(
+        'share_message',
+        locale,
+        params: {'score': '$score', 'level': levelLabel},
+      ),
+      subject: ExpatScoreStrings.t('share_subject', locale),
     );
   }
 
-  void _onDoIt(_AiRecommendation recommendation) {
-    if (recommendation.action == 'Refer 1 friend') {
-      _shareScore();
-      return;
-    }
-    if (recommendation.action == 'Post a community question') {
-      context.push('/community');
-      return;
-    }
-    if (recommendation.action == 'Add your driving license info') {
-      context.push('/visa');
-      return;
+  void _onDoIt(ExpatScoreRecommendation recommendation, String locale) {
+    switch (recommendation.routeTarget) {
+      case ExpatScoreRouteTarget.community:
+        context.push('/community');
+        return;
+      case ExpatScoreRouteTarget.visa:
+        context.push('/visa');
+        return;
+      case ExpatScoreRouteTarget.jobs:
+        context.push('/jobs');
+        return;
+      case ExpatScoreRouteTarget.refer:
+        final scoreTotal =
+            ref.read(expatLifeScoreProvider).score?.total.round() ?? 0;
+        final levelLabel = scoreTotal > 0
+            ? ExpatScoreStrings.levelLabelForTotal(
+                scoreTotal.toDouble(),
+                locale,
+              )
+            : '';
+        _shareScore(scoreTotal, levelLabel, locale);
+        return;
+      case ExpatScoreRouteTarget.tool:
+        break;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${recommendation.action} — Coming Soon'),
+        content: Text(
+          ExpatScoreStrings.format(
+            'snack_open_tool',
+            locale,
+            params: {'action': recommendation.action},
+          ),
+        ),
         backgroundColor: AppColors.surfaceElevated,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
+  int _currentLevelIndex(double total) {
+    if (total <= 20) return 0;
+    if (total <= 40) return 1;
+    if (total <= 79) return 2;
+    if (total <= 94) return 3;
+    return 4;
+  }
+
+  List<_GamificationLevel> _gamificationLevels(double total, String locale) {
+    final current = _currentLevelIndex(total);
+    final defs = [
+      ('🆕', ExpatScoreStrings.t('level_new_arrival', locale), '0–20'),
+      ('🏠', ExpatScoreStrings.t('level_settling_in', locale), '21–40'),
+      ('📈', ExpatScoreStrings.t('level_growing_strong', locale), '41–79'),
+      (
+        '🏆',
+        ExpatScoreStrings.t('level_established_resident', locale),
+        '80–94',
+      ),
+      ('⭐', ExpatScoreStrings.t('level_qatar_pro', locale), '95–100'),
+    ];
+
+    return List.generate(defs.length, (index) {
+      _LevelStatus status;
+      if (index < current) {
+        status = _LevelStatus.completed;
+      } else if (index == current) {
+        status = _LevelStatus.current;
+      } else if (index == current + 1) {
+        status = _LevelStatus.next;
+      } else {
+        status = _LevelStatus.future;
+      }
+      final def = defs[index];
+      return _GamificationLevel(
+        emoji: def.$1,
+        name: def.$2,
+        range: def.$3,
+        status: status,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text('Expat Life Score', style: AppTextStyles.h2),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.share_outlined, color: AppColors.textPrimary),
-            onPressed: _shareScore,
+    final locale = ref.watch(userLanguageProvider);
+    final uid = ref.watch(currentUserProvider)?.uid ?? '';
+    final profile = ref.watch(userAIProfileProvider);
+    final expatState = ref.watch(expatLifeScoreProvider);
+    final score = expatState.score;
+    final historyAsync = uid.isEmpty
+        ? const AsyncValue<List<ExpatScoreHistoryPoint>>.data([])
+        : ref.watch(expatScoreHistoryProvider(uid));
+    final recommendationsAsync = uid.isEmpty
+        ? const AsyncValue<List<ExpatScoreRecommendation>>.data([])
+        : ref.watch(expatScoreDetailRecommendationsProvider(uid));
+    final improvementActions = ref.watch(expatImprovementActionsProvider);
+
+    if (score != null) {
+      _animateToScore(score.total);
+    }
+
+    final displayScore = score?.total.round() ?? 0;
+    final levelLabel = score == null
+        ? AppShellStrings.t('home_calculating', locale)
+        : ExpatScoreProfileHelper.statusLabelWithTrend(
+            level: ExpatScoreStrings.levelLabelForTotal(score.total, locale),
+            weeklyGrowth: score.weeklyGrowth,
+          );
+    final levelNames = _levelNames(locale);
+    final categories = (profile != null && score != null)
+        ? ExpatScoreCategoryDetailHelper.buildCategories(
+            profile,
+            score,
+            locale,
+          )
+        : const <ExpatScoreCategoryDetail>[];
+    final achievements = expatState.achievements
+        .map(
+          (a) => _Achievement(
+            emoji: a.emoji,
+            name: ExpatScoreStrings.achievementTitle(a.id, locale),
+            earned: a.unlocked,
           ),
-        ],
+        )
+        .toList();
+    final gamificationLevels = score != null
+        ? _gamificationLevels(score.total, locale)
+        : const <_GamificationLevel>[];
+    final currentLevelIndex =
+        score != null ? _currentLevelIndex(score.total) : 0;
+    final completedLevels = currentLevelIndex + 1;
+
+    return GlassScreenScaffold(
+      title: ExpatScoreStrings.t('detail_title', locale),
+      leading: GlassIconButton(
+        icon: Icons.arrow_back,
+        tooltip: CommonActionStrings.t('action_back', locale),
+        onPressed: () => Navigator.of(context).pop(),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          0,
-          AppSpacing.xl,
-          AppSpacing.xxxl,
+      actions: [
+        GlassIconButton(
+          icon: Icons.share_outlined,
+          tooltip: CommonActionStrings.t('action_share', locale),
+          onPressed: score == null
+              ? null
+              : () => _shareScore(displayScore, levelLabel, locale),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeroSection(),
-            const SizedBox(height: AppSpacing.xxl),
-            _buildWeeklyTrend(),
-            const SizedBox(height: AppSpacing.xxl),
-            Text('📊 Score Breakdown', style: AppTextStyles.h2),
-            const SizedBox(height: AppSpacing.md),
-            ..._categories.map(_buildCategoryCard),
-            const SizedBox(height: AppSpacing.xxl),
-            Text(
-              '🤖 AI Recommendations to Improve Score',
-              style: AppTextStyles.h2,
+      ],
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        0,
+        AppSpacing.xl,
+        AppSpacing.xxxl,
+      ),
+      body: score == null
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.cyanGlow),
+            )
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeroSection(
+                    displayScore,
+                    levelLabel,
+                    currentLevelIndex,
+                    completedLevels,
+                    levelNames,
+                    locale,
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  historyAsync.when(
+                    data: (history) => _buildWeeklyTrend(history, score, locale),
+                    loading: () => _buildWeeklyTrend(const [], score, locale),
+                    error: (_, _) => _buildWeeklyTrend(const [], score, locale),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  Text(
+                    ExpatScoreStrings.t('section_score_breakdown', locale),
+                    style: AppTypography.headline2,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ...categories.map((c) => _buildCategoryCard(c, locale)),
+                  const SizedBox(height: AppSpacing.xxl),
+                  Text(
+                    ExpatScoreStrings.t('section_ai_recommendations', locale),
+                    style: AppTypography.headline2,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  recommendationsAsync.when(
+                    data: (recommendations) => Column(
+                      children: recommendations
+                          .map((r) => _buildRecommendationCard(r, locale))
+                          .toList(),
+                    ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(AppSpacing.lg),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.cyanGlow,
+                        ),
+                      ),
+                    ),
+                    error: (_, _) => Column(
+                      children: improvementActions
+                          .take(3)
+                          .map(
+                            (action) => _buildRecommendationCard(
+                              ExpatScoreRecommendation(
+                                action: action.title,
+                                points: action.pointsGain,
+                                duration: action.estimatedTime,
+                                routeTarget: action.routeTarget,
+                              ),
+                              locale,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  Text(
+                    ExpatScoreStrings.t('section_achievements', locale),
+                    style: AppTypography.headline2,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildAchievementsGrid(achievements, locale),
+                  const SizedBox(height: AppSpacing.xxl),
+                  Text(
+                    ExpatScoreStrings.t('section_level_journey', locale),
+                    style: AppTypography.headline2,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildGamificationTimeline(gamificationLevels, locale),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            ..._recommendations.map(_buildRecommendationCard),
-            const SizedBox(height: AppSpacing.xxl),
-            Text('🏆 Your Achievements', style: AppTextStyles.h2),
-            const SizedBox(height: AppSpacing.md),
-            _buildAchievementsGrid(),
-            const SizedBox(height: AppSpacing.xxl),
-            Text('Level Journey', style: AppTextStyles.h2),
-            const SizedBox(height: AppSpacing.md),
-            _buildGamificationTimeline(),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroSection(
+    int score,
+    String levelLabel,
+    int currentLevelIndex,
+    int completedLevels,
+    List<String> levelNames,
+    String locale,
+  ) {
     return Column(
       children: [
         AnimatedBuilder(
@@ -289,7 +356,7 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '$_score',
+                        '$score',
                         style: TextStyle(
                           fontSize: 64,
                           fontWeight: FontWeight.w900,
@@ -305,7 +372,7 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
           },
         ),
         Text(
-          _levelLabel,
+          levelLabel,
           style: const TextStyle(
             color: AppColors.warning,
             fontSize: 16,
@@ -313,19 +380,26 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),
-        _buildLevelProgression(),
+        _buildLevelProgression(
+          currentLevelIndex,
+          completedLevels,
+          levelNames,
+          locale,
+        ),
       ],
     );
   }
 
-  Widget _buildLevelProgression() {
-    const currentLevelIndex = 2;
-    const completedLevels = 3;
-
+  Widget _buildLevelProgression(
+    int currentLevelIndex,
+    int completedLevels,
+    List<String> levelNames,
+    String locale,
+  ) {
     return Column(
       children: [
         Row(
-          children: List.generate(_levels.length, (index) {
+          children: List.generate(levelNames.length, (index) {
             final isCompleted = index < completedLevels;
             final isCurrent = index == currentLevelIndex;
             return Expanded(
@@ -336,13 +410,13 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                       height: 4,
                       decoration: BoxDecoration(
                         color: isCompleted || isCurrent
-                            ? AppColors.primary
+                            ? AppColors.cyanGlow
                             : AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  if (index < _levels.length - 1) const SizedBox(width: 4),
+                  if (index < levelNames.length - 1) const SizedBox(width: 4),
                 ],
               ),
             );
@@ -353,12 +427,12 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
           alignment: WrapAlignment.center,
           spacing: AppSpacing.xs,
           runSpacing: AppSpacing.xs,
-          children: List.generate(_levels.length, (index) {
+          children: List.generate(levelNames.length, (index) {
             final isCurrent = index == currentLevelIndex;
             return Text(
-              _levels[index],
-              style: AppTextStyles.bodySmall.copyWith(
-                color: isCurrent ? AppColors.primary : AppColors.textMuted,
+              levelNames[index],
+              style: AppTypography.bodySmall.copyWith(
+                color: isCurrent ? AppColors.cyanGlow : AppColors.textTertiary,
                 fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
                 fontSize: 10,
               ),
@@ -367,28 +441,52 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Progress: $completedLevels/${_levels.length} levels complete',
-          style: AppTextStyles.bodyMedium,
+          ExpatScoreStrings.format(
+            'progress_levels',
+            locale,
+            params: {
+              'completed': '$completedLevels',
+              'total': '${levelNames.length}',
+            },
+          ),
+          style: AppTypography.body,
         ),
       ],
     );
   }
 
-  Widget _buildWeeklyTrend() {
-    const weeklyScores = [64.0, 67.0, 69.0, 72.0];
+  Widget _buildWeeklyTrend(
+    List<ExpatScoreHistoryPoint> history,
+    ExpatLifeScore score,
+    String locale,
+  ) {
+    final points = history.isNotEmpty
+        ? history
+        : [
+            ExpatScoreHistoryPoint(
+              date: DateTime.now().subtract(const Duration(days: 7)),
+              total: (score.total - score.weeklyGrowth).clamp(0, 100),
+            ),
+            ExpatScoreHistoryPoint(date: DateTime.now(), total: score.total),
+          ];
 
-    return Container(
+    final weeklyScores = points.map((p) => p.total).toList();
+    final minY = (weeklyScores.reduce(math.min) - 5).clamp(0, 95).toDouble();
+    final maxY = (weeklyScores.reduce(math.max) + 5).clamp(5, 100).toDouble();
+    final weekGrowth = score.weeklyGrowth.round();
+    final monthGrowth = score.monthlyGrowth.round();
+
+    return GlassCard(
       width: double.infinity,
+      borderRadius: AppSpacing.radiusXl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Weekly Trend', style: AppTextStyles.h3),
+          Text(
+            ExpatScoreStrings.t('weekly_trend', locale),
+            style: AppTypography.title,
+          ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             height: 120,
@@ -409,16 +507,17 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const labels = ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'];
                         final index = value.toInt();
-                        if (index < 0 || index >= labels.length) {
+                        if (index < 0 || index >= points.length) {
                           return const SizedBox.shrink();
                         }
+                        final date = points[index].date;
+                        final label = '${date.day}/${date.month}';
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            labels[index],
-                            style: AppTextStyles.bodySmall,
+                            label,
+                            style: AppTypography.bodySmall,
                           ),
                         );
                       },
@@ -426,8 +525,8 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                minY: 60,
-                maxY: 75,
+                minY: minY,
+                maxY: maxY,
                 lineBarsData: [
                   LineChartBarData(
                     spots: List.generate(
@@ -435,13 +534,13 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                       (i) => FlSpot(i.toDouble(), weeklyScores[i]),
                     ),
                     isCurved: true,
-                    color: AppColors.primary,
+                    color: AppColors.cyanGlow,
                     barWidth: 3,
                     dotData: FlDotData(
                       getDotPainter: (spot, percent, bar, index) {
                         return FlDotCirclePainter(
                           radius: 4,
-                          color: AppColors.primary,
+                          color: AppColors.cyanGlow,
                           strokeWidth: 2,
                           strokeColor: AppColors.background,
                         );
@@ -451,8 +550,8 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.primary.withValues(alpha: 0.25),
-                          AppColors.primary.withValues(alpha: 0),
+                          AppColors.cyanGlow.withValues(alpha: 0.25),
+                          AppColors.cyanGlow.withValues(alpha: 0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -466,9 +565,27 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              _TrendChip(label: 'This week: +5 pts', color: AppColors.success),
+              _TrendChip(
+                label: ExpatScoreStrings.format(
+                  'trend_this_week',
+                  locale,
+                  params: {
+                    'delta': '${weekGrowth >= 0 ? '+' : ''}$weekGrowth',
+                  },
+                ),
+                color: weekGrowth >= 0 ? AppColors.success : AppColors.error,
+              ),
               const SizedBox(width: AppSpacing.sm),
-              _TrendChip(label: 'Last week: +3 pts', color: AppColors.success),
+              _TrendChip(
+                label: ExpatScoreStrings.format(
+                  'trend_this_month',
+                  locale,
+                  params: {
+                    'delta': '${monthGrowth >= 0 ? '+' : ''}$monthGrowth',
+                  },
+                ),
+                color: monthGrowth >= 0 ? AppColors.success : AppColors.warning,
+              ),
             ],
           ),
         ],
@@ -476,16 +593,27 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
     );
   }
 
-  Widget _buildCategoryCard(_CategoryScore category) {
-    return Container(
+  Widget _buildCategoryCard(ExpatScoreCategoryDetail category, String locale) {
+    final scoreLabel = category.insufficientData
+        ? '—'
+        : '${category.score}/100';
+
+    return GlassCard(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      borderRadius: AppSpacing.radiusLg,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
+      onTap: category.detailExplanation != null
+          ? () => showIntelligenceExplanationSheet(
+                context,
+                title: ExpatScoreStrings.format(
+                  'category_score_title',
+                  locale,
+                  params: {'category': category.title},
+                ),
+                explanation: category.detailExplanation!,
+              )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -494,27 +622,50 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
               Expanded(
                 child: Text(
                   '${category.emoji} ${category.title}',
-                  style: AppTextStyles.h3,
+                  style: AppTypography.title,
                 ),
               ),
               Text(
-                '${category.score}/100',
-                style: AppTextStyles.labelLarge.copyWith(
+                scoreLabel,
+                style: AppTypography.subtitle.copyWith(
                   color: category.color,
                 ),
               ),
+              if (category.detailExplanation != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: category.color.withValues(alpha: 0.85),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: category.score / 100,
-              minHeight: 6,
-              backgroundColor: AppColors.background,
-              color: category.color,
+          if (category.confidence != null && category.confidence! < 0.85) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              ExpatScoreStrings.format(
+                'confidence_low',
+                locale,
+                params: {
+                  'percent': '${(category.confidence! * 100).round()}',
+                },
+              ),
+              style: AppTypography.caption.copyWith(color: AppColors.warning),
             ),
-          ),
+          ],
+          if (!category.insufficientData) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: category.score / 100,
+                minHeight: 6,
+                backgroundColor: AppColors.background,
+                color: category.color,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           ...category.completed.map(
             (item) => Padding(
@@ -524,7 +675,7 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                   const Icon(Icons.check_circle, size: 16, color: AppColors.success),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: Text(item, style: AppTextStyles.bodyMedium),
+                    child: Text(item, style: AppTypography.body),
                   ),
                 ],
               ),
@@ -540,15 +691,15 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
                     height: 8,
                     margin: const EdgeInsets.only(left: 4, right: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.textMuted,
+                      color: AppColors.textTertiary,
                       shape: BoxShape.circle,
                     ),
                   ),
                   Expanded(
                     child: Text(
                       item,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textMuted,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
                   ),
@@ -561,27 +712,35 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
     );
   }
 
-  Widget _buildRecommendationCard(_AiRecommendation recommendation) {
-    return Container(
+  Widget _buildRecommendationCard(
+    ExpatScoreRecommendation recommendation,
+    String locale,
+  ) {
+    return GlassCard(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      glowColor: AppColors.cyanGlow,
+      glowIntensity: 0.1,
+      borderRadius: AppSpacing.radiusLg,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderPrimary),
-      ),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(recommendation.action, style: AppTextStyles.bodyLarge),
+                Text(recommendation.action, style: AppTypography.subtitle),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '+${recommendation.points} points · ${recommendation.duration}',
-                  style: AppTextStyles.bodySmall.copyWith(
+                  ExpatScoreStrings.format(
+                    'recommendation_meta',
+                    locale,
+                    params: {
+                      'points': '${recommendation.points}',
+                      'duration': recommendation.duration,
+                    },
+                  ),
+                  style: AppTypography.bodySmall.copyWith(
                     color: AppColors.success,
                   ),
                 ),
@@ -589,19 +748,26 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
             ),
           ),
           TextButton(
-            onPressed: () => _onDoIt(recommendation),
+            onPressed: () => _onDoIt(recommendation, locale),
             style: TextButton.styleFrom(
-              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.cyanGlow.withValues(alpha: 0.15),
+              foregroundColor: AppColors.cyanGlow,
             ),
-            child: const Text('Do It'),
+            child: Text(ExpatScoreStrings.t('action_do_it', locale)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAchievementsGrid() {
+  Widget _buildAchievementsGrid(List<_Achievement> achievements, String locale) {
+    if (achievements.isEmpty) {
+      return Text(
+        ExpatScoreStrings.t('achievements_empty', locale),
+        style: AppTypography.body.copyWith(color: AppColors.textTertiary),
+      );
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -611,30 +777,30 @@ class _ExpatScoreScreenState extends State<ExpatScoreScreen>
         mainAxisSpacing: AppSpacing.md,
         childAspectRatio: 0.85,
       ),
-      itemCount: _achievements.length,
+      itemCount: achievements.length,
       itemBuilder: (context, index) {
-        final achievement = _achievements[index];
+        final achievement = achievements[index];
         return _AchievementBadge(achievement: achievement);
       },
     );
   }
 
-  Widget _buildGamificationTimeline() {
-    return Container(
+  Widget _buildGamificationTimeline(
+    List<_GamificationLevel> levels,
+    String locale,
+  ) {
+    return GlassCard(
       width: double.infinity,
+      borderRadius: AppSpacing.radiusXl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
-        children: List.generate(_gamificationLevels.length, (index) {
-          final level = _gamificationLevels[index];
-          final isLast = index == _gamificationLevels.length - 1;
+        children: List.generate(levels.length, (index) {
+          final level = levels[index];
+          final isLast = index == levels.length - 1;
           return _TimelineLevelItem(
             level: level,
             isLast: isLast,
+            locale: locale,
           );
         }),
       ),
@@ -672,7 +838,7 @@ class _ScoreArcPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
     final gradientPaint = Paint()
       ..shader = const SweepGradient(
-        colors: [AppColors.primary, AppColors.accent, AppColors.primary],
+        colors: AppColors.scoreGradient,
         startAngle: startAngle,
         endAngle: startAngle + sweepAngle,
       ).createShader(rect)
@@ -707,11 +873,11 @@ class _TrendChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       child: Text(
         label,
-        style: AppTextStyles.bodySmall.copyWith(
+        style: AppTypography.bodySmall.copyWith(
           color: color,
           fontWeight: FontWeight.w600,
         ),
@@ -727,19 +893,11 @@ class _AchievementBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassCard(
+      borderRadius: AppSpacing.radiusLg,
+      glowColor: achievement.earned ? AppColors.amberGlow : null,
+      glowIntensity: achievement.earned ? 0.12 : 0,
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: achievement.earned
-            ? AppColors.surfaceElevated
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: achievement.earned
-              ? AppColors.gold.withValues(alpha: 0.4)
-              : AppColors.border,
-        ),
-      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -753,10 +911,10 @@ class _AchievementBadge extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             achievement.name,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTypography.bodySmall.copyWith(
               color: achievement.earned
                   ? AppColors.textPrimary
-                  : AppColors.textMuted,
+                  : AppColors.textTertiary,
               fontSize: 10,
             ),
             textAlign: TextAlign.center,
@@ -766,7 +924,7 @@ class _AchievementBadge extends StatelessWidget {
           Icon(
             achievement.earned ? Icons.lock_open : Icons.lock,
             size: 12,
-            color: achievement.earned ? AppColors.success : AppColors.textMuted,
+            color: achievement.earned ? AppColors.success : AppColors.textTertiary,
           ),
         ],
       ),
@@ -778,34 +936,36 @@ class _TimelineLevelItem extends StatelessWidget {
   const _TimelineLevelItem({
     required this.level,
     required this.isLast,
+    required this.locale,
   });
 
   final _GamificationLevel level;
   final bool isLast;
+  final String locale;
 
   Color get _dotColor {
     switch (level.status) {
       case _LevelStatus.completed:
         return AppColors.success;
       case _LevelStatus.current:
-        return AppColors.primary;
+        return AppColors.cyanGlow;
       case _LevelStatus.next:
         return AppColors.warning;
       case _LevelStatus.future:
-        return AppColors.textMuted;
+        return AppColors.textTertiary;
     }
   }
 
   String get _statusLabel {
     switch (level.status) {
       case _LevelStatus.completed:
-        return 'completed';
+        return ExpatScoreStrings.t('status_completed', locale);
       case _LevelStatus.current:
-        return 'CURRENT';
+        return ExpatScoreStrings.t('status_current', locale);
       case _LevelStatus.next:
-        return 'next';
+        return ExpatScoreStrings.t('status_next', locale);
       case _LevelStatus.future:
-        return 'future';
+        return ExpatScoreStrings.t('status_future', locale);
     }
   }
 
@@ -826,7 +986,7 @@ class _TimelineLevelItem extends StatelessWidget {
                   boxShadow: level.status == _LevelStatus.current
                       ? [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.5),
+                            color: AppColors.cyanGlow.withValues(alpha: 0.5),
                             blurRadius: 8,
                             spreadRadius: 2,
                           ),
@@ -860,10 +1020,10 @@ class _TimelineLevelItem extends StatelessWidget {
                       children: [
                         Text(
                           '${level.name} (${level.range})',
-                          style: AppTextStyles.bodyLarge.copyWith(
+                          style: AppTypography.subtitle.copyWith(
                             fontSize: 14,
                             color: level.status == _LevelStatus.future
-                                ? AppColors.textMuted
+                                ? AppColors.textTertiary
                                 : AppColors.textPrimary,
                             fontWeight: level.status == _LevelStatus.current
                                 ? FontWeight.w800
@@ -872,7 +1032,7 @@ class _TimelineLevelItem extends StatelessWidget {
                         ),
                         Text(
                           _statusLabel,
-                          style: AppTextStyles.bodySmall.copyWith(
+                          style: AppTypography.bodySmall.copyWith(
                             color: _dotColor,
                             fontWeight: FontWeight.w600,
                           ),
@@ -891,36 +1051,6 @@ class _TimelineLevelItem extends StatelessWidget {
 }
 
 enum _LevelStatus { completed, current, next, future }
-
-class _CategoryScore {
-  const _CategoryScore({
-    required this.emoji,
-    required this.title,
-    required this.score,
-    required this.color,
-    required this.completed,
-    required this.pending,
-  });
-
-  final String emoji;
-  final String title;
-  final int score;
-  final Color color;
-  final List<String> completed;
-  final List<String> pending;
-}
-
-class _AiRecommendation {
-  const _AiRecommendation({
-    required this.action,
-    required this.points,
-    required this.duration,
-  });
-
-  final String action;
-  final int points;
-  final String duration;
-}
 
 class _Achievement {
   const _Achievement({

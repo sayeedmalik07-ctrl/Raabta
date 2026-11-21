@@ -11,7 +11,11 @@ class ThemeToggleButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
+    final themeMode = ref.watch(themeProvider);
+    final isDark = resolveIsDark(
+      themeMode,
+      MediaQuery.platformBrightnessOf(context),
+    );
 
     if (compact) return _buildIconOnly(context, ref, isDark);
     return _buildPill(context, ref, isDark);

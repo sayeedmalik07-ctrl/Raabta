@@ -4,6 +4,7 @@ import 'package:raabta/core/design/app_radius.dart';
 import 'package:raabta/core/design/app_spacing.dart';
 import 'package:raabta/core/design/app_text_styles.dart';
 import 'package:raabta/models/housing_models.dart';
+import 'package:raabta/screens/housing/l10n/housing_strings.dart';
 
 /// Human-readable labels for scam flag IDs returned by the API.
 const Map<String, String> scamFlagLabels = {
@@ -24,11 +25,13 @@ class ScamSafetyBadge extends StatelessWidget {
   const ScamSafetyBadge({
     super.key,
     required this.listing,
+    this.locale = 'English',
     this.compact = false,
     this.showFlags = false,
   });
 
   final HousingListing listing;
+  final String locale;
   final bool compact;
   final bool showFlags;
 
@@ -51,9 +54,21 @@ class ScamSafetyBadge extends StatelessWidget {
     }
 
     final (label, color, icon) = switch (_verdict) {
-      ScamVerdict.safe => ('✓ Verified Safe', AppColors.success, '✓'),
-      ScamVerdict.suspicious => ('⚠ Review Carefully', AppColors.warning, '⚠'),
-      ScamVerdict.likelyScam => ('🚫 Possible Scam', AppColors.error, '🚫'),
+      ScamVerdict.safe => (
+          HousingStrings.scamVerdictLabel(ScamVerdict.safe, locale),
+          AppColors.success,
+          '✓',
+        ),
+      ScamVerdict.suspicious => (
+          HousingStrings.scamVerdictLabel(ScamVerdict.suspicious, locale),
+          AppColors.warning,
+          '⚠',
+        ),
+      ScamVerdict.likelyScam => (
+          HousingStrings.scamVerdictLabel(ScamVerdict.likelyScam, locale),
+          AppColors.error,
+          '🚫',
+        ),
     };
 
     return Column(

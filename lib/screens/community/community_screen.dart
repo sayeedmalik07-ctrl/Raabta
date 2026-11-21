@@ -1,533 +1,693 @@
 import 'package:flutter/material.dart';
-import 'package:raabta/core/design/app_colors.dart';
-import 'package:raabta/core/design/app_radius.dart';
-import 'package:raabta/core/design/app_spacing.dart';
-import 'package:raabta/core/design/app_text_styles.dart';
-import 'package:raabta/core/widgets/section_header.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:raabta/features/civic_report/presentation/screens/civic_report_screen.dart';
+import 'package:raabta/core/background/animated_aurora_background.dart';
+import 'package:raabta/core/colors/app_colors.dart';
+import 'package:raabta/core/glass/glass_card.dart';
+import 'package:raabta/core/widgets/hub/hub_premium_surface.dart';
+import 'package:raabta/core/spacing/app_spacing.dart';
+import 'package:raabta/core/typography/app_typography.dart';
+import 'package:raabta/core/widgets/glass_empty_state.dart';
+import 'package:raabta/core/widgets/hub/community_hub_accent.dart';
+import 'package:raabta/core/widgets/hub/community_hub_icons.dart';
+import 'package:raabta/core/widgets/hub/hub_content_trust_tier_badge.dart';
+import 'package:raabta/core/widgets/hub/hub_feed_footer_notice.dart';
+import 'package:raabta/core/widgets/hub/hub_filter_chip.dart';
+import 'package:raabta/core/widgets/hub/hub_advanced_filter_toggle.dart';
+import 'package:raabta/core/widgets/hub/hub_landing_header.dart';
+import 'package:raabta/core/widgets/hub/hub_layout_tokens.dart';
+import 'package:raabta/core/widgets/hub/hub_loading_placeholder.dart';
+import 'package:raabta/core/widgets/hub/hub_post_card.dart';
+import 'package:raabta/core/navigation/shell_chrome_scope.dart';
+import 'package:raabta/core/widgets/hub/hub_search_decoration.dart';
+import 'package:raabta/features/community/data/community_group_registry.dart';
+import 'package:raabta/features/community/models/community_models.dart';
+import 'package:raabta/features/community/models/community_nationality_suggestion.dart';
+import 'package:raabta/features/community/presentation/l10n/community_strings.dart';
+import 'package:raabta/features/community/providers/community_providers.dart';
+import 'package:raabta/features/community/services/community_pulse_service.dart';
+import 'package:raabta/features/buddy/presentation/widgets/buddy_find_entry_card.dart';
+import 'package:raabta/features/buddy/providers/buddy_providers.dart';
+import 'package:raabta/features/community/widgets/community_nationality_suggestion_card.dart';
+import 'package:raabta/features/community/widgets/community_pulse_strip.dart';
+import 'package:raabta/features/community/widgets/community_widgets.dart';
+import 'package:raabta/features/community/widgets/community_why_seeing_affordance.dart';
+import 'package:raabta/features/community/utils/community_visibility_reasons.dart';
+import 'package:raabta/features/home/widgets/home_icon_badge.dart';
+import 'package:raabta/features/home/widgets/status_badge.dart';
+import 'package:raabta/screens/community/widgets/community_section_primitives.dart';
+import 'package:raabta/providers/visa_providers.dart';
 import 'package:raabta/screens/community/ask_qatar_screen.dart';
 import 'package:raabta/screens/community/events_screen.dart';
 import 'package:raabta/screens/community/group_screen.dart';
 import 'package:raabta/screens/community/lost_found_screen.dart';
 import 'package:raabta/screens/community/news_screen.dart';
 
-class CommunityScreen extends StatefulWidget {
+class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
 
   @override
-  State<CommunityScreen> createState() => _CommunityScreenState();
+  ConsumerState<CommunityScreen> createState() => _CommunityScreenState();
 }
 
-class _CommunityScreenState extends State<CommunityScreen>
+class _CommunityScreenState extends ConsumerState<CommunityScreen>
     with SingleTickerProviderStateMixin {
+  static const _sectionCount = 6;
+
   late final TabController _tabController;
-
-  final Set<int> _joinedGroupIds = {0, 1};
-  final Map<int, int> _unreadCounts = {0: 3, 1: 7, 6: 2};
-  final Map<int, int> _newPostsCounts = {0: 23, 1: 12, 6: 5};
-
-  static const List<_CommunityGroup> _allGroups = [
-    _CommunityGroup(
-      id: 0,
-      emoji: '🇮🇳',
-      name: 'Indians in Qatar',
-      members: 45230,
-      lastActivity: 'Active 2 min ago',
-      recentPostPreview: 'Best school in Al Khor?',
-      recentAvatars: ['RM', 'AK', 'SP'],
-    ),
-    _CommunityGroup(
-      id: 1,
-      emoji: '🇵🇰',
-      name: 'Pakistanis in Qatar',
-      members: 32100,
-      lastActivity: 'Active 5 min ago',
-      recentPostPreview: 'Iqama renewal fee update 📋',
-      recentAvatars: ['AK', 'HK', 'MN'],
-    ),
-    _CommunityGroup(
-      id: 2,
-      emoji: '🇧🇩',
-      name: 'Bangladeshis in Qatar',
-      members: 18500,
-      lastActivity: 'Active 15 min ago',
-      recentPostPreview: 'Room available in Al Khor',
-      recentAvatars: ['AR', 'BK', 'CD'],
-    ),
-    _CommunityGroup(
-      id: 3,
-      emoji: '🇳🇵',
-      name: 'Nepalis in Qatar',
-      members: 12300,
-      lastActivity: 'Active 1 hour ago',
-      recentPostPreview: 'Weekend trekking group?',
-      recentAvatars: ['NP', 'RS', 'TK'],
-    ),
-    _CommunityGroup(
-      id: 4,
-      emoji: '🇵🇭',
-      name: 'Filipinos in Qatar',
-      members: 28900,
-      lastActivity: 'Active 20 min ago',
-      recentPostPreview: 'Filipino grocery store in Lusail',
-      recentAvatars: ['FP', 'MG', 'LN'],
-    ),
-    _CommunityGroup(
-      id: 5,
-      emoji: '🇰🇪',
-      name: 'Kenyans in Qatar',
-      members: 5600,
-      lastActivity: 'Active 3 hours ago',
-      recentPostPreview: 'Kenya independence day meetup',
-      recentAvatars: ['KN', 'JO', 'PW'],
-    ),
-    _CommunityGroup(
-      id: 6,
-      emoji: '⛑️',
-      name: 'HSE Professionals Qatar',
-      members: 8900,
-      lastActivity: 'Active 30 min ago',
-      recentPostPreview: 'NEBOSH course in Doha?',
-      recentAvatars: ['HS', 'QE', 'SM'],
-      isProfessional: true,
-    ),
-    _CommunityGroup(
-      id: 7,
-      emoji: '💼',
-      name: 'Qatar Jobs Board',
-      members: 67200,
-      lastActivity: 'Active 1 min ago',
-      recentPostPreview: 'HSE Officer jobs in Ras Laffan',
-      recentAvatars: ['JB', 'HR', 'CV'],
-    ),
-    _CommunityGroup(
-      id: 8,
-      emoji: '👨‍👩‍👧',
-      name: 'Family Life Qatar',
-      members: 22100,
-      lastActivity: 'Active 45 min ago',
-      recentPostPreview: 'Best pediatrician in Al Khor?',
-      recentAvatars: ['FL', 'MK', 'PR'],
-    ),
-    _CommunityGroup(
-      id: 9,
-      emoji: '⛑️',
-      name: 'Safety Professionals Qatar',
-      members: 6200,
-      lastActivity: 'Active 10 min ago',
-      recentPostPreview: 'ISO 45001 audit tips',
-      recentAvatars: ['SF', 'QA', 'HS'],
-      isProfessional: true,
-    ),
-    _CommunityGroup(
-      id: 10,
-      emoji: '👷',
-      name: 'Engineers Qatar',
-      members: 11400,
-      lastActivity: 'Active 8 min ago',
-      recentPostPreview: 'PE license recognition in Qatar',
-      recentAvatars: ['EN', 'CE', 'ME'],
-      isProfessional: true,
-    ),
-    _CommunityGroup(
-      id: 11,
-      emoji: '🚗',
-      name: 'Drivers Community Qatar',
-      members: 9800,
-      lastActivity: 'Active 25 min ago',
-      recentPostPreview: 'Light vehicle license transfer',
-      recentAvatars: ['DR', 'TX', 'LV'],
-      isProfessional: true,
-    ),
-    _CommunityGroup(
-      id: 12,
-      emoji: '👩‍⚕️',
-      name: 'Nurses in Qatar',
-      members: 7600,
-      lastActivity: 'Active 18 min ago',
-      recentPostPreview: 'QCHP exam preparation group',
-      recentAvatars: ['NR', 'RN', 'MD'],
-      isProfessional: true,
-    ),
-    _CommunityGroup(
-      id: 13,
-      emoji: '👨‍🏫',
-      name: 'Teachers in Qatar',
-      members: 5400,
-      lastActivity: 'Active 40 min ago',
-      recentPostPreview: 'CBSE vs ICSE schools comparison',
-      recentAvatars: ['TC', 'ED', 'PR'],
-      isProfessional: true,
-    ),
-  ];
-
-  static const List<_TrendingPost> _trendingPosts = [
-    _TrendingPost(
-      groupName: 'Indians in Qatar',
-      title: 'Best CBSE school in Al Khor?',
-      reactions: 142,
-      isHot: true,
-    ),
-    _TrendingPost(
-      groupName: 'HSE Professionals Qatar',
-      title: 'NEBOSH vs IOSH — which is better in Qatar?',
-      reactions: 89,
-      isHot: true,
-    ),
-    _TrendingPost(
-      groupName: 'Qatar Jobs Board',
-      title: 'HSE jobs surge in Ras Laffan this week',
-      reactions: 256,
-      isHot: false,
-    ),
-  ];
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: _sectionCount, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  List<_CommunityGroup> get _yourGroups =>
-      _allGroups.where((g) => _joinedGroupIds.contains(g.id)).toList();
+  Set<int> get _joinedGroupIds =>
+      ref.watch(communityMembershipProvider).value ?? {0, 1};
 
-  List<_CommunityGroup> get _professionalGroups =>
-      _allGroups.where((g) => g.isProfessional).toList();
-
-  int get _totalUnread =>
-      _unreadCounts.values.fold(0, (sum, count) => sum + count);
-
-  void _toggleJoin(int groupId) {
-    setState(() {
-      if (_joinedGroupIds.contains(groupId)) {
-        _joinedGroupIds.remove(groupId);
-        _unreadCounts.remove(groupId);
-        _newPostsCounts.remove(groupId);
-      } else {
-        _joinedGroupIds.add(groupId);
-      }
-    });
+  List<CommunityGroupDefinition> get _filteredGroups {
+    if (_searchQuery.isEmpty) return CommunityGroupRegistry.all;
+    return CommunityGroupRegistry.all
+        .where((g) => g.name.toLowerCase().contains(_searchQuery))
+        .toList();
   }
 
-  void _openGroup(_CommunityGroup group) {
+  List<CommunityGroupDefinition> get _yourGroups =>
+      _filteredGroups.where((g) => _joinedGroupIds.contains(g.intId)).toList();
+
+  List<CommunityGroupDefinition> get _professionalGroups =>
+      _filteredGroups.where((g) => g.isProfessional).toList();
+
+  void _toggleJoin(int groupId) {
+    ref.read(communityMembershipProvider.notifier).toggle(groupId);
+  }
+
+  void _openGroup(CommunityGroupDefinition group) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GroupScreen(
+          groupId: group.intId,
           emoji: group.emoji,
           name: group.name,
           memberCount: group.members,
-          isJoined: _joinedGroupIds.contains(group.id),
-          onJoinToggle: () => _toggleJoin(group.id),
+          isJoined: _joinedGroupIds.contains(group.intId),
+          onJoinToggle: () => _toggleJoin(group.intId),
         ),
+      ),
+    );
+  }
+
+  Map<String, GroupPost> _latestPostByGroup(List<GroupPost> posts) {
+    final map = <String, GroupPost>{};
+    for (final post in posts) {
+      map.putIfAbsent(post.groupId, () => post);
+    }
+    return map;
+  }
+
+  int _recentPostCount(String groupId, List<GroupPost> posts) {
+    final cutoff = DateTime.now().subtract(const Duration(hours: 24));
+    return posts
+        .where(
+          (p) => p.groupId == groupId && (p.createdAt?.isAfter(cutoff) ?? false),
+        )
+        .length;
+  }
+
+  List<GroupPost> _filterPosts(List<GroupPost> posts) {
+    if (_searchQuery.isEmpty) return posts;
+    return posts.where((post) {
+      final text = post.text.toLowerCase();
+      final groupName =
+          CommunityGroupRegistry.byId(post.groupId)?.name.toLowerCase() ?? '';
+      return text.contains(_searchQuery) || groupName.contains(_searchQuery);
+    }).toList();
+  }
+
+  Future<void> _refreshCommunityData() async {
+    ref.invalidate(communityMembershipProvider);
+    ref.invalidate(recentGroupPostsProvider);
+    ref.invalidate(trendingGroupPostsProvider);
+    ref.invalidate(communityPulseProvider);
+    ref.invalidate(communityNationalitySuggestionProvider);
+    CommunityPulseService.clearClientCache();
+    await Future.wait([
+      ref.read(recentGroupPostsProvider.future),
+      ref.read(trendingGroupPostsProvider.future),
+      ref.read(communityPulseProvider.future),
+    ]);
+  }
+
+  void _openPostEntry() {
+    _tabController.animateTo(1);
+  }
+
+  void _toggleGroupsSearchFocus() {
+    if (_tabController.index == 1) {
+      _tabController.animateTo(0);
+    } else {
+      _tabController.animateTo(1);
+    }
+  }
+
+  static const _landingHorizontalPadding = EdgeInsets.fromLTRB(
+    AppSpacing.xl,
+    AppSpacing.sm,
+    AppSpacing.xl,
+    0,
+  );
+
+  Widget _buildHubSearchRow(String locale) {
+    final groupsFocus = _tabController.index == 1;
+    return Padding(
+      padding: _landingHorizontalPadding,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: HubLayoutTokens.searchMinHeight,
+              ),
+              child: TextField(
+                controller: _searchController,
+                style: AppTypography.subtitle,
+                textInputAction: TextInputAction.search,
+                decoration: hubSearchInputDecoration(
+                  hintText: groupsFocus
+                      ? CommunityStrings.t(
+                          'community_search_groups_hint',
+                          locale,
+                        )
+                      : CommunityStrings.t(
+                          'community_search_hub_hint',
+                          locale,
+                        ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          HubAdvancedFilterToggle(
+            expanded: groupsFocus,
+            onToggle: _toggleGroupsSearchFocus,
+            semanticsLabel: CommunityStrings.t(
+              'community_hub_groups_filter_semantics',
+              locale,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
-              child: Text('👥 Community', style: AppTextStyles.h1),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-              child: _CommunityStatsBar(),
-            ),
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              indicatorColor: AppColors.primary,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: AppColors.textSecondary,
-              dividerColor: AppColors.surfaceElevated,
-              tabs: const [
-                Tab(text: 'Groups'),
-                Tab(text: 'Ask Qatar'),
-                Tab(text: 'News'),
-                Tab(text: 'Events'),
-                Tab(text: 'Lost & Found'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildGroupsTab(),
-                  const AskQatarScreen(embedded: true),
-                  const NewsScreen(embedded: true),
-                  const EventsScreen(embedded: true),
-                  const LostFoundScreen(embedded: true),
-                ],
+    final locale = ref.watch(userLanguageProvider);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return AnimatedAuroraBackground(
+      enableAnimation: !reduceMotion,
+      ignoreSafeArea: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        floatingActionButton: hubPostFabWhenAllowed(
+          context,
+          onPressed: _openPostEntry,
+          tooltip: CommunityStrings.t('community_post_fab_tooltip', locale),
+        ),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HubLandingHeader(
+                title: CommunityStrings.t('community_hub_title', locale),
+                subtitle: CommunityStrings.t('community_hub_subtitle', locale),
+                showBack: false,
+                onBack: () => context.pop(),
               ),
-            ),
-          ],
+              _buildHubSearchRow(locale),
+              const Padding(
+                padding: _landingHorizontalPadding,
+                child: CommunityPulseStrip(),
+              ),
+              Padding(
+                padding: _landingHorizontalPadding,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: buildHubFilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CommunityHubIcons.actionGlyph(
+                          Icons.report_outlined,
+                          color: AppColors.brandFamilyMain,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          CommunityStrings.t(
+                            'community_civic_report_chip',
+                            locale,
+                          ),
+                        ),
+                      ],
+                    ),
+                    selected: false,
+                    onSelected: (_) =>
+                        context.push(CivicReportScreen.route),
+                  ),
+                ),
+              ),
+              _buildSectionTabs(locale),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildFeedTab(locale),
+                    _buildGroupsTab(locale),
+                    const AskQatarScreen(embedded: true),
+                    const NewsScreen(embedded: true),
+                    const EventsScreen(embedded: true),
+                    const LostFoundScreen(embedded: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildGroupsTab() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
-      children: [
-        if (_yourGroups.isNotEmpty) ...[
-          Row(
-            children: [
-              Text('Your Groups', style: AppTextStyles.h2),
-              if (_totalUnread > 0) ...[
-                const SizedBox(width: AppSpacing.sm),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(AppRadius.circle.x),
+  Widget _buildSectionTabs(String locale) {
+    final labels = [
+      CommunityStrings.t('community_tab_feed', locale),
+      CommunityStrings.t('community_tab_groups', locale),
+      CommunityStrings.t('community_tab_ask_qatar', locale),
+      CommunityStrings.t('community_tab_news', locale),
+      CommunityStrings.t('community_tab_events', locale),
+      CommunityStrings.t('community_tab_lost_found', locale),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: SizedBox(
+        height: HubLayoutTokens.filterChipHeight,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          itemCount: labels.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+          itemBuilder: (context, index) {
+            return buildHubFilterChip(
+              label: Text(labels[index]),
+              selected: _tabController.index == index,
+              onSelected: (_) => _tabController.animateTo(index),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedTab(String locale) {
+    final trendingAsync = ref.watch(trendingGroupPostsProvider);
+
+    return RefreshIndicator(
+      color: AppColors.brandFamilyMain,
+      onRefresh: _refreshCommunityData,
+      child: trendingAsync.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: const [
+            HubLoadingPlaceholder(
+              height: 160,
+              width: 400,
+              silhouette: HubLoadingSilhouette.postCard,
+            ),
+          ],
+        ),
+        error: (_, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            GlassEmptyState(
+              accent: GlassEmptyStateAccent.teal,
+              icon: Icons.cloud_off_outlined,
+              title: CommunityStrings.t('community_trending_unavailable', locale),
+              description: CommunityStrings.t(
+                'community_trending_unavailable_hint',
+                locale,
+              ),
+            ),
+          ],
+        ),
+        data: (trending) {
+          final posts = _filterPosts(trending);
+          if (posts.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              children: [
+                GlassEmptyState(
+                  accent: GlassEmptyStateAccent.teal,
+                  icon: Icons.forum_outlined,
+                  title: CommunityStrings.t(
+                    'community_feed_empty_title',
+                    locale,
                   ),
-                  child: Text(
-                    '$_totalUnread',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  description: CommunityStrings.t(
+                    'community_trending_empty_hint',
+                    locale,
                   ),
+                  actionLabel: CommunityStrings.t(
+                    'community_feed_empty_cta',
+                    locale,
+                  ),
+                  onAction: () => _tabController.animateTo(1),
                 ),
+                HubFeedFooterNotice(locale: locale),
               ],
+            );
+          }
+
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.lg,
+              AppSpacing.xl,
+              AppSpacing.xxxl,
+            ),
+            children: [
+              for (final post in posts)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: _buildHubPostCard(context, post, locale),
+                ),
+              HubFeedFooterNotice(locale: locale),
             ],
-          ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHubPostCard(
+    BuildContext context,
+    GroupPost post,
+    String locale,
+  ) {
+    final group = CommunityGroupRegistry.byId(post.groupId);
+    final groupName = group?.name ??
+        CommunityStrings.t('community_fallback_group', locale);
+    final contextLine =
+        '$groupName · ${communityRelativeTime(post.createdAt, locale)}';
+    final visibility = CommunityVisibilityInput(
+      relevantGroupIds: post.relevantGroupIds,
+      likeCount: post.likes,
+      commentCount: post.commentCount,
+    );
+    final trustLabel =
+        CommunityStrings.t('community_trust_tier_community', locale);
+    final metaLine = CommunityStrings.format(
+      'community_post_meta_reactions',
+      locale,
+      params: {
+        'comments': '${post.commentCount}',
+        'likes': '${post.likes}',
+      },
+    );
+    final whyLabel = CommunityStrings.t('community_why_seeing_link', locale);
+
+    return HubPostCard(
+      authorName: post.authorDisplayName,
+      authorInitial: post.authorInitials,
+      sectionContextLine: contextLine,
+      trustTierBadge: (label: trustLabel, tier: HubContentTrustTier.community),
+      body: post.text,
+      metaLine: metaLine,
+      whySeeingLabel: whyLabel,
+      onWhySeeingTap: () =>
+          CommunityWhySeeingAffordance.showForInput(context, ref, visibility),
+      onTap: group != null ? () => _openGroup(group) : null,
+    );
+  }
+
+  Widget _buildGroupsTab(String locale) {
+    final recentAsync = ref.watch(recentGroupPostsProvider);
+    final natSuggestionAsync = ref.watch(communityNationalitySuggestionProvider);
+
+    return RefreshIndicator(
+      color: AppColors.brandFamilyMain,
+      onRefresh: _refreshCommunityData,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.lg,
+          AppSpacing.xl,
+          AppSpacing.xxxl,
+        ),
+        children: [
+          _BuddyFindEntrySection(locale: locale),
           const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            height: 160,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _yourGroups.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) {
-                final group = _yourGroups[index];
-                return _YourGroupCard(
-                  group: group,
-                  newPosts: _newPostsCounts[group.id] ?? 0,
-                  hasUnread: (_unreadCounts[group.id] ?? 0) > 0,
-                  onTap: () => _openGroup(group),
+          natSuggestionAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (view) => CommunityNationalitySuggestionCard(
+              view: view,
+              locale: locale,
+              onJoinGroup: () {
+                final group = view.group;
+                if (group == null) return;
+                if (!_joinedGroupIds.contains(group.intId)) {
+                  _toggleJoin(group.intId);
+                }
+                _openGroup(group);
+              },
+              onAskQatar: () => _tabController.animateTo(2),
+              onDismiss: () =>
+                  ref.invalidate(communityNationalitySuggestionProvider),
+            ),
+          ),
+          if (natSuggestionAsync.valueOrNull?.kind !=
+              CommunityNationalitySuggestionKind.hidden)
+            const SizedBox(height: AppSpacing.md),
+          if (_yourGroups.isNotEmpty) ...[
+            CommunitySectionPrimitives.sectionHeader(
+              overline:
+                  CommunityStrings.t('community_section_joined_overline', locale),
+              title:
+                  CommunityStrings.t('community_section_your_groups', locale),
+              leadingIcon: Icons.groups_outlined,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            recentAsync.when(
+              loading: () => const SizedBox(
+                height: 168,
+                child: HubLoadingPlaceholder(
+                  height: 168,
+                  width: 200,
+                  silhouette: HubLoadingSilhouette.postCard,
+                ),
+              ),
+              error: (_, _) => const SizedBox.shrink(),
+              data: (recent) {
+                return SizedBox(
+                  height: 168,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _yourGroups.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: AppSpacing.md),
+                    itemBuilder: (context, index) {
+                      final group = _yourGroups[index];
+                      final newPosts = _recentPostCount(group.id, recent);
+                      return _YourGroupHubCard(
+                        group: group,
+                        newPosts: newPosts,
+                        latestPreview:
+                            _latestPostByGroup(recent)[group.id]?.text,
+                        onTap: () => _openGroup(group),
+                        locale: locale,
+                      );
+                    },
+                  ),
                 );
               },
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
-        SectionHeader(
-          title: 'All Communities',
-          seeAllLabel: 'Explore →',
-          onSeeAll: () {},
-        ),
-        const SizedBox(height: AppSpacing.md),
-        ..._allGroups.map(
-          (group) => _GroupCard(
-            group: group,
-            isJoined: _joinedGroupIds.contains(group.id),
-            unreadCount: _unreadCounts[group.id] ?? 0,
-            onJoinToggle: () => _toggleJoin(group.id),
-            onTap: () => _openGroup(group),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xxl),
-        Text('💼 Professional Communities', style: AppTextStyles.h2),
-        const SizedBox(height: AppSpacing.md),
-        ..._professionalGroups.map(
-          (group) => _GroupCard(
-            group: group,
-            isJoined: _joinedGroupIds.contains(group.id),
-            unreadCount: _unreadCounts[group.id] ?? 0,
-            onJoinToggle: () => _toggleJoin(group.id),
-            onTap: () => _openGroup(group),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xxl),
-        Text('🔥 Trending Discussions', style: AppTextStyles.h2),
-        const SizedBox(height: AppSpacing.md),
-        ..._trendingPosts.map(
-          (post) => _TrendingPostCard(post: post),
-        ),
-      ],
-    );
-  }
-}
-
-class _CommunityStatsBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.surfaceElevated, AppColors.surface],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-        border: Border.all(color: AppColors.borderPrimary),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '🌍 Qatar\'s Largest Expat Community',
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary),
+            const SizedBox(height: AppSpacing.xxl),
+          ],
+          CommunitySectionPrimitives.sectionHeader(
+            overline:
+                CommunityStrings.t('community_section_discover_overline', locale),
+            title:
+                CommunityStrings.t('community_section_all_communities', locale),
+            subtitle: CommunityStrings.format(
+              'community_groups_count',
+              locale,
+              params: {'count': '${_filteredGroups.length}'},
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(child: _Stat(value: '45,230', label: 'Members')),
-              Container(width: 1, height: 28, color: AppColors.border),
-              Expanded(child: _Stat(value: '234', label: 'Online Now')),
-              Container(width: 1, height: 28, color: AppColors.border),
-              Expanded(child: _Stat(value: '12', label: 'Active Groups')),
-            ],
+          if (_filteredGroups.isEmpty)
+            GlassEmptyState(
+              accent: GlassEmptyStateAccent.teal,
+              icon: Icons.search_off,
+              title: CommunityStrings.t('community_empty_no_groups', locale),
+              description: CommunityStrings.t(
+                'community_empty_no_groups_hint',
+                locale,
+              ),
+            )
+          else
+            recentAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(AppSpacing.xl),
+                child: HubLoadingPlaceholder(
+                  height: 120,
+                  width: 360,
+                  silhouette: HubLoadingSilhouette.postCard,
+                ),
+              ),
+              error: (e, _) => GlassEmptyState(
+                accent: GlassEmptyStateAccent.teal,
+                icon: Icons.cloud_off_outlined,
+                title: CommunityStrings.t('community_err_load_groups', locale),
+                description: CommunityStrings.t(
+                  'community_err_load_groups_hint',
+                  locale,
+                ),
+              ),
+              data: (recent) {
+                final latest = _latestPostByGroup(recent);
+                return Column(
+                  children: _filteredGroups
+                      .map(
+                        (group) => _GroupHubCard(
+                          group: group,
+                          isJoined: _joinedGroupIds.contains(group.intId),
+                          latestPreview: latest[group.id]?.text,
+                          lastActivity: communityRelativeTime(
+                            latest[group.id]?.createdAt,
+                            locale,
+                          ),
+                          onJoinToggle: () => _toggleJoin(group.intId),
+                          onTap: () => _openGroup(group),
+                          locale: locale,
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
+          const SizedBox(height: AppSpacing.xxl),
+          CommunitySectionPrimitives.sectionHeader(
+            overline:
+                CommunityStrings.t('community_section_career_overline', locale),
+            title:
+                CommunityStrings.t('community_section_professional', locale),
+            leadingIcon: Icons.work_outline_rounded,
+            leadingVariant: HomeIconBadgeVariant.exploreBrand,
           ),
+          const SizedBox(height: AppSpacing.md),
+          ..._professionalGroups.map(
+            (group) => _GroupHubCard(
+              group: group,
+              isJoined: _joinedGroupIds.contains(group.intId),
+              onJoinToggle: () => _toggleJoin(group.intId),
+              onTap: () => _openGroup(group),
+              locale: locale,
+            ),
+          ),
+          HubFeedFooterNotice(locale: locale),
         ],
       ),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w800, fontSize: 14),
-        ),
-        Text(label, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
-      ],
-    );
-  }
-}
-
-class _CommunityGroup {
-  const _CommunityGroup({
-    required this.id,
-    required this.emoji,
-    required this.name,
-    required this.members,
-    required this.lastActivity,
-    required this.recentPostPreview,
-    required this.recentAvatars,
-    this.isProfessional = false,
-  });
-
-  final int id;
-  final String emoji;
-  final String name;
-  final int members;
-  final String lastActivity;
-  final String recentPostPreview;
-  final List<String> recentAvatars;
-  final bool isProfessional;
-}
-
-class _TrendingPost {
-  const _TrendingPost({
-    required this.groupName,
-    required this.title,
-    required this.reactions,
-    required this.isHot,
-  });
-
-  final String groupName;
-  final String title;
-  final int reactions;
-  final bool isHot;
-}
-
-class _YourGroupCard extends StatelessWidget {
-  const _YourGroupCard({
+class _YourGroupHubCard extends StatelessWidget {
+  const _YourGroupHubCard({
     required this.group,
     required this.newPosts,
-    required this.hasUnread,
     required this.onTap,
+    required this.locale,
+    this.latestPreview,
   });
 
-  final _CommunityGroup group;
+  final CommunityGroupDefinition group;
   final int newPosts;
-  final bool hasUnread;
   final VoidCallback onTap;
+  final String locale;
+  final String? latestPreview;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surfaceElevated, AppColors.surface],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: AppColors.border),
-        ),
+    final glowIntensity = newPosts > 0
+        ? HubPremiumSurface.brandGlowIntensity
+        : HubPremiumSurface.brandGlowIntensity * 0.5;
+
+    return SizedBox(
+      width: 200,
+      height: 168,
+      child: GlassCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        borderRadius: HubPremiumSurface.summaryCardRadius,
+        backgroundColor: HubPremiumSurface.brandFamilyTint(),
+        glowColor: communityHubAccent,
+        glowIntensity: glowIntensity,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(group.emoji, style: const TextStyle(fontSize: 40)),
-                const Spacer(),
-                if (hasUnread)
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
-            ),
+            Text(group.emoji, style: const TextStyle(fontSize: 36)),
             const Spacer(),
             Text(
               group.name,
-              style: AppTextStyles.h3.copyWith(fontSize: 14),
+              style: AppTypography.title.copyWith(fontSize: 14),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            if (latestPreview != null) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                latestPreview!,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             if (newPosts > 0) ...[
               const SizedBox(height: AppSpacing.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+              StatusBadge(
+                label: CommunityStrings.format(
+                  'community_new_posts',
+                  locale,
+                  params: {'count': '$newPosts'},
                 ),
-                child: Text(
-                  '$newPosts new posts',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                  ),
-                ),
+                color: AppColors.error,
               ),
             ],
           ],
@@ -537,20 +697,24 @@ class _YourGroupCard extends StatelessWidget {
   }
 }
 
-class _GroupCard extends StatelessWidget {
-  const _GroupCard({
+class _GroupHubCard extends StatelessWidget {
+  const _GroupHubCard({
     required this.group,
     required this.isJoined,
-    required this.unreadCount,
     required this.onJoinToggle,
     required this.onTap,
+    required this.locale,
+    this.latestPreview,
+    this.lastActivity,
   });
 
-  final _CommunityGroup group;
+  final CommunityGroupDefinition group;
   final bool isJoined;
-  final int unreadCount;
   final VoidCallback onJoinToggle;
   final VoidCallback onTap;
+  final String locale;
+  final String? latestPreview;
+  final String? lastActivity;
 
   static String _formatMembers(int count) {
     return count.toString().replaceAllMapped(
@@ -561,184 +725,66 @@ class _GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.md),
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
+    final members = CommunityStrings.format(
+      'community_members_count',
+      locale,
+      params: {'count': _formatMembers(group.members)},
+    );
+    final sectionParts = <String>[members];
+    if (lastActivity != null && lastActivity!.isNotEmpty) {
+      sectionParts.add(lastActivity!);
+    }
+    final trustLabel =
+        CommunityStrings.t('community_trust_tier_community', locale);
+    final joinLabel = isJoined
+        ? CommunityStrings.t('community_joined', locale)
+        : CommunityStrings.t('community_join', locale);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: HubPostCard(
+        onTap: onTap,
+        authorName: group.name,
+        authorInitial: group.emoji,
+        sectionContextLine: sectionParts.join(' · '),
+        trustTierBadge: (
+          label: trustLabel,
+          tier: HubContentTrustTier.community,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.primaryGradient,
-                  ),
-                  child: Text(group.emoji, style: const TextStyle(fontSize: 22)),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.name,
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        '${_formatMembers(group.members)} members',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                      Text(group.lastActivity, style: AppTextStyles.bodySmall),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (isJoined && unreadCount > 0)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          borderRadius: BorderRadius.circular(AppRadius.circle.x),
-                        ),
-                        child: Text(
-                          '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    SizedBox(
-                      height: 32,
-                      child: OutlinedButton(
-                        onPressed: onJoinToggle,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isJoined ? AppColors.textMuted : AppColors.primary,
-                          side: BorderSide(
-                            color: isJoined ? AppColors.textMuted : AppColors.primary,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                        ),
-                        child: Text(
-                          isJoined ? '✓ Joined' : 'Join',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                ...group.recentAvatars.take(3).map(
-                  (initials) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: CircleAvatar(
-                      radius: 12,
-                      backgroundColor: AppColors.surfaceElevated,
-                      child: Text(
-                        initials,
-                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    group.recentPostPreview,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        body: latestPreview ?? '',
+        maxBodyLines: latestPreview != null ? 2 : 1,
+        overflow: buildHubChoiceChip(
+          label: Text(
+            joinLabel,
+            style: const TextStyle(fontSize: 11),
+          ),
+          selected: isJoined,
+          onSelected: (_) => onJoinToggle(),
         ),
       ),
     );
   }
 }
 
-class _TrendingPostCard extends StatelessWidget {
-  const _TrendingPostCard({required this.post});
+class _BuddyFindEntrySection extends ConsumerWidget {
+  const _BuddyFindEntrySection({required this.locale});
 
-  final _TrendingPost post;
+  final String locale;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          if (post.isHot)
-            Container(
-              margin: const EdgeInsets.only(right: AppSpacing.sm),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                'HOT',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 9,
-                ),
-              ),
-            ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(post.groupName, style: AppTextStyles.bodySmall),
-                Text(
-                  post.title,
-                  style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '❤️ ${post.reactions}',
-            style: AppTextStyles.bodySmall,
-          ),
-        ],
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dismissedAsync = ref.watch(buddyEntryCardDismissedProvider);
+    return dismissedAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (dismissed) {
+        if (dismissed) return const SizedBox.shrink();
+        return BuddyFindEntryCard(
+          locale: locale,
+          onDismissed: () =>
+              ref.invalidate(buddyEntryCardDismissedProvider),
+        );
+      },
     );
   }
 }

@@ -1,3 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:raabta/config/app_config.dart';
+import 'package:raabta/features/post_engine/data/post_schema_persistence.dart';
+
 enum ListingType { room, flat, sharing, studio, all }
 
 enum GenderPreference { maleOnly, femaleOnly, family, any }
@@ -102,6 +106,11 @@ class HousingListing {
     required this.longitude,
     required this.createdAt,
     this.shareUrl,
+    this.zone,
+    this.streetNumber,
+    this.buildingNumber,
+    this.schemaFields = const {},
+    this.ownerUserId,
   });
 
   final String id;
@@ -137,6 +146,17 @@ class HousingListing {
   final double longitude;
   final DateTime createdAt;
   final String? shareUrl;
+  final String? zone;
+  final String? streetNumber;
+  final String? buildingNumber;
+  final Map<String, dynamic> schemaFields;
+  final String? ownerUserId;
+
+  bool get hasExtendedAttributes =>
+      (zone?.trim().isNotEmpty ?? false) ||
+      (streetNumber?.trim().isNotEmpty ?? false) ||
+      (buildingNumber?.trim().isNotEmpty ?? false) ||
+      schemaFields.isNotEmpty;
 
   String get typeLabel {
     switch (type) {
@@ -172,7 +192,7 @@ class HousingListing {
   }
 
   String get shareLink =>
-      shareUrl ?? 'https://raabta.app/listings/$id';
+      shareUrl ?? '${AppConfig.publicWebsiteUrl}/listings/$id';
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -208,6 +228,14 @@ class HousingListing {
         'longitude': longitude,
         'createdAt': createdAt.toIso8601String(),
         'shareUrl': shareUrl,
+        if (zone != null && zone!.isNotEmpty) 'zone': zone,
+        if (streetNumber != null && streetNumber!.isNotEmpty)
+          'street_number': streetNumber,
+        if (buildingNumber != null && buildingNumber!.isNotEmpty)
+          'building_number': buildingNumber,
+        if (schemaFields.isNotEmpty) 'schemaFields': schemaFields,
+        if (ownerUserId != null && ownerUserId!.isNotEmpty)
+          'ownerUserId': ownerUserId,
       };
 
   factory HousingListing.fromJson(Map<String, dynamic> json) {
@@ -255,9 +283,17 @@ class HousingListing {
       featured: json['featured'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble() ?? 25.2854,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 51.5310,
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+      createdAt: json['createdAt'] is Timestamp
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+              DateTime.now(),
       shareUrl: json['shareUrl'] as String?,
+      zone: json['zone'] as String?,
+      streetNumber: json['street_number'] as String?,
+      buildingNumber: json['building_number'] as String?,
+      schemaFields:
+          PostSchemaPersistence.parseSchemaFieldsForRead(json['schemaFields']),
+      ownerUserId: json['ownerUserId'] as String?,
     );
   }
 
@@ -279,6 +315,7 @@ class HousingFilters {
     this.type = ListingType.all,
     this.minPrice = 500,
     this.maxPrice = 5000,
+    this.minBedrooms,
     this.gender = GenderPreference.any,
     this.nationality = NationalityPreference.any,
   });
@@ -288,6 +325,7 @@ class HousingFilters {
   final ListingType type;
   final double minPrice;
   final double maxPrice;
+  final int? minBedrooms;
   final GenderPreference gender;
   final NationalityPreference nationality;
 
@@ -298,6 +336,8 @@ class HousingFilters {
     ListingType? type,
     double? minPrice,
     double? maxPrice,
+    int? minBedrooms,
+    bool clearMinBedrooms = false,
     GenderPreference? gender,
     NationalityPreference? nationality,
   }) {
@@ -307,6 +347,7 @@ class HousingFilters {
       type: type ?? this.type,
       minPrice: minPrice ?? this.minPrice,
       maxPrice: maxPrice ?? this.maxPrice,
+      minBedrooms: clearMinBedrooms ? null : (minBedrooms ?? this.minBedrooms),
       gender: gender ?? this.gender,
       nationality: nationality ?? this.nationality,
     );
@@ -332,6 +373,10 @@ class CreateListingRequest {
     required this.contactName,
     required this.featured,
     required this.isPremiumUser,
+    this.zone,
+    this.streetNumber,
+    this.buildingNumber,
+    this.schemaFields = const {},
   });
 
   final String title;
@@ -351,6 +396,10 @@ class CreateListingRequest {
   final String contactName;
   final bool featured;
   final bool isPremiumUser;
+  final String? zone;
+  final String? streetNumber;
+  final String? buildingNumber;
+  final Map<String, dynamic> schemaFields;
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -370,6 +419,12 @@ class CreateListingRequest {
         'contactName': contactName,
         'featured': featured && isPremiumUser,
         'isPremiumUser': isPremiumUser,
+        if (zone != null && zone!.isNotEmpty) 'zone': zone,
+        if (streetNumber != null && streetNumber!.isNotEmpty)
+          'street_number': streetNumber,
+        if (buildingNumber != null && buildingNumber!.isNotEmpty)
+          'building_number': buildingNumber,
+        if (schemaFields.isNotEmpty) 'schemaFields': schemaFields,
       };
 }
 

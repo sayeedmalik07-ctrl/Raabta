@@ -1,0 +1,69 @@
+{
+  "id": "investment_offer",
+  "verified": true,
+  "localFlag": "ss_flag_investment_offer",
+  "evidenceKind": "investmentOffer",
+  "minGroups": 2,
+  "sourceLabel": "Pattern check",
+  "evidenceTextKey": "ss_evidence_investment_offer",
+  "groups": [
+    {
+      "id": "guaranteed_returns",
+      "patterns": [
+        "guaranteed returns",
+        "fixed daily profit",
+        "weekly profit guaranteed",
+        "high returns no risk",
+        "double your money",
+        "عائد مضمون",
+        "ربح يومي",
+        "गारंटीड रिटर्न"
+      ]
+    },
+    {
+      "id": "trading_pitch",
+      "patterns": [
+        "forex trading",
+        "binary options",
+        "copy trading",
+        "investment manager",
+        "crypto signals",
+        "insider signals",
+        "تداول فوركس",
+        "نسخ الصفقات",
+        "crypto trading"
+      ]
+    },
+    {
+      "id": "pressure_deposit",
+      "patterns": [
+        "deposit now",
+        "limited slots",
+        "act fast to invest",
+        "أودع الآن",
+        "invest today only"
+      ]
+    },
+    {
+      "id": "withdraw_fees",
+      "patterns": [
+        "pay tax to withdraw",
+        "withdrawal fee",
+        "unlock your profits",
+        "pay more to withdraw",
+        "رسوم السحب",
+        "unlock withdrawal"
+      ]
+    },
+    {
+      "id": "social_channel",
+      "patterns": [
+        "whatsapp group",
+        "telegram group",
+        "join our telegram",
+        "مجموعة واتساب",
+        "telegram channel"
+      ]
+    }
+  ]
+}

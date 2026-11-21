@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "topics": [
+    {
+      "id": "otp_codes",
+      "titleKey": "ss_sec_topic_otp_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_otp_v1",
+        "ss_sec_otp_v2",
+        "ss_sec_otp_v3"
+      ]
+    },
+    {
+      "id": "kyc_update_requests",
+      "titleKey": "ss_sec_topic_kyc_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_kyc_v1",
+        "ss_sec_kyc_v2",
+        "ss_sec_kyc_v3"
+      ]
+    },
+    {
+      "id": "links_in_messages",
+      "titleKey": "ss_sec_topic_links_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_links_v1",
+        "ss_sec_links_v2",
+        "ss_sec_links_v3"
+      ]
+    },
+    {
+      "id": "unexpected_calls",
+      "titleKey": "ss_sec_topic_calls_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_calls_v1",
+        "ss_sec_calls_v2",
+        "ss_sec_calls_v3"
+      ]
+    },
+    {
+      "id": "card_pin_cvv",
+      "titleKey": "ss_sec_topic_card_title",
+      "sourceLabelKey": "ss_sec_source_doha_bank",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_card_v1",
+        "ss_sec_card_v2",
+        "ss_sec_card_v3"
+      ]
+    },
+    {
+      "id": "remote_access_apps",
+      "titleKey": "ss_sec_topic_remote_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_remote_v1",
+        "ss_sec_remote_v2",
+        "ss_sec_remote_v3"
+      ]
+    },
+    {
+      "id": "job_payment_requests",
+      "titleKey": "ss_sec_topic_job_pay_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_job_v1",
+        "ss_sec_job_v2",
+        "ss_sec_job_v3"
+      ]
+    },
+    {
+      "id": "family_emergency_calls",
+      "titleKey": "ss_sec_topic_family_title",
+      "sourceLabelKey": "ss_sec_source_pattern",
+      "lastReviewed": "2026-10-01",
+      "verified": false,
+      "variantKeys": [
+        "ss_sec_family_v1",
+        "ss_sec_family_v2",
+        "ss_sec_family_v3"
+      ]
+    }
+  ],
+  "sharedSomething": {
+    "headlineKey": "ss_sec_shared_headline",
+    "stepKeys": [
+      "ss_sec_shared_step_bank",
+      "ss_sec_shared_step_passwords",
+      "ss_sec_shared_step_apps",
+      "ss_sec_shared_step_report"
+    ],
+    "lastReviewed": "2026-10-01",
+    "verified": false
+  }
+}

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:raabta/core/design/app_colors.dart';
 
 class AppTextStyles {
-  static const String fontFamily = 'Nunito';
+  static const String fontFamily = 'Inter';
 
   static TextStyle get displayLarge => TextStyle(
         fontSize: 32,
